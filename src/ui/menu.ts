@@ -9,6 +9,7 @@ export interface MenuCallbacks {
   onOpenSkins(): void;
   onOpenLeaderboard(): void;
   onOpenFriends(): void;
+  onOpenRanked(): void;
 }
 
 export interface MenuMeta {
@@ -47,6 +48,9 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
         Casual run
       </button>
 
+      <button data-action="ranked" class="mt-3 w-full rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
+        Ranked (best of 3)
+      </button>
       <div class="mt-3 grid grid-cols-3 gap-2">
         <button data-action="skins" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[11px]">
           Skins
@@ -86,6 +90,10 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   wrap.querySelector('[data-action="friends"]')?.addEventListener("click", (e) => {
     e.stopPropagation();
     cbs.onOpenFriends();
+  });
+  wrap.querySelector('[data-action="ranked"]')?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    cbs.onOpenRanked();
   });
   wrap.querySelector("[data-account]")?.addEventListener("click", (e) => {
     e.stopPropagation();

@@ -24,6 +24,8 @@ export interface SubmitPayload {
   mode: "casual" | "daily" | "challenge" | "ranked";
   dailyDate?: string;
   challengeShortId?: string | null;
+  rankedMatchId?: string | null;
+  rankedRound?: number | null;
   equippedSkinId?: string | null;
 }
 
@@ -45,6 +47,8 @@ export async function submitRun(payload: SubmitPayload): Promise<SubmitResult | 
       mode: payload.mode,
       daily_date: payload.dailyDate ?? null,
       challenge_short_id: payload.challengeShortId ?? null,
+      ranked_match_id: payload.rankedMatchId ?? null,
+      ranked_round: payload.rankedRound ?? null,
       equipped_skin_id: payload.equippedSkinId ?? null,
     }),
   });

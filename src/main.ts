@@ -29,13 +29,15 @@ import { fetchDaily, type DailyInfo } from "./social/daily";
 import { renderShareSheet } from "./ui/share-sheet";
 import { type ShareCardData } from "./social/share-card";
 import { renderFriendsPanel } from "./ui/friends";
+import { renderRankedPanel } from "./ui/ranked";
+import { type RankedMatch } from "./social/ranked";
 import { createChallenge, fetchChallenge, ghostSkinFromChallenge, type FetchedChallenge } from "./social/challenges";
 
 setupPWA();
 initAuth();
 
 type Mode = "menu" | "playing" | "paused" | "dead";
-type RunMode = "casual" | "daily" | "challenge";
+type RunMode = "casual" | "daily" | "challenge" | "ranked";
 
 const app = document.getElementById("app");
 if (!app) throw new Error("missing #app");
@@ -48,6 +50,7 @@ let currentRunMode: RunMode = "casual";
 let equippedSkin: SkinRow | null = null;
 let dailyInfo: DailyInfo | null = null;
 let activeChallenge: FetchedChallenge | null = null;
+let activeRanked: { match: RankedMatch; round: number } | null = null;
 
 app.innerHTML = `
   <div class="relative w-full h-full max-w-md max-h-[90vh] aspect-[9/16] mx-auto bg-sky-day overflow-hidden touch-none select-none" id="stage">
@@ -187,6 +190,14 @@ function showMenu(): void {
       },
       onOpenLeaderboard: () => renderLeaderboard(overlays, () => showMenu()),
       onOpenFriends: () => renderFriendsPanel(overlays, () => showMenu()),
+      onOpenRanked: () =>
+        renderRankedPanel(overlays, {
+          onPlayRound: (match, round) => {
+            activeRanked = { match, round };
+            startRun("ranked");
+          },
+          onClose: () => showMenu(),
+        }),
     },
     {
       accountLabel: menuAccountLabel(),
@@ -213,6 +224,9 @@ function startRun(runMode: RunMode = "casual"): void {
     currentSeed = activeChallenge.seed >>> 0;
     ghost = new GhostSim(currentSeed, activeChallenge.inputs, DEFAULT_CONFIG);
     renderer.options.ghostSkin = ghostSkinFromChallenge(activeChallenge);
+  } else if (runMode === "ranked" && activeRanked) {
+    currentSeed = activeRanked.match.seeds[activeRanked.round] >>> 0;
+    renderer.options.ghostSkin = undefined;
   } else if (runMode === "daily" && dailyInfo) {
     currentSeed = dailyInfo.seed >>> 0;
     renderer.options.ghostSkin = undefined;
@@ -321,6 +335,8 @@ async function trySubmit(sim: { score: number; dieTick: number }): Promise<Submi
     mode: currentRunMode,
     dailyDate: currentRunMode === "daily" ? dailyInfo?.date : undefined,
     challengeShortId: currentRunMode === "challenge" ? activeChallenge?.short_id : undefined,
+    rankedMatchId: currentRunMode === "ranked" ? activeRanked?.match.id : undefined,
+    rankedRound: currentRunMode === "ranked" ? activeRanked?.round : undefined,
     equippedSkinId: equippedSkin?.id ?? null,
   });
 }

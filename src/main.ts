@@ -90,9 +90,30 @@ subscribeAuth(async () => {
   if (mode === "menu") showMenu();
 });
 
+const deepLink = (() => {
+  try {
+    const u = new URL(window.location.href);
+    return {
+      from: u.searchParams.get("from"),
+      dailyDate: u.searchParams.get("d"),
+      challenge: u.searchParams.get("c"),
+    };
+  } catch {
+    return { from: null, dailyDate: null, challenge: null };
+  }
+})();
+
 void refreshDaily();
 setInterval(refreshDaily, 60_000);
-loadEquippedSkin().then(() => showMenu());
+loadEquippedSkin().then(() => {
+  // If the URL points at today's daily, kick straight into it once
+  // dailyInfo lands.
+  if (deepLink.dailyDate && dailyInfo && deepLink.dailyDate === dailyInfo.date) {
+    startRun("daily");
+    return;
+  }
+  showMenu();
+});
 
 async function refreshDaily(): Promise<void> {
   dailyInfo = await fetchDaily();

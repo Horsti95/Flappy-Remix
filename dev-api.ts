@@ -13,11 +13,20 @@ export function devApi(): Plugin {
     name: "pflug-dev-api",
     configureServer(server: ViteDevServer) {
       server.middlewares.use(async (req, res, next) => {
-        if (!req.url || !req.url.startsWith("/api/")) return next();
+        if (!req.url) return next();
         const url = new URL(req.url, `http://${req.headers.host}`);
+        // Mirror the production vercel.json rewrites so dev sees the
+        // same URLs.
+        let rewritten = url.pathname;
+        const runMatch = rewritten.match(/^\/run\/([^/?#]+)$/);
+        if (runMatch) {
+          url.searchParams.set("id", runMatch[1]);
+          rewritten = "/api/og-meta";
+        }
+        if (!rewritten.startsWith("/api/")) return next();
         let modulePath: string;
         try {
-          modulePath = await resolveHandler(url.pathname);
+          modulePath = await resolveHandler(rewritten);
         } catch {
           return next();
         }

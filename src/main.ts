@@ -1,4 +1,7 @@
 import "./style.css";
+import { setupPWA } from "./pwa";
+
+setupPWA();
 
 const app = document.getElementById("app");
 if (!app) throw new Error("missing #app");

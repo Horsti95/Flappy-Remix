@@ -9,7 +9,8 @@ export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 const SKY: RGB = [135, 206, 235];
 
 const COMPLEMENTARY_TOLERANCE_DEG = 25;
-const VIVID_CHROMA = 60;
+const VIVID_MIN_CHROMA = 30;
+const VIVID_MEAN_CHROMA = 50;
 
 export interface RarityScore {
   rarity: Rarity;
@@ -31,7 +32,9 @@ export function classifyRarity(skin: SkinColors): RarityScore {
 
   const visible = skyDeltaE > 12;
   const highPairContrast = pairDeltaE > 45;
-  const vivid = bodyChroma > VIVID_CHROMA && accentChroma > VIVID_CHROMA;
+  const meanChroma = (bodyChroma + accentChroma) / 2;
+  const minChroma = Math.min(bodyChroma, accentChroma);
+  const vivid = meanChroma > VIVID_MEAN_CHROMA && minChroma > VIVID_MIN_CHROMA;
   const complementary = Math.abs(hueGapDeg - 180) < COMPLEMENTARY_TOLERANCE_DEG;
 
   let rarity: Rarity = "common";

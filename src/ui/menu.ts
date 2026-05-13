@@ -1,9 +1,11 @@
 import { type Settings } from "../game/settings";
+import { RARITY_COLOR, type Rarity } from "../game/rarity";
 
 export interface MenuCallbacks {
   onPlay(): void;
   onToggleSetting(key: keyof Settings): void;
   onOpenAccount(): void;
+  onOpenSkins(): void;
 }
 
 export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallbacks, accountLabel = "account"): void {
@@ -19,6 +21,9 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
       <button data-action="play" class="mt-8 w-full rounded-2xl bg-paper text-ink font-bold py-4 text-lg shadow-lg active:scale-95 transition">
         Play
       </button>
+      <button data-action="skins" class="mt-3 w-full rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
+        Skins
+      </button>
       <div class="mt-6 grid grid-cols-3 gap-2 text-[11px]">
         ${toggle("sound", "Sound", settings.sound)}
         ${toggle("highContrast", "Contrast", settings.highContrast)}
@@ -31,6 +36,10 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   wrap.querySelector('[data-action="play"]')?.addEventListener("click", (e) => {
     e.stopPropagation();
     cbs.onPlay();
+  });
+  wrap.querySelector('[data-action="skins"]')?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    cbs.onOpenSkins();
   });
   wrap.querySelector("[data-account]")?.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -86,19 +95,49 @@ export function removePauseOverlay(host: HTMLElement): void {
   host.querySelector("#pause-overlay")?.remove();
 }
 
-export function renderGameOver(host: HTMLElement, score: number, onRestart: () => void, onMenu: () => void): void {
+export interface GameOverResult {
+  result?: {
+    accepted?: boolean;
+    reason?: string;
+    total_games?: number;
+    unlocked?: Array<{
+      threshold: number;
+      rarity: Rarity;
+      body: [number, number, number];
+      accent: [number, number, number];
+    }>;
+  } | null;
+  ticks?: number;
+}
+
+export function renderGameOver(
+  host: HTMLElement,
+  score: number,
+  onRestart: () => void,
+  onMenu: () => void,
+  extra?: GameOverResult,
+): void {
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
-  wrap.className = "pointer-events-auto absolute inset-x-0 bottom-0 z-10 px-4 pb-6 pt-8 bg-gradient-to-t from-black/70 to-transparent text-paper font-display";
+  wrap.className = "pointer-events-auto absolute inset-x-0 bottom-0 z-10 px-4 pb-6 pt-6 bg-gradient-to-t from-black/80 to-transparent text-paper font-display";
+  const unlocks = extra?.result?.unlocked ?? [];
+  const unlocksHtml = unlocks.length > 0 ? renderUnlocks(unlocks) : "";
+  const acceptStatus = extra?.result
+    ? extra.result.accepted
+      ? `<div class="text-[10px] opacity-60">submitted · ${extra.result.total_games ?? "?"} games total</div>`
+      : `<div class="text-[10px] opacity-40">offline / not accepted</div>`
+    : "";
   wrap.innerHTML = `
     <div class="max-w-sm mx-auto text-center">
       <div class="text-xs opacity-70 uppercase tracking-wider">your run</div>
       <div class="text-6xl font-bold mt-1">${score}</div>
+      ${acceptStatus}
+      ${unlocksHtml}
       <div class="mt-5 grid grid-cols-2 gap-3">
         <button data-restart class="rounded-2xl bg-paper text-ink font-bold py-3">Play again</button>
         <button data-menu class="rounded-2xl border border-paper/40 py-3">Menu</button>
       </div>
-      <p class="mt-3 text-[10px] opacity-60">leaderboards + share cards land in M2/M3</p>
+      <p class="mt-3 text-[10px] opacity-50">share cards + daily seed land in M3</p>
     </div>
   `;
   host.appendChild(wrap);
@@ -110,4 +149,28 @@ export function renderGameOver(host: HTMLElement, score: number, onRestart: () =
     e.stopPropagation();
     onMenu();
   });
+}
+
+function renderUnlocks(unlocks: NonNullable<GameOverResult["result"]>["unlocked"]): string {
+  if (!unlocks) return "";
+  return `
+    <div class="mt-3 rounded-2xl bg-white/10 px-3 py-3">
+      <div class="text-[11px] uppercase tracking-wider opacity-70">unlocked</div>
+      <div class="mt-2 flex justify-center gap-3">
+        ${unlocks
+          .map(
+            (u) => `
+          <div class="flex flex-col items-center">
+            <svg viewBox="-20 -20 40 40" class="w-12 h-12">
+              <polygon points="-14,6 14,-6 1,0 14,-6 -1,11" fill="rgb(${u.body.join(",")})" stroke="#1a1a1a" stroke-width="0.8"/>
+              <polygon points="1,0 -14,6 -1,11" fill="rgb(${u.accent.join(",")})" stroke="#1a1a1a" stroke-width="0.8"/>
+            </svg>
+            <div class="text-[10px] font-bold capitalize" style="color:${RARITY_COLOR[u.rarity]}">${u.rarity}</div>
+            <div class="text-[9px] opacity-60">@${u.threshold}</div>
+          </div>`,
+          )
+          .join("")}
+      </div>
+    </div>
+  `;
 }

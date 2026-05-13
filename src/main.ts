@@ -24,7 +24,8 @@ import {
   type SkinRow,
   rowToColors,
 } from "./social/skins";
-import { submitRun, type SubmitResult } from "./social/runs";
+import { type SubmitResult } from "./social/runs";
+import { installFlushHooks, pendingCount, submitOrEnqueue } from "./social/offline-queue";
 import { fetchDaily, type DailyInfo } from "./social/daily";
 import { renderShareSheet } from "./ui/share-sheet";
 import { type ShareCardData } from "./social/share-card";
@@ -36,6 +37,7 @@ import { listMyBadges } from "./social/badges";
 
 setupPWA();
 initAuth();
+installFlushHooks();
 
 type Mode = "menu" | "playing" | "paused" | "dead";
 type RunMode = "casual" | "daily" | "challenge" | "ranked";
@@ -97,6 +99,15 @@ subscribeAuth(async () => {
   await loadEquippedSkin();
   if (mode === "menu") showMenu();
 });
+
+if (typeof window !== "undefined") {
+  window.addEventListener("online", () => {
+    if (mode === "menu") showMenu();
+  });
+  window.addEventListener("offline", () => {
+    if (mode === "menu") showMenu();
+  });
+}
 
 const deepLink = (() => {
   try {
@@ -204,6 +215,8 @@ function showMenu(): void {
       accountLabel: menuAccountLabel(),
       daily: dailyInfo ? { date: dailyInfo.date, playsCount: dailyInfo.plays_count } : null,
       streakDays: authState().profile?.streak_days ?? 0,
+      pendingSubmissions: pendingCount(),
+      online: typeof navigator !== "undefined" ? navigator.onLine : true,
     },
   );
 }
@@ -332,8 +345,8 @@ function shareChallenge(score: number, shortId: string): void {
 async function trySubmit(sim: { score: number; dieTick: number }): Promise<SubmitResult | null> {
   if (!loop) return null;
   const s = authState();
-  if (s.offline || !s.session) return null;
-  return submitRun({
+  if (s.offline) return null;
+  return submitOrEnqueue({
     seed: currentSeed,
     score: sim.score,
     ticks: sim.dieTick,

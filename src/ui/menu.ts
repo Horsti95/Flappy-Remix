@@ -16,6 +16,8 @@ export interface MenuMeta {
   accountLabel: string;
   daily: { date: string; playsCount: number } | null;
   streakDays: number;
+  pendingSubmissions?: number;
+  online?: boolean;
 }
 
 export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallbacks, meta: MenuMeta): void {
@@ -29,8 +31,14 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   const streakBadge = meta.streakDays > 0
     ? `<span class="ml-2 inline-flex items-center gap-1 text-[10px] bg-white/10 rounded-full px-2 py-0.5">streak ${meta.streakDays}</span>`
     : "";
+  const offlineBadge = meta.online === false
+    ? `<div class="absolute top-3 left-3 text-[10px] rounded-full px-2 py-0.5 bg-orange-400/30 text-paper">offline${meta.pendingSubmissions ? ` · ${meta.pendingSubmissions} queued` : ""}</div>`
+    : meta.pendingSubmissions
+      ? `<div class="absolute top-3 left-3 text-[10px] rounded-full px-2 py-0.5 bg-paper/15">${meta.pendingSubmissions} queued</div>`
+      : "";
 
   wrap.innerHTML = `
+    ${offlineBadge}
     <button data-account class="absolute top-3 right-3 text-[11px] rounded-full px-3 py-1 bg-white/15">${escapeHtml(meta.accountLabel)}${streakBadge}</button>
     <div class="px-6 max-w-sm w-full">
       <h1 class="text-5xl font-bold tracking-tight">Pflug</h1>

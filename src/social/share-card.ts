@@ -12,6 +12,7 @@ export interface ShareCardData {
   dailyDate?: string | null;
   dailyRank?: number | null;
   totalPlayed?: number | null;
+  topRank?: number | null;
   brand?: string;
 }
 
@@ -55,9 +56,14 @@ export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData): v
         : "casual run";
   ctx.fillText(sub, 96, 168);
 
-  // Streak chip top-right
+  // Streak + ranked-badge chips top-right
+  let chipY = 96;
+  if (data.topRank && data.topRank <= 100) {
+    drawChip(ctx, W - 96 - 280, chipY, 280, 88, `top ${data.topRank}`, "#facc15");
+    chipY += 100;
+  }
   if (data.streakDays > 0) {
-    drawChip(ctx, W - 96 - 280, 96, 280, 88, `streak ${data.streakDays}`);
+    drawChip(ctx, W - 96 - 280, chipY, 280, 88, `streak ${data.streakDays}`);
   }
 
   // Skin preview
@@ -127,11 +133,12 @@ function drawChip(
   w: number,
   h: number,
   label: string,
+  color = "#f4ead5",
 ): void {
-  ctx.fillStyle = "#f4ead51a";
+  ctx.fillStyle = color === "#f4ead5" ? "#f4ead51a" : color + "22";
   roundRect(ctx, x, y, w, h, 44);
   ctx.fill();
-  ctx.fillStyle = "#f4ead5";
+  ctx.fillStyle = color;
   ctx.font = "700 36px system-ui,sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";

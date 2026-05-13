@@ -32,6 +32,7 @@ import { renderFriendsPanel } from "./ui/friends";
 import { renderRankedPanel } from "./ui/ranked";
 import { type RankedMatch } from "./social/ranked";
 import { createChallenge, fetchChallenge, ghostSkinFromChallenge, type FetchedChallenge } from "./social/challenges";
+import { listMyBadges } from "./social/badges";
 
 setupPWA();
 initAuth();
@@ -245,7 +246,9 @@ function startRun(runMode: RunMode = "casual"): void {
         const score = sim.score;
         const ticks = sim.dieTick;
         const result = await trySubmit(sim);
-        const share = (): void => openShare(score, result);
+        const share = (): void => {
+          void openShare(score, result);
+        };
         renderGameOver(overlays, score, () => startRun(currentRunMode), showMenu, {
           result,
           ticks,
@@ -278,8 +281,10 @@ function startRun(runMode: RunMode = "casual"): void {
   loop.start();
 }
 
-function openShare(score: number, result: SubmitResult | null): void {
+async function openShare(score: number, result: SubmitResult | null): Promise<void> {
   const s = authState();
+  const badges = await listMyBadges();
+  const topRank = badges.length > 0 ? Math.min(...badges.map((b) => b.rank)) : null;
   const data: ShareCardData = {
     score,
     username: s.profile?.username ?? null,
@@ -287,10 +292,11 @@ function openShare(score: number, result: SubmitResult | null): void {
     rarity: equippedSkin?.rarity,
     streakDays: result?.streak_days ?? s.profile?.streak_days ?? 0,
     friendCode: s.profile?.friend_code ?? null,
-    mode: currentRunMode,
+    mode: currentRunMode === "ranked" ? "ranked" : currentRunMode,
     dailyDate: currentRunMode === "daily" ? dailyInfo?.date ?? null : null,
     dailyRank: null,
     totalPlayed: currentRunMode === "daily" ? dailyInfo?.plays_count ?? null : null,
+    topRank,
   };
   renderShareSheet(overlays, data, () => {
     overlays.querySelector('[data-no-flap][class*="z-40"]')?.remove();

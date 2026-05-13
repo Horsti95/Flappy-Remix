@@ -8,6 +8,7 @@ export interface MenuCallbacks {
   onOpenAccount(): void;
   onOpenSkins(): void;
   onOpenLeaderboard(): void;
+  onOpenFriends(): void;
 }
 
 export interface MenuMeta {
@@ -46,12 +47,15 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
         Casual run
       </button>
 
-      <div class="mt-3 grid grid-cols-2 gap-3">
-        <button data-action="skins" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-xs">
+      <div class="mt-3 grid grid-cols-3 gap-2">
+        <button data-action="skins" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[11px]">
           Skins
         </button>
-        <button data-action="leaderboard" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-xs">
-          Leaderboard
+        <button data-action="leaderboard" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[11px]">
+          Board
+        </button>
+        <button data-action="friends" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[11px]">
+          Friends
         </button>
       </div>
       <div class="mt-5 grid grid-cols-3 gap-2 text-[11px]">
@@ -78,6 +82,10 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   wrap.querySelector('[data-action="leaderboard"]')?.addEventListener("click", (e) => {
     e.stopPropagation();
     cbs.onOpenLeaderboard();
+  });
+  wrap.querySelector('[data-action="friends"]')?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    cbs.onOpenFriends();
   });
   wrap.querySelector("[data-account]")?.addEventListener("click", (e) => {
     e.stopPropagation();

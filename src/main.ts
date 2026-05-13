@@ -27,6 +27,7 @@ import { submitRun, type SubmitResult } from "./social/runs";
 import { fetchDaily, type DailyInfo } from "./social/daily";
 import { renderShareSheet } from "./ui/share-sheet";
 import { type ShareCardData } from "./social/share-card";
+import { renderFriendsPanel } from "./ui/friends";
 
 setupPWA();
 initAuth();
@@ -173,6 +174,7 @@ function showMenu(): void {
         );
       },
       onOpenLeaderboard: () => renderLeaderboard(overlays, () => showMenu()),
+      onOpenFriends: () => renderFriendsPanel(overlays, () => showMenu()),
     },
     {
       accountLabel: menuAccountLabel(),

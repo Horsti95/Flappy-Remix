@@ -11,10 +11,11 @@ export function renderLeaderboard(host: HTMLElement, onClose: () => void): () =>
       <h2 class="text-xl font-bold">leaderboard</h2>
       <button data-close class="text-sm underline opacity-70">close</button>
     </div>
-    <div data-tabs class="px-5 flex gap-2 text-[12px]">
+    <div data-tabs class="px-5 flex gap-2 text-[12px] overflow-x-auto">
       ${tab("all_time", "all time", true)}
       ${tab("weekly", "this week")}
       ${tab("daily", "today")}
+      ${tab("friends", "friends")}
     </div>
     <div data-list class="mt-3 px-3 flex-1 overflow-y-auto pb-6">
       <div class="text-center text-xs opacity-60 mt-12">loading…</div>

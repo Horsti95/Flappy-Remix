@@ -63,6 +63,11 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void): () =
         </div>
 
         <button data-signout class="mt-4 w-full text-xs underline opacity-50">sign out and start fresh</button>
+        <div class="mt-6 grid grid-cols-2 gap-2 text-[11px]">
+          <button data-export class="rounded-xl bg-white/5 py-2">export my data</button>
+          <button data-delete class="rounded-xl bg-red-900/40 text-red-100 py-2">delete account</button>
+        </div>
+        <div data-account-status class="mt-2 text-[11px] opacity-60 min-h-[1em]"></div>
       </div>
     `;
     bindCloseButtons(wrap, onClose);
@@ -73,6 +78,69 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void): () =
     wrap.querySelector("[data-signout]")?.addEventListener("click", (e) => {
       e.stopPropagation();
       signOut();
+    });
+    wrap.querySelector("[data-export]")?.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const status = wrap.querySelector("[data-account-status]") as HTMLDivElement;
+      status.textContent = "preparing export…";
+      const session = s.session;
+      if (!session) {
+        status.textContent = "not signed in";
+        return;
+      }
+      try {
+        const res = await fetch("/api/me-export", {
+          headers: { authorization: `Bearer ${session.access_token}` },
+        });
+        if (!res.ok) {
+          status.textContent = `export failed (${res.status})`;
+          return;
+        }
+        const blob = await res.blob();
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `pflug-export-${(s.user?.id ?? "").slice(0, 8)}.json`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+        status.textContent = "downloaded";
+      } catch (err) {
+        status.textContent = `export failed: ${(err as Error).message}`;
+      }
+    });
+    wrap.querySelector("[data-delete]")?.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const status = wrap.querySelector("[data-account-status]") as HTMLDivElement;
+      const session = s.session;
+      if (!session) {
+        status.textContent = "not signed in";
+        return;
+      }
+      const phrase = window.prompt(
+        "Type 'delete me forever' to confirm. This wipes profile, runs, skins, friendships, challenges and ranked matches.",
+      );
+      if (phrase !== "delete me forever") {
+        status.textContent = "cancelled";
+        return;
+      }
+      status.textContent = "deleting…";
+      try {
+        const res = await fetch("/api/me-delete", {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${session.access_token}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ confirm: phrase }),
+        });
+        if (!res.ok) {
+          status.textContent = `delete failed (${res.status})`;
+          return;
+        }
+        status.textContent = "account deleted";
+        await signOut();
+      } catch (err) {
+        status.textContent = `delete failed: ${(err as Error).message}`;
+      }
     });
     const form = wrap.querySelector("[data-username-form]") as HTMLFormElement | null;
     if (form) {

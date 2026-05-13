@@ -7,6 +7,7 @@ export interface SubmitResult {
   reason?: string;
   run_id?: string;
   total_games?: number;
+  streak_days?: number;
   unlocked?: Array<{
     threshold: number;
     rarity: "common" | "uncommon" | "rare" | "epic" | "legendary";

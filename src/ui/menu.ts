@@ -151,6 +151,7 @@ export interface GameOverResult {
     }>;
   } | null;
   ticks?: number;
+  onShare?: () => void;
 }
 
 export function renderGameOver(
@@ -176,11 +177,11 @@ export function renderGameOver(
       <div class="text-6xl font-bold mt-1">${score}</div>
       ${acceptStatus}
       ${unlocksHtml}
-      <div class="mt-5 grid grid-cols-2 gap-3">
-        <button data-restart class="rounded-2xl bg-paper text-ink font-bold py-3">Play again</button>
+      <button data-share class="mt-4 w-full rounded-2xl bg-paper text-ink font-bold py-3">Share run</button>
+      <div class="mt-3 grid grid-cols-2 gap-3">
+        <button data-restart class="rounded-2xl border border-paper/40 py-3">Play again</button>
         <button data-menu class="rounded-2xl border border-paper/40 py-3">Menu</button>
       </div>
-      <p class="mt-3 text-[10px] opacity-50">share cards + daily seed land in M3</p>
     </div>
   `;
   host.appendChild(wrap);
@@ -191,6 +192,10 @@ export function renderGameOver(
   wrap.querySelector("[data-menu]")?.addEventListener("click", (e) => {
     e.stopPropagation();
     onMenu();
+  });
+  wrap.querySelector("[data-share]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    extra?.onShare?.();
   });
 }
 

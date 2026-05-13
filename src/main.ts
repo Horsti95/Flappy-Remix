@@ -25,6 +25,8 @@ import {
 } from "./social/skins";
 import { submitRun, type SubmitResult } from "./social/runs";
 import { fetchDaily, type DailyInfo } from "./social/daily";
+import { renderShareSheet } from "./ui/share-sheet";
+import { type ShareCardData } from "./social/share-card";
 
 setupPWA();
 initAuth();
@@ -184,9 +186,11 @@ function startRun(runMode: RunMode = "casual"): void {
       const score = sim.score;
       const ticks = sim.dieTick;
       const result = await trySubmit(sim);
+      const share = (): void => openShare(score, result);
       renderGameOver(overlays, score, () => startRun(currentRunMode), showMenu, {
         result,
         ticks,
+        onShare: share,
       });
       if (result?.unlocked && result.unlocked.length > 0) {
         await loadEquippedSkin();
@@ -195,6 +199,25 @@ function startRun(runMode: RunMode = "casual"): void {
     },
   });
   loop.start();
+}
+
+function openShare(score: number, result: SubmitResult | null): void {
+  const s = authState();
+  const data: ShareCardData = {
+    score,
+    username: s.profile?.username ?? null,
+    skin: renderer.options.skin,
+    rarity: equippedSkin?.rarity,
+    streakDays: result?.streak_days ?? s.profile?.streak_days ?? 0,
+    friendCode: s.profile?.friend_code ?? null,
+    mode: currentRunMode,
+    dailyDate: currentRunMode === "daily" ? dailyInfo?.date ?? null : null,
+    dailyRank: null,
+    totalPlayed: currentRunMode === "daily" ? dailyInfo?.plays_count ?? null : null,
+  };
+  renderShareSheet(overlays, data, () => {
+    overlays.querySelector('[data-no-flap][class*="z-40"]')?.remove();
+  });
 }
 
 async function trySubmit(sim: { score: number; dieTick: number }): Promise<SubmitResult | null> {

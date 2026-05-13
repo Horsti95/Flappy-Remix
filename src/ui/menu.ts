@@ -160,6 +160,12 @@ export interface GameOverResult {
   } | null;
   ticks?: number;
   onShare?: () => void;
+  challengeContext?: {
+    creator: string;
+    creatorScore: number;
+    canChallengeBack: boolean;
+  };
+  onChallengeBack?: () => void;
 }
 
 export function renderGameOver(
@@ -179,13 +185,33 @@ export function renderGameOver(
       ? `<div class="text-[10px] opacity-60">submitted · ${extra.result.total_games ?? "?"} games total</div>`
       : `<div class="text-[10px] opacity-40">offline / not accepted</div>`
     : "";
+  const ctx = extra?.challengeContext;
+  const versus = ctx
+    ? `<div class="mt-2 rounded-2xl bg-white/10 px-4 py-3 text-left">
+         <div class="text-[10px] uppercase tracking-wider opacity-60">vs @${escapeHtml(ctx.creator)}</div>
+         <div class="flex items-baseline justify-between mt-1">
+           <div><span class="text-2xl font-bold">${score}</span> <span class="opacity-50">you</span></div>
+           <div class="opacity-70">${ctx.creatorScore} <span class="opacity-50">them</span></div>
+         </div>
+         <div class="mt-1 text-[11px] ${score > ctx.creatorScore ? "text-green-300" : score < ctx.creatorScore ? "text-orange-300" : "opacity-70"}">${
+           score > ctx.creatorScore ? "you win" : score < ctx.creatorScore ? "they win" : "tie"
+         }</div>
+       </div>`
+    : "";
+  const cbButton = ctx && ctx.canChallengeBack && extra?.onChallengeBack
+    ? `<button data-challenge-back class="mt-3 w-full rounded-2xl bg-paper text-ink font-bold py-3">Challenge back</button>`
+    : ctx
+      ? `<div class="mt-3 text-[10px] opacity-50">chain capped at 2 — share to start a new one</div>`
+      : "";
   wrap.innerHTML = `
     <div class="max-w-sm mx-auto text-center">
       <div class="text-xs opacity-70 uppercase tracking-wider">your run</div>
       <div class="text-6xl font-bold mt-1">${score}</div>
       ${acceptStatus}
+      ${versus}
       ${unlocksHtml}
-      <button data-share class="mt-4 w-full rounded-2xl bg-paper text-ink font-bold py-3">Share run</button>
+      <button data-share class="mt-4 w-full rounded-2xl bg-paper text-ink font-bold py-3">${ctx ? "Share result" : "Share run"}</button>
+      ${cbButton}
       <div class="mt-3 grid grid-cols-2 gap-3">
         <button data-restart class="rounded-2xl border border-paper/40 py-3">Play again</button>
         <button data-menu class="rounded-2xl border border-paper/40 py-3">Menu</button>
@@ -204,6 +230,10 @@ export function renderGameOver(
   wrap.querySelector("[data-share]")?.addEventListener("click", (e) => {
     e.stopPropagation();
     extra?.onShare?.();
+  });
+  wrap.querySelector("[data-challenge-back]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    extra?.onChallengeBack?.();
   });
 }
 

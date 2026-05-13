@@ -4,6 +4,7 @@ import { DEFAULT_CONFIG } from "./game/config";
 import { GameLoop } from "./game/loop";
 import { Renderer } from "./game/render";
 import { InputController } from "./game/input";
+import { GhostSim } from "./game/ghost";
 import { loadSettings, saveSettings, type Settings } from "./game/settings";
 import { DEFAULT_SKIN } from "./game/skin";
 import {
@@ -28,12 +29,13 @@ import { fetchDaily, type DailyInfo } from "./social/daily";
 import { renderShareSheet } from "./ui/share-sheet";
 import { type ShareCardData } from "./social/share-card";
 import { renderFriendsPanel } from "./ui/friends";
+import { createChallenge, fetchChallenge, ghostSkinFromChallenge, type FetchedChallenge } from "./social/challenges";
 
 setupPWA();
 initAuth();
 
 type Mode = "menu" | "playing" | "paused" | "dead";
-type RunMode = "casual" | "daily";
+type RunMode = "casual" | "daily" | "challenge";
 
 const app = document.getElementById("app");
 if (!app) throw new Error("missing #app");
@@ -45,6 +47,7 @@ let currentSeed = 0;
 let currentRunMode: RunMode = "casual";
 let equippedSkin: SkinRow | null = null;
 let dailyInfo: DailyInfo | null = null;
+let activeChallenge: FetchedChallenge | null = null;
 
 app.innerHTML = `
   <div class="relative w-full h-full max-w-md max-h-[90vh] aspect-[9/16] mx-auto bg-sky-day overflow-hidden touch-none select-none" id="stage">
@@ -75,7 +78,7 @@ const input = new InputController(stage, {
     else if (mode === "paused") setPaused(false);
   },
   onRestart: () => {
-    if (mode === "dead") startRun();
+    if (mode === "dead") startRun(currentRunMode);
   },
 });
 input.attach();
@@ -106,9 +109,16 @@ const deepLink = (() => {
 
 void refreshDaily();
 setInterval(refreshDaily, 60_000);
-loadEquippedSkin().then(() => {
-  // If the URL points at today's daily, kick straight into it once
-  // dailyInfo lands.
+loadEquippedSkin().then(async () => {
+  // Deep-link priority: challenge first, then daily, then menu.
+  if (deepLink.challenge) {
+    const c = await fetchChallenge(deepLink.challenge);
+    if (c) {
+      activeChallenge = c;
+      startRun("challenge");
+      return;
+    }
+  }
   if (deepLink.dailyDate && dailyInfo && deepLink.dailyDate === dailyInfo.date) {
     startRun("daily");
     return;
@@ -152,6 +162,8 @@ function showMenu(): void {
   pauseBtn.classList.add("hidden");
   loop?.stop();
   loop = null;
+  activeChallenge = null;
+  renderer.options.ghostSkin = undefined;
   overlays.innerHTML = "";
   renderMenu(
     overlays,
@@ -196,31 +208,59 @@ function startRun(runMode: RunMode = "casual"): void {
   mode = "playing";
   currentRunMode = runMode;
   pauseBtn.classList.remove("hidden");
-  if (runMode === "daily" && dailyInfo) {
+  let ghost: GhostSim | undefined;
+  if (runMode === "challenge" && activeChallenge) {
+    currentSeed = activeChallenge.seed >>> 0;
+    ghost = new GhostSim(currentSeed, activeChallenge.inputs, DEFAULT_CONFIG);
+    renderer.options.ghostSkin = ghostSkinFromChallenge(activeChallenge);
+  } else if (runMode === "daily" && dailyInfo) {
     currentSeed = dailyInfo.seed >>> 0;
+    renderer.options.ghostSkin = undefined;
   } else {
     currentSeed = (Math.random() * 0xffffffff) >>> 0;
+    renderer.options.ghostSkin = undefined;
   }
-  loop = new GameLoop(currentSeed, DEFAULT_CONFIG, {
-    render: (sim, alpha) => renderer.draw(sim, alpha),
-    onDeath: async (sim) => {
-      mode = "dead";
-      pauseBtn.classList.add("hidden");
-      const score = sim.score;
-      const ticks = sim.dieTick;
-      const result = await trySubmit(sim);
-      const share = (): void => openShare(score, result);
-      renderGameOver(overlays, score, () => startRun(currentRunMode), showMenu, {
-        result,
-        ticks,
-        onShare: share,
-      });
-      if (result?.unlocked && result.unlocked.length > 0) {
-        await loadEquippedSkin();
-      }
-      if (runMode === "daily") void refreshDaily();
+  loop = new GameLoop(
+    currentSeed,
+    DEFAULT_CONFIG,
+    {
+      render: (sim, alpha, g) => renderer.draw(sim, alpha, g),
+      onDeath: async (sim) => {
+        mode = "dead";
+        pauseBtn.classList.add("hidden");
+        const score = sim.score;
+        const ticks = sim.dieTick;
+        const result = await trySubmit(sim);
+        const share = (): void => openShare(score, result);
+        renderGameOver(overlays, score, () => startRun(currentRunMode), showMenu, {
+          result,
+          ticks,
+          onShare: share,
+          challengeContext: activeChallenge
+            ? {
+                creator: activeChallenge.creator_username ?? "anon",
+                creatorScore: activeChallenge.creator_score,
+                canChallengeBack: activeChallenge.can_respond_again,
+              }
+            : undefined,
+          onChallengeBack: result?.run_id
+            ? async () => {
+                if (!result?.run_id) return;
+                const r = await createChallenge(result.run_id, activeChallenge?.short_id ?? null);
+                if (r.ok && r.short_id) {
+                  shareChallenge(score, r.short_id);
+                }
+              }
+            : undefined,
+        });
+        if (result?.unlocked && result.unlocked.length > 0) {
+          await loadEquippedSkin();
+        }
+        if (runMode === "daily") void refreshDaily();
+      },
     },
-  });
+    ghost,
+  );
   loop.start();
 }
 
@@ -243,6 +283,32 @@ function openShare(score: number, result: SubmitResult | null): void {
   });
 }
 
+function shareChallenge(score: number, shortId: string): void {
+  const s = authState();
+  const data: ShareCardData = {
+    score,
+    username: s.profile?.username ?? null,
+    skin: renderer.options.skin,
+    rarity: equippedSkin?.rarity,
+    streakDays: s.profile?.streak_days ?? 0,
+    friendCode: s.profile?.friend_code ?? null,
+    mode: "challenge",
+    dailyDate: null,
+    dailyRank: null,
+    totalPlayed: null,
+  };
+  // Inject the challenge short-id into the share URL so opening the
+  // link kicks the recipient into the ghost run.
+  const params = new URLSearchParams();
+  params.set("c", shortId);
+  if (s.profile?.friend_code) params.set("u", s.profile.friend_code);
+  const baseUrl = window.location.origin;
+  history.replaceState(null, "", `${baseUrl}/?${params}`);
+  renderShareSheet(overlays, data, () => {
+    overlays.querySelector('[data-no-flap][class*="z-40"]')?.remove();
+  });
+}
+
 async function trySubmit(sim: { score: number; dieTick: number }): Promise<SubmitResult | null> {
   if (!loop) return null;
   const s = authState();
@@ -254,6 +320,7 @@ async function trySubmit(sim: { score: number; dieTick: number }): Promise<Submi
     inputs: loop.getRecordedInputs(),
     mode: currentRunMode,
     dailyDate: currentRunMode === "daily" ? dailyInfo?.date : undefined,
+    challengeShortId: currentRunMode === "challenge" ? activeChallenge?.short_id : undefined,
     equippedSkinId: equippedSkin?.id ?? null,
   });
 }

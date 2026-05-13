@@ -23,6 +23,7 @@ export interface SubmitPayload {
   inputs: InputEvent[];
   mode: "casual" | "daily" | "challenge" | "ranked";
   dailyDate?: string;
+  challengeShortId?: string | null;
   equippedSkinId?: string | null;
 }
 
@@ -43,6 +44,7 @@ export async function submitRun(payload: SubmitPayload): Promise<SubmitResult | 
       inputs: payload.inputs,
       mode: payload.mode,
       daily_date: payload.dailyDate ?? null,
+      challenge_short_id: payload.challengeShortId ?? null,
       equipped_skin_id: payload.equippedSkinId ?? null,
     }),
   });

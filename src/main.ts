@@ -15,6 +15,7 @@ import {
 import { initAuth, authState, subscribeAuth } from "./social/auth";
 import { renderAccountPanel } from "./ui/account";
 import { renderSkinPicker } from "./ui/skin-picker";
+import { renderLeaderboard } from "./ui/leaderboard";
 import {
   listOwnedSkins,
   setEquippedSkin,
@@ -136,6 +137,7 @@ function showMenu(): void {
           () => showMenu(),
         );
       },
+      onOpenLeaderboard: () => renderLeaderboard(overlays, () => showMenu()),
     },
     menuAccountLabel(),
   );

@@ -6,6 +6,7 @@ export interface MenuCallbacks {
   onToggleSetting(key: keyof Settings): void;
   onOpenAccount(): void;
   onOpenSkins(): void;
+  onOpenLeaderboard(): void;
 }
 
 export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallbacks, accountLabel = "account"): void {
@@ -21,9 +22,14 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
       <button data-action="play" class="mt-8 w-full rounded-2xl bg-paper text-ink font-bold py-4 text-lg shadow-lg active:scale-95 transition">
         Play
       </button>
-      <button data-action="skins" class="mt-3 w-full rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
-        Skins
-      </button>
+      <div class="mt-3 grid grid-cols-2 gap-3">
+        <button data-action="skins" class="rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
+          Skins
+        </button>
+        <button data-action="leaderboard" class="rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
+          Leaderboard
+        </button>
+      </div>
       <div class="mt-6 grid grid-cols-3 gap-2 text-[11px]">
         ${toggle("sound", "Sound", settings.sound)}
         ${toggle("highContrast", "Contrast", settings.highContrast)}
@@ -40,6 +46,10 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   wrap.querySelector('[data-action="skins"]')?.addEventListener("click", (e) => {
     e.stopPropagation();
     cbs.onOpenSkins();
+  });
+  wrap.querySelector('[data-action="leaderboard"]')?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    cbs.onOpenLeaderboard();
   });
   wrap.querySelector("[data-account]")?.addEventListener("click", (e) => {
     e.stopPropagation();

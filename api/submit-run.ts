@@ -1,27 +1,12 @@
-import { DEFAULT_CONFIG } from "../src/game/config";
-import { type InputEvent } from "../src/game/sim";
-import { replayRun, validateInputCadence } from "../src/game/replay";
 import { getAdminClient } from "./_lib/supabaseAdmin";
 import {
   generateSkinForThreshold,
   thresholdsCrossed,
   type GeneratedSkin,
 } from "./_lib/unlock";
+import { validatePayloadShape, validateRun } from "./_lib/validate";
 
 export const config = { runtime: "edge" };
-
-interface SubmitBody {
-  seed: number;
-  score: number;
-  ticks: number;
-  inputs: InputEvent[];
-  mode: "casual" | "daily" | "challenge" | "ranked";
-  daily_date?: string | null;
-  equipped_skin_id?: string | null;
-}
-
-const MAX_INPUTS = 10000;
-const MAX_TICKS = 60 * 60 * 5;
 
 function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
@@ -36,23 +21,17 @@ export default async function handler(req: Request): Promise<Response> {
   if (!auth?.startsWith("Bearer ")) return json({ error: "unauthenticated" }, 401);
   const jwt = auth.slice("Bearer ".length);
 
-  let body: SubmitBody;
+  let raw: unknown;
   try {
-    body = (await req.json()) as SubmitBody;
+    raw = await req.json();
   } catch {
     return json({ error: "bad json" }, 400);
   }
-  const v = validatePayload(body);
-  if (!v.ok) return json({ error: v.reason }, 400);
-
-  if (!validateInputCadence(body.inputs, DEFAULT_CONFIG.tickHz)) {
-    return json({ accepted: false }, 200);
-  }
-
-  const replay = replayRun(body.seed, body.inputs, DEFAULT_CONFIG, MAX_TICKS);
-  if (replay.alive) return json({ accepted: false, reason: "did_not_die" }, 200);
-  if (replay.score !== body.score) return json({ accepted: false }, 200);
-  if (Math.abs(replay.ticks - body.ticks) > 2) return json({ accepted: false }, 200);
+  const shape = validatePayloadShape(raw);
+  if ("error" in shape) return json({ error: shape.error }, 400);
+  const body = shape;
+  const v = validateRun(body);
+  if (!v.ok) return json({ accepted: false, reason: v.reason }, 200);
 
   const admin = getAdminClient();
   const userRes = await admin.auth.getUser(jwt);
@@ -74,7 +53,7 @@ export default async function handler(req: Request): Promise<Response> {
       user_id: userId,
       seed: body.seed,
       score: body.score,
-      ticks: replay.ticks,
+      ticks: v.ticks,
       inputs: body.inputs,
       inputs_count: body.inputs.length,
       equipped_skin_id: body.equipped_skin_id ?? null,
@@ -124,18 +103,4 @@ export default async function handler(req: Request): Promise<Response> {
       accent: g.skin.accent,
     })),
   }, 200);
-}
-
-function validatePayload(b: SubmitBody): { ok: true } | { ok: false; reason: string } {
-  if (typeof b.seed !== "number" || !Number.isFinite(b.seed)) return { ok: false, reason: "bad seed" };
-  if (typeof b.score !== "number" || b.score < 0 || b.score > 1_000_000) return { ok: false, reason: "bad score" };
-  if (typeof b.ticks !== "number" || b.ticks < 0 || b.ticks > MAX_TICKS + 60) return { ok: false, reason: "bad ticks" };
-  if (!Array.isArray(b.inputs)) return { ok: false, reason: "bad inputs" };
-  if (b.inputs.length > MAX_INPUTS) return { ok: false, reason: "too many inputs" };
-  for (const ev of b.inputs) {
-    if (!ev || typeof ev.tick !== "number" || ev.action !== "flap") return { ok: false, reason: "bad input event" };
-    if (ev.tick < 0 || ev.tick > MAX_TICKS + 60) return { ok: false, reason: "input out of range" };
-  }
-  if (!["casual", "daily", "challenge", "ranked"].includes(b.mode)) return { ok: false, reason: "bad mode" };
-  return { ok: true };
 }

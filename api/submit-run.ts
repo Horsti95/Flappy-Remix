@@ -79,6 +79,30 @@ export default async function handler(req: Request): Promise<Response> {
     .single();
   if (run.error) return json({ error: run.error.message }, 500);
 
+  // If this submission is responding to a challenge, attach the run
+  // to the challenge so the comparison surface can render.
+  if (body.mode === "challenge" && body.challenge_short_id) {
+    const ch = await admin
+      .from("challenges")
+      .select("id, seed, depth, responder_id")
+      .eq("short_id", body.challenge_short_id)
+      .maybeSingle();
+    if (ch.data && ch.data.seed === body.seed) {
+      // Don't overwrite a prior response; only set the responder once.
+      if (!ch.data.responder_id) {
+        await admin
+          .from("challenges")
+          .update({
+            responder_id: userId,
+            responder_run_id: run.data.id,
+            responder_score: body.score,
+            responded_at: new Date().toISOString(),
+          })
+          .eq("id", ch.data.id);
+      }
+    }
+  }
+
   const streak = computeStreak({
     prevStreak: (profile.data?.streak_days as number | undefined) ?? 0,
     lastPlayAt: (profile.data?.last_play_at as string | null | undefined) ?? null,

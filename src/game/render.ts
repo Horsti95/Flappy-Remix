@@ -1,10 +1,12 @@
 import { Sim } from "./sim";
 import { type SimConfig } from "./config";
 import { DEFAULT_SKIN, rgbCss, type SkinColors } from "./skin";
+import { type GhostSim } from "./ghost";
 
 export interface RenderOptions {
   highContrast: boolean;
   skin: SkinColors;
+  ghostSkin?: SkinColors;
 }
 
 export class Renderer {
@@ -43,7 +45,7 @@ export class Renderer {
     this.offsetY = (cssH * dpr - this.cfg.worldHeight * this.scale) / 2;
   }
 
-  draw(sim: Sim, alpha: number, opts?: { ghost?: { birdY: number; alpha: number } }): void {
+  draw(sim: Sim, alpha: number, ghost?: GhostSim | null): void {
     const ctx = this.ctx;
     const cfg = this.cfg;
     ctx.save();
@@ -72,9 +74,15 @@ export class Renderer {
       ctx.fillRect(x - 3, p.gapY + p.gapH, cfg.pipeWidth + 6, 14);
     }
 
-    if (opts?.ghost) {
-      ctx.globalAlpha = opts.ghost.alpha;
-      this.drawPlane(cfg.birdX, opts.ghost.birdY, 0, { body: [200, 200, 200], accent: [80, 80, 80] });
+    if (ghost && ghost.isAlive()) {
+      const gy = ghost.prevBirdY() + (ghost.birdY() - ghost.prevBirdY()) * alpha;
+      ctx.globalAlpha = 0.45;
+      this.drawPlane(
+        cfg.birdX,
+        gy,
+        0,
+        this.options.ghostSkin ?? { body: [200, 200, 200], accent: [80, 80, 80] },
+      );
       ctx.globalAlpha = 1;
     }
 

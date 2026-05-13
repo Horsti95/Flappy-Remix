@@ -10,6 +10,7 @@ export interface SubmitBody {
   mode: "casual" | "daily" | "challenge" | "ranked";
   daily_date?: string | null;
   equipped_skin_id?: string | null;
+  challenge_short_id?: string | null;
 }
 
 export const MAX_INPUTS = 10000;

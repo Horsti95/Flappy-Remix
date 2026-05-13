@@ -1,13 +1,15 @@
 import { Sim, type InputEvent } from "./sim";
 import { type SimConfig } from "./config";
+import { GhostSim } from "./ghost";
 
 export interface LoopHandlers {
-  render(sim: Sim, alpha: number): void;
+  render(sim: Sim, alpha: number, ghost: GhostSim | null): void;
   onDeath?(sim: Sim): void;
 }
 
 export class GameLoop {
   sim: Sim;
+  ghost: GhostSim | null = null;
   private accumulator = 0;
   private lastTime = 0;
   private running = false;
@@ -19,10 +21,11 @@ export class GameLoop {
   private inputBuffer: InputEvent[] = [];
   private notifiedDeath = false;
 
-  constructor(seed: number, cfg: SimConfig, handlers: LoopHandlers) {
+  constructor(seed: number, cfg: SimConfig, handlers: LoopHandlers, ghost?: GhostSim) {
     this.sim = new Sim(seed, cfg);
     this.dtMs = 1000 / cfg.tickHz;
     this.handlers = handlers;
+    this.ghost = ghost ?? null;
   }
 
   start(): void {
@@ -62,7 +65,7 @@ export class GameLoop {
     this.rafId = requestAnimationFrame(this.frame);
     if (this.paused) {
       this.lastTime = now;
-      this.handlers.render(this.sim, 0);
+      this.handlers.render(this.sim, 0, this.ghost);
       return;
     }
     let frameMs = now - this.lastTime;
@@ -79,6 +82,7 @@ export class GameLoop {
         }
       }
       this.sim.step();
+      if (this.ghost) this.ghost.step();
       this.accumulator -= this.dtMs;
       if (!this.sim.alive && !this.notifiedDeath) {
         this.notifiedDeath = true;
@@ -87,6 +91,6 @@ export class GameLoop {
       }
     }
     const alpha = this.sim.alive ? this.accumulator / this.dtMs : 0;
-    this.handlers.render(this.sim, alpha);
+    this.handlers.render(this.sim, alpha, this.ghost);
   };
 }

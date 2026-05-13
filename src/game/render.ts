@@ -7,6 +7,7 @@ export interface RenderOptions {
   highContrast: boolean;
   skin: SkinColors;
   ghostSkin?: SkinColors;
+  reducedMotion: boolean;
 }
 
 export class Renderer {
@@ -27,6 +28,7 @@ export class Renderer {
     this.options = {
       highContrast: false,
       skin: DEFAULT_SKIN,
+      reducedMotion: false,
       ...options,
     };
     this.resize();
@@ -45,7 +47,8 @@ export class Renderer {
     this.offsetY = (cssH * dpr - this.cfg.worldHeight * this.scale) / 2;
   }
 
-  draw(sim: Sim, alpha: number, ghost?: GhostSim | null): void {
+  draw(sim: Sim, alphaIn: number, ghost?: GhostSim | null): void {
+    const alpha = this.options.reducedMotion ? 0 : alphaIn;
     const ctx = this.ctx;
     const cfg = this.cfg;
     ctx.save();
@@ -87,7 +90,7 @@ export class Renderer {
     }
 
     const by = sim.alive ? sim.prevBirdY + (sim.birdY - sim.prevBirdY) * alpha : sim.birdY;
-    const tilt = Math.max(-0.6, Math.min(1.0, sim.birdVY / 600));
+    const tilt = this.options.reducedMotion ? 0 : Math.max(-0.6, Math.min(1.0, sim.birdVY / 600));
     this.drawPlane(cfg.birdX, by, tilt, this.options.skin);
 
     ctx.fillStyle = this.options.highContrast ? "#fff" : "#1a1a1a";

@@ -23,7 +23,13 @@
     <meta name="twitter:image" content="/icons/og-default.png" />
   </head>
   <body class="bg-sky-day text-ink overflow-hidden">
-    <div id="app" class="fixed inset-0 flex items-center justify-center"></div>
+    <a href="#stage" class="sr-only">Skip to game</a>
+    <main id="app" class="fixed inset-0 flex items-center justify-center" aria-label="Pflug game"></main>
+    <noscript>
+      <div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-family:system-ui;padding:2rem;text-align:center;background:#1a1a1a;color:#f4ead5;">
+        Pflug needs JavaScript to run. Enable it and reload to play.
+      </div>
+    </noscript>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

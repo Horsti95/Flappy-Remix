@@ -56,21 +56,28 @@ let activeChallenge: FetchedChallenge | null = null;
 let activeRanked: { match: RankedMatch; round: number } | null = null;
 
 app.innerHTML = `
-  <div class="relative w-full h-full max-w-md max-h-[90vh] aspect-[9/16] mx-auto bg-sky-day overflow-hidden touch-none select-none" id="stage">
-    <canvas id="canvas" class="absolute inset-0 w-full h-full"></canvas>
-    <button id="pause-btn" data-no-flap class="hidden absolute top-3 right-3 z-20 bg-black/30 text-paper rounded-full w-10 h-10 flex items-center justify-center text-lg font-bold">II</button>
+  <section id="stage" role="application" aria-label="Pflug play area" class="relative w-full h-full max-w-md max-h-[90vh] aspect-[9/16] mx-auto bg-sky-day overflow-hidden touch-none select-none">
+    <canvas id="canvas" class="absolute inset-0 w-full h-full" aria-hidden="true"></canvas>
+    <div id="live-region" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+    <button id="pause-btn" data-no-flap aria-label="Pause game" type="button" class="hidden absolute top-3 right-3 z-20 bg-black/30 text-paper rounded-full w-10 h-10 flex items-center justify-center text-lg font-bold">II</button>
     <div id="overlays" class="absolute inset-0 pointer-events-none"></div>
-  </div>
+  </section>
 `;
 
-const stage = document.getElementById("stage") as HTMLDivElement;
+const stage = document.getElementById("stage") as HTMLElement;
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const pauseBtn = document.getElementById("pause-btn") as HTMLButtonElement;
 const overlays = document.getElementById("overlays") as HTMLDivElement;
+const liveRegion = document.getElementById("live-region") as HTMLDivElement;
+
+function announce(msg: string): void {
+  if (liveRegion) liveRegion.textContent = msg;
+}
 
 const renderer = new Renderer(canvas, DEFAULT_CONFIG, {
   highContrast: settings.highContrast,
   skin: DEFAULT_SKIN,
+  reducedMotion: settings.reducedMotion || matchMedia("(prefers-reduced-motion: reduce)").matches,
 });
 const observer = new ResizeObserver(() => renderer.resize());
 observer.observe(stage);
@@ -225,6 +232,7 @@ function onToggleSetting(key: keyof Settings): void {
   settings[key] = !settings[key];
   saveSettings(settings);
   renderer.options.highContrast = settings.highContrast;
+  renderer.options.reducedMotion = settings.reducedMotion || matchMedia("(prefers-reduced-motion: reduce)").matches;
   showMenu();
 }
 
@@ -258,6 +266,7 @@ function startRun(runMode: RunMode = "casual"): void {
         pauseBtn.classList.add("hidden");
         const score = sim.score;
         const ticks = sim.dieTick;
+        announce(`Run ended. Score ${score}. Press R to play again.`);
         const result = await trySubmit(sim);
         const share = (): void => {
           void openShare(score, result);

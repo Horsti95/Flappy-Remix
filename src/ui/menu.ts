@@ -3,45 +3,73 @@ import { RARITY_COLOR, type Rarity } from "../game/rarity";
 
 export interface MenuCallbacks {
   onPlay(): void;
+  onPlayDaily(): void;
   onToggleSetting(key: keyof Settings): void;
   onOpenAccount(): void;
   onOpenSkins(): void;
   onOpenLeaderboard(): void;
 }
 
-export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallbacks, accountLabel = "account"): void {
+export interface MenuMeta {
+  accountLabel: string;
+  daily: { date: string; playsCount: number } | null;
+  streakDays: number;
+}
+
+export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallbacks, meta: MenuMeta): void {
   host.innerHTML = "";
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
   wrap.className = "pointer-events-auto absolute inset-0 z-10 flex flex-col items-center justify-center text-center font-display bg-black/40 backdrop-blur-sm text-paper";
+  const dailyLine = meta.daily
+    ? `${formatPlays(meta.daily.playsCount)} played today`
+    : "world plays the same level today";
+  const streakBadge = meta.streakDays > 0
+    ? `<span class="ml-2 inline-flex items-center gap-1 text-[10px] bg-white/10 rounded-full px-2 py-0.5">streak ${meta.streakDays}</span>`
+    : "";
+
   wrap.innerHTML = `
-    <button data-account class="absolute top-3 right-3 text-[11px] rounded-full px-3 py-1 bg-white/15">${escapeHtml(accountLabel)}</button>
+    <button data-account class="absolute top-3 right-3 text-[11px] rounded-full px-3 py-1 bg-white/15">${escapeHtml(meta.accountLabel)}${streakBadge}</button>
     <div class="px-6 max-w-sm w-full">
       <h1 class="text-5xl font-bold tracking-tight">Pflug</h1>
       <p class="mt-1 text-xs opacity-70">a daily flap-through-gaps arcade</p>
-      <button data-action="play" class="mt-8 w-full rounded-2xl bg-paper text-ink font-bold py-4 text-lg shadow-lg active:scale-95 transition">
-        Play
+
+      <button data-action="daily" class="mt-7 w-full rounded-2xl bg-paper text-ink font-bold py-4 text-left px-5 shadow-lg active:scale-95 transition flex items-center justify-between">
+        <div>
+          <div class="text-[10px] uppercase tracking-wider opacity-60">today's daily</div>
+          <div class="text-lg leading-tight">${meta.daily ? escapeHtml(meta.daily.date) : "daily"}</div>
+        </div>
+        <div class="text-[10px] opacity-60 text-right leading-tight">${dailyLine}<br/>same seed for the world</div>
       </button>
+
+      <button data-action="play" class="mt-3 w-full rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
+        Casual run
+      </button>
+
       <div class="mt-3 grid grid-cols-2 gap-3">
-        <button data-action="skins" class="rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
+        <button data-action="skins" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-xs">
           Skins
         </button>
-        <button data-action="leaderboard" class="rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
+        <button data-action="leaderboard" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-xs">
           Leaderboard
         </button>
       </div>
-      <div class="mt-6 grid grid-cols-3 gap-2 text-[11px]">
+      <div class="mt-5 grid grid-cols-3 gap-2 text-[11px]">
         ${toggle("sound", "Sound", settings.sound)}
         ${toggle("highContrast", "Contrast", settings.highContrast)}
         ${toggle("reducedMotion", "Reduced motion", settings.reducedMotion)}
       </div>
-      <p class="mt-8 text-[10px] opacity-50">tap, click, or space to flap · esc to pause</p>
+      <p class="mt-6 text-[10px] opacity-50">tap, click, or space to flap · esc to pause</p>
     </div>
   `;
   host.appendChild(wrap);
   wrap.querySelector('[data-action="play"]')?.addEventListener("click", (e) => {
     e.stopPropagation();
     cbs.onPlay();
+  });
+  wrap.querySelector('[data-action="daily"]')?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    cbs.onPlayDaily();
   });
   wrap.querySelector('[data-action="skins"]')?.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -67,6 +95,11 @@ function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
   );
+}
+
+function formatPlays(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
+  return String(n);
 }
 
 function toggle(key: keyof Settings, label: string, on: boolean): string {

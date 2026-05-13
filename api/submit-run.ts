@@ -1,4 +1,6 @@
+import { dailyDateString, dailySeed } from "../src/game/daily";
 import { getAdminClient } from "./_lib/supabaseAdmin";
+import { computeStreak } from "./_lib/streak";
 import {
   generateSkinForThreshold,
   thresholdsCrossed,
@@ -40,12 +42,25 @@ export default async function handler(req: Request): Promise<Response> {
 
   const profile = await admin
     .from("profiles")
-    .select("total_games")
+    .select("total_games, streak_days, last_play_at, last_daily_play_at")
     .eq("user_id", userId)
     .maybeSingle();
   if (profile.error) return json({ error: profile.error.message }, 500);
-  const prev = profile.data?.total_games ?? 0;
+  const prev = (profile.data?.total_games as number | undefined) ?? 0;
   const next = prev + 1;
+
+  // For daily mode: the seed must match the server's notion of today's
+  // daily seed. Reject mismatches so players can't farm yesterday's
+  // easier seed under the daily badge.
+  if (body.mode === "daily") {
+    const expectedDate = body.daily_date ?? dailyDateString();
+    if (body.daily_date && body.daily_date !== dailyDateString()) {
+      return json({ accepted: false, reason: "stale_daily_date" }, 200);
+    }
+    if (body.seed >>> 0 !== dailySeed(expectedDate) >>> 0) {
+      return json({ accepted: false, reason: "wrong_daily_seed" }, 200);
+    }
+  }
 
   const run = await admin
     .from("runs")
@@ -64,10 +79,26 @@ export default async function handler(req: Request): Promise<Response> {
     .single();
   if (run.error) return json({ error: run.error.message }, 500);
 
+  const streak = computeStreak({
+    prevStreak: (profile.data?.streak_days as number | undefined) ?? 0,
+    lastPlayAt: (profile.data?.last_play_at as string | null | undefined) ?? null,
+    lastDailyPlayAt: (profile.data?.last_daily_play_at as string | null | undefined) ?? null,
+    mode: body.mode,
+  });
+
   await admin.from("profiles").update({
     total_games: next,
     last_play_at: new Date().toISOString(),
+    streak_days: streak.streakDays,
+    last_daily_play_at: streak.lastDailyPlayAt,
   }).eq("user_id", userId);
+
+  if (body.mode === "daily") {
+    await admin.rpc("upsert_daily_seed", {
+      d: body.daily_date ?? dailyDateString(),
+      s: body.seed,
+    });
+  }
 
   const crossed = thresholdsCrossed(prev, next);
   const granted: GeneratedSkin[] = [];
@@ -96,6 +127,7 @@ export default async function handler(req: Request): Promise<Response> {
     accepted: true,
     run_id: run.data.id,
     total_games: next,
+    streak_days: streak.streakDays,
     unlocked: granted.map((g) => ({
       threshold: g.threshold,
       rarity: g.rarity,

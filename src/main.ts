@@ -24,11 +24,13 @@ import {
   rowToColors,
 } from "./social/skins";
 import { submitRun, type SubmitResult } from "./social/runs";
+import { fetchDaily, type DailyInfo } from "./social/daily";
 
 setupPWA();
 initAuth();
 
 type Mode = "menu" | "playing" | "paused" | "dead";
+type RunMode = "casual" | "daily";
 
 const app = document.getElementById("app");
 if (!app) throw new Error("missing #app");
@@ -37,7 +39,9 @@ const settings: Settings = loadSettings();
 let mode: Mode = "menu";
 let loop: GameLoop | null = null;
 let currentSeed = 0;
+let currentRunMode: RunMode = "casual";
 let equippedSkin: SkinRow | null = null;
+let dailyInfo: DailyInfo | null = null;
 
 app.innerHTML = `
   <div class="relative w-full h-full max-w-md max-h-[90vh] aspect-[9/16] mx-auto bg-sky-day overflow-hidden touch-none select-none" id="stage">
@@ -84,7 +88,14 @@ subscribeAuth(async () => {
   if (mode === "menu") showMenu();
 });
 
+void refreshDaily();
+setInterval(refreshDaily, 60_000);
 loadEquippedSkin().then(() => showMenu());
+
+async function refreshDaily(): Promise<void> {
+  dailyInfo = await fetchDaily();
+  if (mode === "menu") showMenu();
+}
 
 async function loadEquippedSkin(): Promise<void> {
   const s = authState();
@@ -122,7 +133,8 @@ function showMenu(): void {
     overlays,
     settings,
     {
-      onPlay: startRun,
+      onPlay: () => startRun("casual"),
+      onPlayDaily: () => startRun("daily"),
       onToggleSetting,
       onOpenAccount: () => renderAccountPanel(overlays, () => showMenu()),
       onOpenSkins: () => {
@@ -139,7 +151,11 @@ function showMenu(): void {
       },
       onOpenLeaderboard: () => renderLeaderboard(overlays, () => showMenu()),
     },
-    menuAccountLabel(),
+    {
+      accountLabel: menuAccountLabel(),
+      daily: dailyInfo ? { date: dailyInfo.date, playsCount: dailyInfo.plays_count } : null,
+      streakDays: authState().profile?.streak_days ?? 0,
+    },
   );
 }
 
@@ -150,11 +166,16 @@ function onToggleSetting(key: keyof Settings): void {
   showMenu();
 }
 
-function startRun(): void {
+function startRun(runMode: RunMode = "casual"): void {
   overlays.innerHTML = "";
   mode = "playing";
+  currentRunMode = runMode;
   pauseBtn.classList.remove("hidden");
-  currentSeed = (Math.random() * 0xffffffff) >>> 0;
+  if (runMode === "daily" && dailyInfo) {
+    currentSeed = dailyInfo.seed >>> 0;
+  } else {
+    currentSeed = (Math.random() * 0xffffffff) >>> 0;
+  }
   loop = new GameLoop(currentSeed, DEFAULT_CONFIG, {
     render: (sim, alpha) => renderer.draw(sim, alpha),
     onDeath: async (sim) => {
@@ -163,13 +184,14 @@ function startRun(): void {
       const score = sim.score;
       const ticks = sim.dieTick;
       const result = await trySubmit(sim);
-      renderGameOver(overlays, score, startRun, showMenu, {
+      renderGameOver(overlays, score, () => startRun(currentRunMode), showMenu, {
         result,
         ticks,
       });
       if (result?.unlocked && result.unlocked.length > 0) {
         await loadEquippedSkin();
       }
+      if (runMode === "daily") void refreshDaily();
     },
   });
   loop.start();
@@ -184,7 +206,8 @@ async function trySubmit(sim: { score: number; dieTick: number }): Promise<Submi
     score: sim.score,
     ticks: sim.dieTick,
     inputs: loop.getRecordedInputs(),
-    mode: "casual",
+    mode: currentRunMode,
+    dailyDate: currentRunMode === "daily" ? dailyInfo?.date : undefined,
     equippedSkinId: equippedSkin?.id ?? null,
   });
 }

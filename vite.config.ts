@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 import path from "node:path";
+import { devApi } from "./dev-api";
 
 export default defineConfig({
   resolve: {
@@ -13,6 +14,7 @@ export default defineConfig({
     port: 5173,
   },
   plugins: [
+    devApi(),
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["icon.svg", "favicon.ico", "robots.txt"],

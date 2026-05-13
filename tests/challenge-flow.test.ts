@@ -59,9 +59,7 @@ describe("challenge flow", () => {
     // layout — they share a seed.
     const ghost = new GhostSim(creator.seed, creator.inputs, DEFAULT_CONFIG);
     const liveAtStart = new Sim(creator.seed, DEFAULT_CONFIG);
-    expect(ghost["sim" as keyof typeof ghost].pipes.map((p) => p.gapY)).toEqual(
-      liveAtStart.pipes.map((p) => p.gapY),
-    );
+    expect(ghost.pipeGapYs()).toEqual(liveAtStart.pipes.map((p) => p.gapY));
 
     // Friend's run is itself a valid submission.
     const friendBody: SubmitBody = {

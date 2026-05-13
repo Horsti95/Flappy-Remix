@@ -11,6 +11,8 @@ export interface SubmitBody {
   daily_date?: string | null;
   equipped_skin_id?: string | null;
   challenge_short_id?: string | null;
+  ranked_match_id?: string | null;
+  ranked_round?: number | null;
 }
 
 export const MAX_INPUTS = 10000;

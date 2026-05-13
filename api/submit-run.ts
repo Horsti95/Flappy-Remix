@@ -7,6 +7,12 @@ import {
   type GeneratedSkin,
 } from "./_lib/unlock";
 import { validatePayloadShape, validateRun } from "./_lib/validate";
+import {
+  applyElo,
+  decideResult,
+  isBestOfThreeComplete,
+  tallyOutcome,
+} from "./_lib/elo";
 
 export const config = { runtime: "edge" };
 
@@ -78,6 +84,128 @@ export default async function handler(req: Request): Promise<Response> {
     .select("id")
     .single();
   if (run.error) return json({ error: run.error.message }, 500);
+
+  // Ranked: post the run into the right round slot, settle ELO if
+  // this finishes the BO3.
+  let rankedSummary: {
+    match_id: string;
+    round: number;
+    you: "a" | "b";
+    state: string;
+    a_scores: number[];
+    b_scores: number[];
+    a_rating_after?: number;
+    b_rating_after?: number;
+    winner_id?: string | null;
+  } | null = null;
+
+  if (body.mode === "ranked" && body.ranked_match_id != null && body.ranked_round != null) {
+    const round = body.ranked_round | 0;
+    if (round < 0 || round > 2) {
+      return json({ accepted: false, reason: "bad_round" }, 200);
+    }
+    const m = await admin
+      .from("ranked_matches")
+      .select(
+        "id, season_id, player_a, player_b, seeds, a_scores, b_scores, a_run_ids, b_run_ids, state, expires_at, a_rating_before, b_rating_before",
+      )
+      .eq("id", body.ranked_match_id)
+      .maybeSingle();
+    if (m.error || !m.data) return json({ accepted: false, reason: "match_not_found" }, 200);
+    if (m.data.state !== "in_progress") return json({ accepted: false, reason: "match_closed" }, 200);
+    if (new Date(m.data.expires_at as string).getTime() < Date.now()) {
+      return json({ accepted: false, reason: "match_expired" }, 200);
+    }
+    const youAreA = m.data.player_a === userId;
+    if (!youAreA && m.data.player_b !== userId) {
+      return json({ accepted: false, reason: "not_participant" }, 200);
+    }
+    const expectedSeed = (m.data.seeds as number[])[round];
+    if ((body.seed >>> 0) !== ((expectedSeed as number) >>> 0)) {
+      return json({ accepted: false, reason: "wrong_ranked_seed" }, 200);
+    }
+    const aScores = ((m.data.a_scores as number[]) ?? []).slice();
+    const bScores = ((m.data.b_scores as number[]) ?? []).slice();
+    const aRunIds = ((m.data.a_run_ids as string[]) ?? []).slice();
+    const bRunIds = ((m.data.b_run_ids as string[]) ?? []).slice();
+    const mineScores = youAreA ? aScores : bScores;
+    const mineRunIds = youAreA ? aRunIds : bRunIds;
+    if (mineScores[round] != null) {
+      return json({ accepted: false, reason: "round_already_played" }, 200);
+    }
+    mineScores[round] = body.score;
+    mineRunIds[round] = run.data.id;
+
+    // Decide outcome based on the rounds that have both players' scores.
+    const a = aScores;
+    const b = bScores;
+    const definedPaired = [0, 1, 2].filter((i) => a[i] != null && b[i] != null);
+    const outcome = tallyOutcome(
+      definedPaired.map((i) => a[i]),
+      definedPaired.map((i) => b[i]),
+    );
+    const complete = isBestOfThreeComplete(outcome, definedPaired.length);
+
+    let aAfter: number | undefined;
+    let bAfter: number | undefined;
+    let winnerId: string | null | undefined;
+    let nextState: "in_progress" | "completed" = "in_progress";
+
+    if (complete) {
+      const result = decideResult(outcome);
+      const aBefore = (m.data.a_rating_before as number) ?? 1200;
+      const bBefore = (m.data.b_rating_before as number) ?? 1200;
+      const next = applyElo(aBefore, bBefore, result);
+      aAfter = next.a;
+      bAfter = next.b;
+      winnerId = result === "draw" ? null : result === "a_win" ? (m.data.player_a as string) : (m.data.player_b as string);
+      nextState = "completed";
+
+      // Update both elo_ratings rows.
+      const seasonId = m.data.season_id as number;
+      await admin
+        .from("elo_ratings")
+        .upsert({
+          user_id: m.data.player_a as string,
+          season_id: seasonId,
+          rating: aAfter,
+        }, { onConflict: "user_id" });
+      await admin
+        .from("elo_ratings")
+        .upsert({
+          user_id: m.data.player_b as string,
+          season_id: seasonId,
+          rating: bAfter,
+        }, { onConflict: "user_id" });
+    }
+
+    const upd = await admin
+      .from("ranked_matches")
+      .update({
+        a_scores: youAreA ? mineScores : aScores,
+        b_scores: youAreA ? bScores : mineScores,
+        a_run_ids: youAreA ? mineRunIds : aRunIds,
+        b_run_ids: youAreA ? bRunIds : mineRunIds,
+        state: nextState,
+        winner_id: winnerId ?? null,
+        a_rating_after: aAfter ?? null,
+        b_rating_after: bAfter ?? null,
+        completed_at: complete ? new Date().toISOString() : null,
+      })
+      .eq("id", m.data.id);
+    if (upd.error) console.error("[submit-run] ranked update", upd.error);
+    rankedSummary = {
+      match_id: m.data.id as string,
+      round,
+      you: youAreA ? "a" : "b",
+      state: nextState,
+      a_scores: youAreA ? mineScores : aScores,
+      b_scores: youAreA ? bScores : mineScores,
+      a_rating_after: aAfter,
+      b_rating_after: bAfter,
+      winner_id: winnerId ?? null,
+    };
+  }
 
   // If this submission is responding to a challenge, attach the run
   // to the challenge so the comparison surface can render.
@@ -158,5 +286,6 @@ export default async function handler(req: Request): Promise<Response> {
       body: g.skin.body,
       accent: g.skin.accent,
     })),
+    ranked: rankedSummary,
   }, 200);
 }

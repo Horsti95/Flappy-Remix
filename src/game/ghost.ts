@@ -52,4 +52,8 @@ export class GhostSim {
   tick(): number {
     return this.sim.tick;
   }
+
+  pipeGapYs(): number[] {
+    return this.sim.pipes.map((p) => p.gapY);
+  }
 }

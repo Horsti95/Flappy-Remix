@@ -3,14 +3,16 @@ import { type Settings } from "../game/settings";
 export interface MenuCallbacks {
   onPlay(): void;
   onToggleSetting(key: keyof Settings): void;
+  onOpenAccount(): void;
 }
 
-export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallbacks): void {
+export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallbacks, accountLabel = "account"): void {
   host.innerHTML = "";
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
   wrap.className = "pointer-events-auto absolute inset-0 z-10 flex flex-col items-center justify-center text-center font-display bg-black/40 backdrop-blur-sm text-paper";
   wrap.innerHTML = `
+    <button data-account class="absolute top-3 right-3 text-[11px] rounded-full px-3 py-1 bg-white/15">${escapeHtml(accountLabel)}</button>
     <div class="px-6 max-w-sm w-full">
       <h1 class="text-5xl font-bold tracking-tight">Pflug</h1>
       <p class="mt-1 text-xs opacity-70">a daily flap-through-gaps arcade</p>
@@ -30,12 +32,22 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
     e.stopPropagation();
     cbs.onPlay();
   });
+  wrap.querySelector("[data-account]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    cbs.onOpenAccount();
+  });
   wrap.querySelectorAll<HTMLButtonElement>("[data-toggle]").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       cbs.onToggleSetting(btn.dataset.toggle as keyof Settings);
     });
   });
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
+  );
 }
 
 function toggle(key: keyof Settings, label: string, on: boolean): string {

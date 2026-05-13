@@ -11,8 +11,11 @@ import {
   removePauseOverlay,
   renderGameOver,
 } from "./ui/menu";
+import { initAuth, authState, subscribeAuth } from "./social/auth";
+import { renderAccountPanel } from "./ui/account";
 
 setupPWA();
+initAuth();
 
 type Mode = "menu" | "playing" | "paused" | "dead";
 
@@ -62,7 +65,18 @@ pauseBtn.addEventListener("click", (e) => {
   else if (mode === "paused") setPaused(false);
 });
 
+subscribeAuth(() => {
+  if (mode === "menu") showMenu();
+});
+
 showMenu();
+
+function menuAccountLabel(): string {
+  const s = authState();
+  if (s.offline) return "offline";
+  if (s.profile?.username) return s.profile.username;
+  return "account";
+}
 
 function showMenu(): void {
   mode = "menu";
@@ -70,18 +84,18 @@ function showMenu(): void {
   loop?.stop();
   loop = null;
   overlays.innerHTML = "";
-  renderMenu(overlays, settings, {
-    onPlay: startRun,
-    onToggleSetting: (key) => {
-      settings[key] = !settings[key];
-      saveSettings(settings);
-      renderer.options.highContrast = settings.highContrast;
-      renderMenu(overlays, settings, {
-        onPlay: startRun,
-        onToggleSetting: (k) => onToggleSetting(k),
-      });
+  renderMenu(
+    overlays,
+    settings,
+    {
+      onPlay: startRun,
+      onToggleSetting,
+      onOpenAccount: () => {
+        renderAccountPanel(overlays, () => showMenu());
+      },
     },
-  });
+    menuAccountLabel(),
+  );
 }
 
 function onToggleSetting(key: keyof Settings): void {

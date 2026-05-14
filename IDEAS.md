@@ -1,42 +1,156 @@
 # Ideas
 
-Long-running list. Three buckets: **next**, **later**, **maybe**.
-Each entry has a rough size (`xs` < 1h, `s` < half day, `m` < day,
-`l` < week, `xl` more) and a one-line shape so future-you remembers
-what you meant.
+Long-running list. Four buckets: **next**, **later**, **maybe**, plus
+**tech debt** at the bottom. Each entry has a rough size (`xs` < 1h,
+`s` < half day, `m` < day, `l` < week, `xl` more) and a one-line
+shape so future-you remembers what you meant.
 
 > When you ship something on this list, move it to the bottom under
 > **Shipped** with the date.
 
 ## Next — concrete, deciding what to start
 
-### Daily twist (`m`)
+### Daily twist with difficulty tiers + pre-game warning (`m`)
 
 The daily seed currently only varies pipe positions. Boring after a
-few days. Derive a **single modifier** from the same seed each day so
-the daily has a clear identity ("today is wide-gap day", "today is
-fog day"). The pick is deterministic (`seed % modifier_count`), same
-for everyone worldwide.
+few days. Derive a **difficulty tier and a modifier set** from the
+same seed each day so the daily has a clear identity and an honest
+warning before you press play.
 
-Modifier candidates:
+**Tier mapping** (rolled from the seed):
+
+| tier        | frequency | modifier mix                                     |
+|-------------|-----------|--------------------------------------------------|
+| Easy        | 1 in 7    | one friendly mod (wider gaps, floaty, big flap)  |
+| Medium      | 3 in 7    | one neutral mod (night sky, fog, sunset visual)  |
+| Hard        | 2 in 7    | one hostile mod (tight gaps, faster, headwind)   |
+| Super hard  | 1 in 7    | two hostile mods stacked                         |
+
+**Pre-game screen** shows the tier prominently, the modifier list,
+and a one-line warning (`SUPER HARD — tight gaps + heavy gravity.
+you've been warned.`). Player taps "play anyway" to start. Share card
++ OG image both show the tier so beating "super hard fog day at 28"
+reads like a real achievement.
+
+**Modifier candidates** (the per-day pick draws from these):
 
 - Physics-only (1-2 hours each):
   - Wider gaps (`gapH + 20`)
   - Tighter gaps (`gapH - 15`)
   - Faster scroll (`* 1.25`)
   - Heavier gravity (`* 1.15`)
-  - Floaty (`gravity * 0.85`)
+  - Floaty gravity (`* 0.85`)
   - Big flap (`flapImpulse * 1.2`)
-- Visual (half-day each):
-  - Foggy — render only ahead ~220px, fade the rest
-  - Night sky — dark gradient, dim pipes
-  - Sunset — red/orange gradient
-- Mechanical:
-  - Headwind — small leftward force pulses every ~2s
+- Visual (half-day each, needs theme abstraction first — see tech debt):
+  - **Fog** — visibility ~ 60% of screen, radial reveal around the plane
+  - **Night sky** — dark gradient, dim pipes
+  - **Sunset** — purple → orange → gold gradient
+  - **Blinding sun** — bright radial bloom on the right side, makes incoming pipes hard to read until close (pairs naturally with sunset)
+  - **Rain** — light particle pass, mild visual noise
+- Mechanical (half-day each):
+  - **Headwind** — small leftward force pulses every ~2s
+  - **Wind gusts** — short bursts of headwind, randomized within the run (still seed-deterministic)
+- Geometric (full day each):
+  - **Tunnel** — pipes are doubled (two gaps in quick succession)
+  - **Mirror** — flip the world horizontally (bird scrolls right-to-left). Disorienting in a fun way.
+  - **Small hitbox** — bird collision circle shrinks 30%, gaps stay the same — gentler hostile
+  - **Big hitbox** — opposite: collision circle grows 25%, hostile
 
-Surface the modifier name on the home screen ("today: fog day · 14k
-played") and bake it into the share card + OG image so people can
-brag about beating a specific twist.
+### Daily: 3 attempts, best counts (`m`)
+
+Replace today's "play once" daily with **3 attempts per UTC day, best
+score counts**. Three reasons:
+
+- Removes the panic loop ("bad RNG ruined my streak")
+- Rewards learning the day's seed across attempts
+- Maps to the user's instinct: best-of-3 framing
+
+**Implementation sketch**:
+- Schema: allow up to 3 runs per (user_id, daily_date). Daily
+  leaderboard view ranks by `MAX(score)` per player on the date.
+- UI: pre-game screen shows "attempt 1 of 3 · your best so far: 18".
+  Game-over: "attempt 1 done · score 18 · play again? (2 left)".
+- Locked at 3 attempts per UTC day per player. Submissions past 3
+  are accepted as casual runs (no daily leaderboard credit).
+
+### In-game gallery for skins + themes (locked + unlocked) (`s`)
+
+Today's skin picker shows **only owned** skins. Players don't know
+what they're working toward. Replace with a single Gallery panel
+that shows everything, owned and locked, with tap-to-expand
+descriptions explaining how to unlock each one. Easy back button.
+
+Layout: tabs at top (Skins / Themes / Badges), 3-col grid below, each
+card shows the SVG, name, rarity tier, lock state, and a one-line
+hint ("play 50 games between 20:00 and 02:00 to unlock").
+
+Replaces the current `ui/skin-picker.ts`.
+
+### Local-time ambient sky (`s`, after theme abstraction)
+
+Two players in different timezones should not see the same sky when
+their wall clocks disagree. The **daily modifier** stays global
+(Berlin and LA both get "fog day"). The **ambient sky** is derived
+from the *player's local time*:
+
+| local time      | sky theme |
+|-----------------|-----------|
+| 06:00 – 08:00   | dawn      |
+| 08:00 – 18:00   | sunny (current default) |
+| 18:00 – 20:00   | sunset    |
+| 20:00 – 06:00   | night     |
+
+When the daily picks a visual modifier (fog, blinding sun), it
+**layers over** the ambient sky. So Berlin player at 2am gets "fog
+over night" and LA player at 6pm same day gets "fog over sunset" —
+same physics, different mood. No anti-cheat concern (no scoring
+advantage to spoofing your clock for a different ambient).
+
+### "Challenge a friend" as a top-level menu button (`s`)
+
+Today the only way to challenge a friend is to **die first, then
+share**. There's no "I want to challenge Lennart" button. Add one to
+the main menu:
+
+1. Tap "Challenge a friend" → friend picker (lists your friends)
+2. Pick the seed source — today's daily, a past daily, or a fresh
+   random one
+3. Game starts. On death, run is auto-converted to a challenge
+   addressed to the chosen friend; link auto-copied for sharing,
+   plus optional in-app inbox surface for them
+
+Hooks into the existing challenge-create endpoint; mostly a new
+picker UI and a small flow change.
+
+### Random color variants on alternate plane shapes (`s`)
+
+The skin system today rolls two RGB colors for the default paper
+plane shape. Once we add alternate shapes (paper crane, dart, kite),
+the same procedural skin pool should apply to them too — your
+"legendary crimson-on-cyan" unlock should work as a paper plane, a
+paper crane, *and* a dart. Lets players mix shape and color freely.
+
+Implementation: equipped state becomes `{ shape, skin }` instead of
+just `skin`. Skin picker becomes a two-axis picker (or two pickers
+side by side).
+
+### Apple Sign-In + email magic link (`s`)
+
+Supabase supports both natively. Add provider toggles + buttons in
+`account.ts`. Same plumbing as the Google button. Email magic link
+is the more user-friendly option for people who avoid OAuth.
+
+### Friends-test deploy on Vercel (`xs`)
+
+Run `vercel --prod`, share the URL. Documented in `docs/deploy.md`.
+No code change, but it's the unblock for everything social.
+
+### Auto-assign random handle on profile creation (`xs`)
+
+Right now new players see "claim a handle" friction. Default
+`username` to a generated 6-char code like `K7F9PQ` on profile
+creation (server-side trigger). Player can change it later in the
+account panel. Removes the gate from the first-five-minutes flow.
 
 ### Ordinal-position skins with RGB decay (`m`)
 
@@ -62,33 +176,27 @@ colors rolled. Concrete plan:
   variant** for the very first tier (50 players): a folded paper
   crane or a slightly different fold pattern. Worn proudly.
 
-### Apple Sign-In + email magic link (`s`)
-
-Supabase supports both natively. Add provider toggles + buttons in
-`account.ts`. Same plumbing as the Google button. Email magic link
-is the more user-friendly option for people who avoid OAuth.
-
-### Friends-test deploy on Vercel (`xs`)
-
-Run `vercel --prod`, share the URL. Documented in `docs/deploy.md`.
-No code change, but it's the unblock for everything social.
-
-### Auto-assign random handle on profile creation (`xs`)
-
-Right now new players see "claim a handle" friction. Default
-`username` to a generated 6-char code like `K7F9PQ` on profile
-creation (server-side trigger). Player can change it later in the
-account panel. Removes the gate from the first-five-minutes flow.
-
 ## Later — agreed valuable, not started
+
+### Menu refactor: tabbed taxonomy (`s`)
+
+Current menu is a flat list (Daily, Casual, Ranked, Skins, Board,
+Friends, Account) and getting crowded. Group under three tabs:
+
+- **Play** (casual, challenge a friend, ranked)
+- **You** (skins, themes, friends, account)
+- **Board** (leaderboard, daily standings)
+
+Daily stays as the hero button above the tabs. Settings stays below.
 
 ### Background themes + time-of-day unlocks (`l`)
 
-Themes: night sky, cloudy, sunny, sunset. Each is a different sky
-gradient + maybe a particle pass (stars, clouds). Themes unlock via
-play conditions: "play 50 matches between 20:00 and 02:00 local time
-to unlock night sky," etc. Both an aesthetic surface and a gameplay
-loop. Equippable separately from skins.
+Themes: night sky, cloudy, sunny, sunset, dawn. Each is a different
+sky gradient + maybe a particle pass (stars, clouds). Themes unlock
+via play conditions: "play 50 matches between 20:00 and 02:00 local
+time to unlock night sky," etc. Both an aesthetic surface and a
+gameplay loop. Equippable separately from skins, *layered under* the
+local-time ambient and the daily modifier.
 
 ### Second challenge mode: "pick your best of 3" (`m`)
 
@@ -118,6 +226,13 @@ buttons — those bias responses. Read it weekly.
 The **AI-summarize-weekly** part is a separate Tuesday-afternoon
 project: a tiny script that pulls the table and asks Claude for a
 themed digest. Not part of the panel itself.
+
+### In-game help / rules screen (`s`)
+
+Streak rules, daily seed behavior, ghost mode, ranked best-of-3 — all
+currently only in the README. New player has no in-game way to learn
+them. One scrollable panel in the account menu or a (?) icon next to
+the hero daily button.
 
 ## Maybe — interesting but unclear payoff
 
@@ -168,12 +283,74 @@ server-side renderer.
 Top-N players from a season get invited to a bracket. Stake nothing,
 win a special skin. Could be very engaging once player base is real.
 
+## Tech debt / pain points
+
+Honest record of where the code is starting to creak. Each gets a
+"when to fix" note.
+
+### Renderer has no `theme` abstraction (`s` to refactor)
+
+The renderer hardcodes sky gradient + pipe colors in `render.ts`.
+Three "Next" features (backgrounds, daily visual modifiers, local-
+time ambient sky) all need this abstraction first.
+
+**When to fix**: before any of those three lands. Probably the
+first thing to do when starting "Daily twist" because the visual
+modifiers can't ship without it.
+
+### `api/submit-run.ts` is doing too many things (`m` to split)
+
+Validates the run, checks daily-seed correctness, updates streak,
+increments daily play count, attaches challenge response, settles
+ranked BO3 ELO, mints skin unlocks. Adding daily-twist + daily-best-
+of-3 makes it touch 9 things in one 200-line file.
+
+**When to fix**: when adding the next mode (daily-best-of-3 or
+challenge-a-friend). Not before — premature splits tend to produce
+worse boundaries than waiting for the second concrete need.
+
+### Menu is a flat list (`s` to refactor)
+
+7 entries today, 10-11 with planned additions. Will feel cramped.
+
+**When to fix**: when adding the "Challenge a friend" top-level
+button, do the tabbed refactor at the same time so the new entry
+doesn't make the flat list worse first.
+
+### No `mode` polymorphism — modes are an enum (`m` to refactor)
+
+`runs.mode` is an enum (casual / daily / challenge / ranked). Adding
+daily-best-of-3 means either reusing `daily` with extra state or a
+new enum value plus a column. Neither scales.
+
+**When to fix**: only if we add 2+ more modes. For now, "daily" can
+carry the best-of-3 state via an `attempt_number` column.
+
+### Skin picker doesn't preview locked items (`s`)
+
+Mentioned in "Next → In-game gallery." This is a UX gap that becomes
+worse as we add more rarity tiers and ordinal skins.
+
+**When to fix**: ship the Gallery refactor when we add ordinal skins,
+not before.
+
+### Pre-game daily landing screen is missing (`s`)
+
+Tap "today's daily" → game starts immediately. No pre-game state
+showing the modifier, the difficulty tier, your best so far, the
+plays count, recent friends' scores. This is the most important
+"showcase" screen we don't have.
+
+**When to fix**: when shipping daily twist + difficulty tiers + best-
+of-3 attempts. The screen pulls all three together.
+
 ---
 
 ## Shipped
 
 | Date       | What                                                                |
 |------------|---------------------------------------------------------------------|
+| 2026-05-14 | docs: design gallery (SVG sketches for skins / themes / palettes)   |
 | 2026-05-14 | M6 — offline queue, a11y pass, GDPR endpoints, LICENSE/PRIVACY/ETHICS |
 | 2026-05-14 | M5 — ranked best-of-three, ELO, seasons, season-end top-100 badges  |
 | 2026-05-14 | M4 — friends, ghost-mode challenges, depth-2 cap, comparison screen |

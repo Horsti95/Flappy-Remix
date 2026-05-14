@@ -1,4 +1,6 @@
 import { dailyDateString, dailySeed } from "../src/game/daily";
+import { applyModifiers, pickDaily } from "../src/game/daily-twist";
+import { DEFAULT_CONFIG } from "../src/game/config";
 import { getAdminClient } from "./_lib/supabaseAdmin";
 import { computeStreak } from "./_lib/streak";
 import {
@@ -38,7 +40,17 @@ export default async function handler(req: Request): Promise<Response> {
   const shape = validatePayloadShape(raw);
   if ("error" in shape) return json({ error: shape.error }, 400);
   const body = shape;
-  const v = validateRun(body);
+
+  // Derive the daily twist server-side so the replay validator uses
+  // the same physics the client would have. Casual / challenge / ranked
+  // all replay against DEFAULT_CONFIG.
+  let cfg = DEFAULT_CONFIG;
+  if (body.mode === "daily") {
+    const date = body.daily_date ?? dailyDateString();
+    const pick = pickDaily(date);
+    cfg = applyModifiers(DEFAULT_CONFIG, pick.modifiers);
+  }
+  const v = validateRun(body, cfg);
   if (!v.ok) return json({ accepted: false, reason: v.reason }, 200);
 
   const admin = getAdminClient();

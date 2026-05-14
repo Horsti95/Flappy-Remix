@@ -1,6 +1,7 @@
 import "./style.css";
 import { setupPWA } from "./pwa";
 import { DEFAULT_CONFIG } from "./game/config";
+import { applyModifiers } from "./game/daily-twist";
 import { GameLoop } from "./game/loop";
 import { Renderer } from "./game/render";
 import { InputController } from "./game/input";
@@ -220,7 +221,15 @@ function showMenu(): void {
     },
     {
       accountLabel: menuAccountLabel(),
-      daily: dailyInfo ? { date: dailyInfo.date, playsCount: dailyInfo.plays_count } : null,
+      daily: dailyInfo
+        ? {
+            date: dailyInfo.date,
+            playsCount: dailyInfo.plays_count,
+            tier: dailyInfo.pick.tier,
+            modifierNames: dailyInfo.pick.modifiers.map((m) => m.name),
+            modifierBlurbs: dailyInfo.pick.modifiers.map((m) => m.blurb),
+          }
+        : null,
       streakDays: authState().profile?.streak_days ?? 0,
       pendingSubmissions: pendingCount(),
       online: typeof navigator !== "undefined" ? navigator.onLine : true,
@@ -242,9 +251,15 @@ function startRun(runMode: RunMode = "casual"): void {
   currentRunMode = runMode;
   pauseBtn.classList.remove("hidden");
   let ghost: GhostSim | undefined;
+  // Daily twist: apply the modifier(s) on top of DEFAULT_CONFIG for
+  // the run so physics match what the server will replay against.
+  const runCfg =
+    runMode === "daily" && dailyInfo
+      ? applyModifiers(DEFAULT_CONFIG, dailyInfo.pick.modifiers)
+      : DEFAULT_CONFIG;
   if (runMode === "challenge" && activeChallenge) {
     currentSeed = activeChallenge.seed >>> 0;
-    ghost = new GhostSim(currentSeed, activeChallenge.inputs, DEFAULT_CONFIG);
+    ghost = new GhostSim(currentSeed, activeChallenge.inputs, runCfg);
     renderer.options.ghostSkin = ghostSkinFromChallenge(activeChallenge);
   } else if (runMode === "ranked" && activeRanked) {
     currentSeed = activeRanked.match.seeds[activeRanked.round] >>> 0;
@@ -258,7 +273,7 @@ function startRun(runMode: RunMode = "casual"): void {
   }
   loop = new GameLoop(
     currentSeed,
-    DEFAULT_CONFIG,
+    runCfg,
     {
       render: (sim, alpha, g) => renderer.draw(sim, alpha, g),
       onDeath: async (sim) => {
@@ -307,6 +322,7 @@ async function openShare(score: number, result: SubmitResult | null): Promise<vo
   const s = authState();
   const badges = await listMyBadges();
   const topRank = badges.length > 0 ? Math.min(...badges.map((b) => b.rank)) : null;
+  const dailyPick = currentRunMode === "daily" ? dailyInfo?.pick : null;
   const data: ShareCardData = {
     score,
     username: s.profile?.username ?? null,
@@ -318,6 +334,8 @@ async function openShare(score: number, result: SubmitResult | null): Promise<vo
     dailyDate: currentRunMode === "daily" ? dailyInfo?.date ?? null : null,
     dailyRank: null,
     totalPlayed: currentRunMode === "daily" ? dailyInfo?.plays_count ?? null : null,
+    dailyTier: dailyPick?.tier ?? null,
+    dailyModifierLabel: dailyPick ? dailyPick.modifiers.map((m) => m.blurb).join(" + ") : null,
     topRank,
   };
   renderShareSheet(overlays, data, () => {

@@ -1,4 +1,4 @@
-import { DEFAULT_CONFIG } from "../../src/game/config";
+import { DEFAULT_CONFIG, type SimConfig } from "../../src/game/config";
 import { replayRun, validateInputCadence } from "../../src/game/replay";
 import { type InputEvent } from "../../src/game/sim";
 
@@ -40,11 +40,12 @@ export function validatePayloadShape(b: unknown): SubmitBody | { error: string }
   return o as unknown as SubmitBody;
 }
 
-export function validateRun(body: SubmitBody): ValidateResult {
-  if (!validateInputCadence(body.inputs, DEFAULT_CONFIG.tickHz)) {
+export function validateRun(body: SubmitBody, cfgOverride?: SimConfig): ValidateResult {
+  const cfg = cfgOverride ?? DEFAULT_CONFIG;
+  if (!validateInputCadence(body.inputs, cfg.tickHz)) {
     return { ok: false, status: 422, reason: "cadence" };
   }
-  const replay = replayRun(body.seed, body.inputs, DEFAULT_CONFIG, MAX_TICKS);
+  const replay = replayRun(body.seed, body.inputs, cfg, MAX_TICKS);
   if (replay.alive) return { ok: false, status: 422, reason: "did_not_die" };
   if (replay.score !== body.score) return { ok: false, status: 422, reason: "score_mismatch" };
   if (Math.abs(replay.ticks - body.ticks) > 2) return { ok: false, status: 422, reason: "ticks_mismatch" };

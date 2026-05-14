@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 640" width="180" height="320">
+  <title>Sunny — current default background</title>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#87ceeb"/>
+      <stop offset="100%" stop-color="#b3e5fc"/>
+    </linearGradient>
+  </defs>
+  <rect width="360" height="640" fill="url(#g)"/>
+  <circle cx="290" cy="120" r="40" fill="#fef3c7" opacity="0.95"/>
+  <circle cx="290" cy="120" r="60" fill="#fef3c7" opacity="0.25"/>
+  <rect x="120" y="0" width="56" height="260" fill="#3d8b58"/>
+  <rect x="120" y="400" width="56" height="240" fill="#3d8b58"/>
+  <g transform="translate(80 320) rotate(-8) scale(2.4)">
+    <polygon points="-14,6 14,-6 1,0 14,-6 -1,11" fill="#f4ead5" stroke="#1a1a1a" stroke-width="0.6"/>
+    <polygon points="1,0 -14,6 -1,11" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="0.6"/>
+  </g>
+</svg>

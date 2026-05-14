@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 -30 60 60" width="240" height="240">
+  <title>Paper crane — proposed shape for first-50 tier</title>
+  <rect x="-30" y="-30" width="60" height="60" fill="#1a1a1a" rx="6"/>
+  <g transform="rotate(-8) translate(-3 2)">
+    <polygon points="-22,4 -2,-8 6,2 -4,12" fill="#bdb39f" stroke="#1a1a1a" stroke-width="1.1" stroke-linejoin="round"/>
+    <polygon points="6,2 22,-4 18,4 26,8 20,12 6,8" fill="#f4ead5" stroke="#1a1a1a" stroke-width="1.1" stroke-linejoin="round"/>
+    <polygon points="-2,-8 14,-12 6,2" fill="#f4ead5" stroke="#1a1a1a" stroke-width="1.1" stroke-linejoin="round"/>
+    <polygon points="22,-4 28,-10 30,-4 24,-2" fill="#f4ead5" stroke="#1a1a1a" stroke-width="1.1" stroke-linejoin="round"/>
+    <polygon points="-22,4 -26,7 -22,10" fill="#bdb39f" stroke="#1a1a1a" stroke-width="1.1" stroke-linejoin="round"/>
+  </g>
+</svg>

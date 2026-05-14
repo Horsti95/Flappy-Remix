@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 260" width="720" height="260">
+  <title>Ordinal RGB decay — body lightness across signup_index 0..50000</title>
+  <style>
+    .label { font: 11px system-ui; fill: #1a1a1a; }
+    .tick  { font: 10px ui-monospace,Menlo,monospace; fill: #4a4a4a; }
+    .tier  { font: bold 12px system-ui; fill: #1a1a1a; }
+    .note  { font: 11px system-ui; fill: #555; }
+  </style>
+  <rect width="720" height="260" fill="#f8f6ef"/>
+  <text class="tier" x="32" y="36">Plane body color by signup_index (continuous decay)</text>
+  <defs>
+    <linearGradient id="ramp" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#ffffff"/>
+      <stop offset="0.1%" stop-color="#fafafa"/>
+      <stop offset="1%"   stop-color="#e8e8e8"/>
+      <stop offset="10%"  stop-color="#bdbdbd"/>
+      <stop offset="50%"  stop-color="#5a5a5a"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </linearGradient>
+  </defs>
+  <rect x="32" y="56" width="656" height="40" fill="url(#ramp)" stroke="#1a1a1a" stroke-width="1"/>
+  <g>
+    <line x1="32"  y1="96" x2="32"  y2="104" stroke="#1a1a1a"/>
+    <line x1="38"  y1="96" x2="38"  y2="104" stroke="#1a1a1a"/>
+    <line x1="98"  y1="96" x2="98"  y2="104" stroke="#1a1a1a"/>
+    <line x1="218" y1="96" x2="218" y2="104" stroke="#1a1a1a"/>
+    <line x1="688" y1="96" x2="688" y2="104" stroke="#1a1a1a"/>
+    <text class="tick" x="32"  y="118">0</text>
+    <text class="tick" x="32"  y="132">white</text>
+    <text class="tick" x="38"  y="148">50</text>
+    <text class="tick" x="98"  y="118">500</text>
+    <text class="tick" x="218" y="118">5,000</text>
+    <text class="tick" x="688" y="118" text-anchor="end">50,000+</text>
+  </g>
+  <g transform="translate(32 170)">
+    <rect width="80"  height="56" fill="#ffffff" stroke="#1a1a1a"/>
+    <text class="tier"  x="40" y="22" text-anchor="middle">first 50</text>
+    <text class="label" x="40" y="38" text-anchor="middle">pure white</text>
+    <text class="label" x="40" y="50" text-anchor="middle">paper crane shape</text>
+  </g>
+  <g transform="translate(128 170)">
+    <rect width="80" height="56" fill="#e0e0e0" stroke="#1a1a1a"/>
+    <text class="tier"  x="40" y="22" text-anchor="middle">51..500</text>
+    <text class="label" x="40" y="38" text-anchor="middle">light grey</text>
+  </g>
+  <g transform="translate(224 170)">
+    <rect width="80" height="56" fill="#9a9a9a" stroke="#1a1a1a"/>
+    <text class="tier"  x="40" y="22" text-anchor="middle" fill="#ffffff">501..5,000</text>
+    <text class="label" x="40" y="38" text-anchor="middle" fill="#ffffff">medium grey</text>
+  </g>
+  <g transform="translate(320 170)">
+    <rect width="120" height="56" fill="#3a3a3a" stroke="#1a1a1a"/>
+    <text class="tier"  x="60" y="22" text-anchor="middle" fill="#ffffff">5,001..50,000</text>
+    <text class="label" x="60" y="38" text-anchor="middle" fill="#ffffff">dark grey</text>
+  </g>
+  <g transform="translate(456 170)">
+    <rect width="232" height="56" fill="#0a0a0a" stroke="#1a1a1a"/>
+    <text class="tier"  x="116" y="22" text-anchor="middle" fill="#ffffff">50,001+</text>
+    <text class="label" x="116" y="38" text-anchor="middle" fill="#ffffff">procedural skins only (no ordinal)</text>
+  </g>
+  <text class="note" x="32" y="252">
+    Formula draft: lightness = clamp(1 - signup_index / 50000, 0.02, 1.0). RGB = (lightness, lightness, lightness) * 255.
+  </text>
+</svg>

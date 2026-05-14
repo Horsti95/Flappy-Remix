@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pflug — design gallery</title>
+  <style>
+    :root {
+      --ink: #1a1a1a;
+      --paper: #f4ead5;
+      --bg: #f8f6ef;
+      --muted: #6b6b6b;
+      --line: #e3dfd2;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      padding: 32px 24px 80px;
+      max-width: 1100px;
+      margin-inline: auto;
+    }
+    h1 { font-size: 28px; margin: 0 0 4px; }
+    .sub { color: var(--muted); margin: 0 0 32px; font-size: 14px; line-height: 1.5; }
+    h2 { font-size: 18px; margin: 36px 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+    .card { background: white; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; text-decoration: none; color: inherit; }
+    .card .frame { background: #1a1a1a; display: flex; align-items: center; justify-content: center; aspect-ratio: 1 / 1; padding: 12px; }
+    .card.bg .frame { aspect-ratio: 9 / 16; padding: 0; background: transparent; }
+    .card img, .card object { max-width: 100%; max-height: 100%; display: block; }
+    .card .meta { padding: 10px 12px; font-size: 13px; }
+    .card .meta .name { font-weight: 600; }
+    .card .meta .desc { color: var(--muted); font-size: 12px; margin-top: 2px; line-height: 1.4; }
+    .wide { grid-column: 1 / -1; }
+    .wide .frame { aspect-ratio: auto; background: white; padding: 0; }
+    .pill { display: inline-block; background: var(--ink); color: var(--paper); padding: 1px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; vertical-align: middle; margin-left: 6px; }
+    .pill.next   { background: #2b6f4d; }
+    .pill.later  { background: #6a4cad; }
+    .pill.maybe  { background: #9a7a3a; }
+    code { font-family: ui-monospace, Menlo, monospace; background: var(--line); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+    a { color: var(--ink); }
+  </style>
+</head>
+<body>
+  <h1>Pflug — design gallery</h1>
+  <p class="sub">
+    Drafts for shapes, backgrounds, and color ramps. Each card links to the
+    underlying SVG so you can pop it open or edit it directly. See
+    <a href="../IDEAS.md">../IDEAS.md</a> for sizing and priority of each
+    item.
+  </p>
+
+  <h2>Skin shapes <span class="pill next">next</span></h2>
+  <div class="grid">
+    <a class="card" href="skins/paper-plane.svg" target="_blank">
+      <div class="frame"><object data="skins/paper-plane.svg" type="image/svg+xml"></object></div>
+      <div class="meta"><div class="name">Paper plane</div><div class="desc">Current default. Two-tone body + accent fold. The shape we render today in <code>src/game/render.ts</code>.</div></div>
+    </a>
+    <a class="card" href="skins/paper-crane.svg" target="_blank">
+      <div class="frame"><object data="skins/paper-crane.svg" type="image/svg+xml"></object></div>
+      <div class="meta"><div class="name">Paper crane</div><div class="desc">Proposed exclusive for the first-50 ordinal tier. Recognisably different silhouette so the badge reads at a glance.</div></div>
+    </a>
+    <a class="card" href="skins/dart.svg" target="_blank">
+      <div class="frame"><object data="skins/dart.svg" type="image/svg+xml"></object></div>
+      <div class="meta"><div class="name">Dart</div><div class="desc">Sharper, racing feel. Could be a separate unlock for, say, hitting 100 in a single run.</div></div>
+    </a>
+    <a class="card" href="skins/kite.svg" target="_blank">
+      <div class="frame"><object data="skins/kite.svg" type="image/svg+xml"></object></div>
+      <div class="meta"><div class="name">Kite</div><div class="desc">Diamond proportion with a curling tail. Different motion read — "lift" instead of "thrust."</div></div>
+    </a>
+  </div>
+
+  <h2>Background themes <span class="pill later">later</span></h2>
+  <div class="grid">
+    <a class="card bg" href="backgrounds/sunny.svg" target="_blank">
+      <div class="frame"><object data="backgrounds/sunny.svg" type="image/svg+xml"></object></div>
+      <div class="meta"><div class="name">Sunny</div><div class="desc">Current default — light blue gradient, soft yellow sun.</div></div>
+    </a>
+    <a class="card bg" href="backgrounds/cloudy.svg" target="_blank">
+      <div class="frame"><object data="backgrounds/cloudy.svg" type="image/svg+xml"></object></div>
+      <div class="meta"><div class="name">Cloudy</div><div class="desc">Pale grey-blue with white wisps. Soft.</div></div>
+    </a>
+    <a class="card bg" href="backgrounds/sunset.svg" target="_blank">
+      <div class="frame"><object data="backgrounds/sunset.svg" type="image/svg+xml"></object></div>
+      <div class="meta"><div class="name">Sunset</div><div class="desc">Purple → orange → gold gradient. Most cinematic background.</div></div>
+    </a>
+    <a class="card bg" href="backgrounds/night.svg" target="_blank">
+      <div class="frame"><object data="backgrounds/night.svg" type="image/svg+xml"></object></div>
+      <div class="meta"><div class="name">Night sky</div><div class="desc">Deep blue with stars and a crescent moon. Unlockable: play 50 matches between 20:00 and 02:00 local time.</div></div>
+    </a>
+    <a class="card bg" href="backgrounds/fog.svg" target="_blank">
+      <div class="frame"><object data="backgrounds/fog.svg" type="image/svg+xml"></object></div>
+      <div class="meta"><div class="name">Fog</div><div class="desc">Limited visibility — only a circle around the plane is clear. Tied into the daily-twist "fog day" modifier.</div></div>
+    </a>
+  </div>
+
+  <h2>Ordinal RGB decay <span class="pill next">next</span></h2>
+  <div class="grid">
+    <a class="card wide" href="palettes/ordinal-decay.svg" target="_blank">
+      <div class="frame"><object data="palettes/ordinal-decay.svg" type="image/svg+xml"></object></div>
+      <div class="meta"><div class="name">Body lightness across <code>signup_index</code> 0..50000</div><div class="desc">Continuous decay from white to near-black across the player base. Tier boxes mark the cosmetic bands (first-50 / 51-500 / 501-5,000 / 5,001-50,000), but the actual RGB shifts smoothly within each band so two players at indices 1,000 and 4,999 still look distinct.</div></div>
+    </a>
+  </div>
+
+  <h2>Daily twist modifiers <span class="pill next">next</span></h2>
+  <div class="grid">
+    <a class="card wide" href="palettes/daily-twist-modifiers.svg" target="_blank">
+      <div class="frame"><object data="palettes/daily-twist-modifiers.svg" type="image/svg+xml"></object></div>
+      <div class="meta"><div class="name">Per-day modifier candidates</div><div class="desc">One modifier per UTC day, picked deterministically from the daily seed so it's the same for everyone worldwide. Physics-only ones are 1-2h to build each; the visual ones (fog / night / sunset) are a half-day each. Headwind is the only mechanical one in this batch.</div></div>
+    </a>
+  </div>
+
+  <p class="sub" style="margin-top: 48px;">
+    To iterate: edit any SVG in <code>design/</code> and refresh this page.
+    Nothing here is in the live game yet — these are reference assets for
+    <a href="../IDEAS.md">IDEAS.md</a>. When something gets picked up into
+    the game, it gets ported into <code>src/game/render.ts</code> or
+    <code>api/_lib/unlock.ts</code> as the case requires.
+  </p>
+</body>
+</html>

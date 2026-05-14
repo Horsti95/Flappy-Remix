@@ -10,6 +10,55 @@ matchmaking.
 > The character is a paper plane, not a bird. Both choices were made
 > deliberately to be distinct from Flappy Bird in name and visual.
 
+## Trying it out
+
+**Locally on your PC** (offline-only without env vars):
+
+```sh
+git clone https://github.com/horsti95/flappy-remix.git pflug
+cd pflug
+npm install
+npm run dev
+```
+
+Open <http://localhost:5173>. Tap, click, or space to flap.
+
+**Sharing with a friend** (~5 minutes via Vercel):
+
+```sh
+npm i -g vercel
+vercel login
+vercel --prod
+```
+
+Gives you a `https://pflug-something.vercel.app` URL friends can open
+from anywhere. Free tier handles way more traffic than you'll need.
+For the full backend (leaderboards, friends, ranked), set up Supabase
+first — see [`docs/deploy.md`](./docs/deploy.md) for the 6-step path.
+
+**Branch strategy for adding features**:
+
+- `main` is what's deployed publicly — keep it stable
+- Make a feature branch off `main` for each new thing
+  (e.g. `feat/daily-twist`, `feat/apple-signin`)
+- Vercel auto-deploys every branch to its own **preview URL**, so
+  you can share a half-baked feature with a specific person without
+  affecting the main URL
+- When a feature feels good, merge it to `main` → Vercel re-deploys
+
+```sh
+git checkout main
+git pull
+git checkout -b feat/something
+# ... commits ...
+git push -u origin feat/something
+# open a PR on GitHub when you're ready to merge
+```
+
+See [`IDEAS.md`](./IDEAS.md) for the running list of what to build next.
+
+---
+
 ## What ships in v1
 
 - Hand-rolled fixed-step sim (60 Hz, semi-implicit Euler) with a

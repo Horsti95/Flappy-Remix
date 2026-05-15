@@ -1,5 +1,6 @@
 import { DEFAULT_SKIN, type SkinColors } from "../game/skin";
 import { RARITY_COLOR, type Rarity } from "../game/rarity";
+import { TIER_COLOR, TIER_LABEL, type Tier } from "../game/daily-twist";
 
 export interface ShareCardData {
   score: number;
@@ -12,6 +13,8 @@ export interface ShareCardData {
   dailyDate?: string | null;
   dailyRank?: number | null;
   totalPlayed?: number | null;
+  dailyTier?: Tier | null;
+  dailyModifierLabel?: string | null;
   topRank?: number | null;
   brand?: string;
 }
@@ -55,6 +58,18 @@ export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData): v
         ? "ranked"
         : "casual run";
   ctx.fillText(sub, 96, 168);
+
+  // Tier + modifier subline on daily share cards.
+  if (data.mode === "daily" && data.dailyTier) {
+    ctx.font = "700 24px system-ui,sans-serif";
+    ctx.fillStyle = TIER_COLOR[data.dailyTier];
+    ctx.fillText(TIER_LABEL[data.dailyTier].toUpperCase(), 96, 210);
+    if (data.dailyModifierLabel) {
+      ctx.font = "500 22px system-ui,sans-serif";
+      ctx.fillStyle = "#f4ead588";
+      ctx.fillText(data.dailyModifierLabel, 96 + 130, 212);
+    }
+  }
 
   // Streak + ranked-badge chips top-right
   let chipY = 96;

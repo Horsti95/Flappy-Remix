@@ -1,5 +1,6 @@
 import { type Settings } from "../game/settings";
 import { RARITY_COLOR, type Rarity } from "../game/rarity";
+import { TIER_COLOR, TIER_LABEL, type Tier } from "../game/daily-twist";
 
 export interface MenuCallbacks {
   onPlay(): void;
@@ -14,7 +15,13 @@ export interface MenuCallbacks {
 
 export interface MenuMeta {
   accountLabel: string;
-  daily: { date: string; playsCount: number } | null;
+  daily: {
+    date: string;
+    playsCount: number;
+    tier: Tier;
+    modifierNames: string[];
+    modifierBlurbs: string[];
+  } | null;
   streakDays: number;
   pendingSubmissions?: number;
   online?: boolean;
@@ -28,6 +35,12 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   const dailyLine = meta.daily
     ? `${formatPlays(meta.daily.playsCount)} played today`
     : "world plays the same level today";
+  const tierChip = meta.daily
+    ? `<span class="inline-block rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider" style="background:${TIER_COLOR[meta.daily.tier]}22;color:${TIER_COLOR[meta.daily.tier]}">${TIER_LABEL[meta.daily.tier]}</span>`
+    : "";
+  const modifierLine = meta.daily && meta.daily.modifierNames.length > 0
+    ? `<div class="mt-1 text-[11px] opacity-70 truncate">${meta.daily.modifierNames.map(escapeHtml).join(" + ")}</div>`
+    : "";
   const streakBadge = meta.streakDays > 0
     ? `<span class="ml-2 inline-flex items-center gap-1 text-[10px] bg-white/10 rounded-full px-2 py-0.5">streak ${meta.streakDays}</span>`
     : "";
@@ -44,12 +57,17 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
       <h1 class="text-5xl font-bold tracking-tight">Pflug</h1>
       <p class="mt-1 text-xs opacity-70">a daily flap-through-gaps arcade</p>
 
-      <button data-action="daily" class="mt-7 w-full rounded-2xl bg-paper text-ink font-bold py-4 text-left px-5 shadow-lg active:scale-95 transition flex items-center justify-between">
-        <div>
-          <div class="text-[10px] uppercase tracking-wider opacity-60">today's daily</div>
-          <div class="text-lg leading-tight">${meta.daily ? escapeHtml(meta.daily.date) : "daily"}</div>
+      <button data-action="daily" class="mt-7 w-full rounded-2xl bg-paper text-ink font-bold py-4 text-left px-5 shadow-lg active:scale-95 transition">
+        <div class="flex items-center justify-between gap-2">
+          <div class="min-w-0">
+            <div class="text-[10px] uppercase tracking-wider opacity-60 flex items-center gap-2">
+              <span>today's daily</span>${tierChip}
+            </div>
+            <div class="text-lg leading-tight">${meta.daily ? escapeHtml(meta.daily.date) : "daily"}</div>
+          </div>
+          <div class="text-[10px] opacity-60 text-right leading-tight shrink-0">${dailyLine}<br/>same seed worldwide</div>
         </div>
-        <div class="text-[10px] opacity-60 text-right leading-tight">${dailyLine}<br/>same seed for the world</div>
+        ${modifierLine}
       </button>
 
       <button data-action="play" class="mt-3 w-full rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">

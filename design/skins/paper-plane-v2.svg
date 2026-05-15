@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 -30 60 60" width="240" height="240">
+  <title>Paper plane v2 — refined silhouette from user-provided sprite</title>
+  <rect x="-30" y="-30" width="60" height="60" fill="#1a1a1a" rx="6"/>
+  <g transform="rotate(-6)">
+    <!-- accent underbelly (drawn first so the cream body overlaps it) -->
+    <polygon
+      points="-22,9 -2,3 24,-3 16,2 -16,12"
+      fill="#bdb39f" stroke="#1a1a1a" stroke-width="1.6" stroke-linejoin="round"/>
+    <!-- main plane body: nose at right, two faces meeting at the inner fold -->
+    <polygon
+      points="-22,-2 24,-3 -3,3 24,-3 -22,9"
+      fill="#f4ead5" stroke="#1a1a1a" stroke-width="1.6" stroke-linejoin="round"/>
+  </g>
+</svg>

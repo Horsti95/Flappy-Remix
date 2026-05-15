@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 640" width="180" height="320">
+  <title>Fog — limited visibility, only ahead-of-plane area is clear</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#cdd6dd"/>
+      <stop offset="100%" stop-color="#e7ecf0"/>
+    </linearGradient>
+    <radialGradient id="vis" cx="22%" cy="50%" r="35%">
+      <stop offset="0%" stop-color="#cdd6dd" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#cdd6dd" stop-opacity="0.97"/>
+    </radialGradient>
+  </defs>
+  <rect width="360" height="640" fill="url(#bg)"/>
+  <rect x="120" y="0" width="56" height="260" fill="#3d8b58" opacity="0.5"/>
+  <rect x="120" y="400" width="56" height="240" fill="#3d8b58" opacity="0.5"/>
+  <rect width="360" height="640" fill="url(#vis)"/>
+  <g transform="translate(80 320) rotate(-8) scale(2.4)">
+    <polygon points="-14,6 14,-6 1,0 14,-6 -1,11" fill="#f4ead5" stroke="#1a1a1a" stroke-width="0.6"/>
+    <polygon points="1,0 -14,6 -1,11" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="0.6"/>
+  </g>
+  <text x="180" y="600" text-anchor="middle" fill="#1a1a1a" opacity="0.55" font-family="system-ui" font-size="14">visibility ~ 60% of screen</text>
+</svg>

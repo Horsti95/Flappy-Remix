@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 -30 60 60" width="240" height="240">
+  <title>Dart — sharper, racing-themed alternate shape</title>
+  <rect x="-30" y="-30" width="60" height="60" fill="#1a1a1a" rx="6"/>
+  <g transform="rotate(-10)">
+    <polygon points="-20,8 24,-4 -16,2" fill="#f4ead5" stroke="#1a1a1a" stroke-width="1.2" stroke-linejoin="round"/>
+    <polygon points="24,-4 -16,2 -20,8 -2,2" fill="#bdb39f" stroke="#1a1a1a" stroke-width="1.2" stroke-linejoin="round"/>
+    <polygon points="-20,8 -24,12 -16,11" fill="#f4ead5" stroke="#1a1a1a" stroke-width="1.2" stroke-linejoin="round"/>
+  </g>
+</svg>

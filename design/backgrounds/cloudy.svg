@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 640" width="180" height="320">
+  <title>Cloudy — pale grey-blue with white wisps</title>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#b8c2cc"/>
+      <stop offset="100%" stop-color="#d6dee5"/>
+    </linearGradient>
+  </defs>
+  <rect width="360" height="640" fill="url(#g)"/>
+  <ellipse cx="80" cy="100" rx="44" ry="14" fill="#ffffff" opacity="0.75"/>
+  <ellipse cx="120" cy="90" rx="30" ry="12" fill="#ffffff" opacity="0.75"/>
+  <ellipse cx="260" cy="180" rx="50" ry="16" fill="#ffffff" opacity="0.65"/>
+  <ellipse cx="220" cy="170" rx="32" ry="13" fill="#ffffff" opacity="0.65"/>
+  <ellipse cx="60" cy="260" rx="36" ry="12" fill="#ffffff" opacity="0.5"/>
+  <ellipse cx="290" cy="380" rx="44" ry="14" fill="#ffffff" opacity="0.6"/>
+  <rect x="120" y="0" width="56" height="260" fill="#3d8b58" opacity="0.85"/>
+  <rect x="120" y="400" width="56" height="240" fill="#3d8b58" opacity="0.85"/>
+  <g transform="translate(80 320) rotate(-8) scale(2.4)">
+    <polygon points="-14,6 14,-6 1,0 14,-6 -1,11" fill="#f4ead5" stroke="#1a1a1a" stroke-width="0.6"/>
+    <polygon points="1,0 -14,6 -1,11" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="0.6"/>
+  </g>
+</svg>

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 -30 60 60" width="240" height="240">
+  <title>Butterfly — alternate character from user-provided sprite</title>
+  <rect x="-30" y="-30" width="60" height="60" fill="#1a1a1a" rx="6"/>
+  <g>
+    <!-- antennae -->
+    <path d="M -1.2 -10 Q -6 -16 -8 -22" stroke="#3a3a3a" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+    <path d="M  1.2 -10 Q  6 -16  8 -22" stroke="#3a3a3a" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+    <!-- upper wings (cream) -->
+    <path d="M 0 -7 C -16 -16, -22 -8, -20 -1 C -16 3, -4 -1, 0 -3 Z"
+      fill="#f4ead5" stroke="#1a1a1a" stroke-width="1.4" stroke-linejoin="round"/>
+    <path d="M 0 -7 C  16 -16,  22 -8,  20 -1 C  16 3,  4 -1,  0 -3 Z"
+      fill="#f4ead5" stroke="#1a1a1a" stroke-width="1.4" stroke-linejoin="round"/>
+    <!-- lower wings (tan) -->
+    <path d="M -2 1 C -14 5, -16 11, -10 14 C -4 14, -1 8, -1 5 Z"
+      fill="#bdb39f" stroke="#1a1a1a" stroke-width="1.4" stroke-linejoin="round"/>
+    <path d="M  2 1 C  14 5,  16 11,  10 14 C  4 14,  1 8,  1 5 Z"
+      fill="#bdb39f" stroke="#1a1a1a" stroke-width="1.4" stroke-linejoin="round"/>
+    <!-- body -->
+    <ellipse cx="0" cy="-1" rx="1.6" ry="11" fill="#3a3a3a" stroke="#1a1a1a" stroke-width="0.8"/>
+  </g>
+</svg>

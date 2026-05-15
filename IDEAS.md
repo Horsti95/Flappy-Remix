@@ -88,6 +88,11 @@ Replaces the current `ui/skin-picker.ts`.
 
 ### Local-time ambient sky (`s`, after theme abstraction)
 
+> **Strict scope**: only **casual / challenge / ranked** runs use the
+> player's local time for the ambient sky. The **daily** is always
+> global — same modifier, same physics, same sky for everyone
+> worldwide, on the UTC date hash. Daily fairness over personal mood.
+
 Two players in different timezones should not see the same sky when
 their wall clocks disagree. The **daily modifier** stays global
 (Berlin and LA both get "fog day"). The **ambient sky** is derived
@@ -207,15 +212,25 @@ the match. Different competitive shape — rewards your peak instead
 of your consistency. Surface both modes side-by-side as
 "Best of three" vs "Single peak."
 
-### Daily play cap with rest copy (`s`)
+### Daily play cap + opt-in session limit (`s`)
 
-After 10 daily runs the player can keep playing **casual** mode but
-**daily-leaderboard submissions stop until tomorrow**. The button
-copy says something like "you've played 10 today — touch grass." Use
-the cap to create artificial scarcity *without* holding the game
-hostage. Important: do **not** add streak-loss anxiety prompts, push
+Two layers, both anti-engagement.
+
+**Daily-leaderboard cap** (always on): after 10 daily runs the player
+can keep playing **casual** but daily-leaderboard submissions stop
+until tomorrow. Button copy: "you've played 10 today — touch grass."
+Creates artificial scarcity without holding the game hostage.
+
+**Optional session limit** (off by default, opt-in in settings):
+choose either "20 min/day total" or "20 min then 9h cooldown." When
+the limit hits, the play buttons go quiet for the cooldown window
+with a one-line "come back at 18:00 — go outside" message. Toggle
+lives in account settings under a "wellbeing" section.
+
+Important: do **not** add streak-loss anxiety prompts, push
 notifications, or "your friend just played" pings — those are
-explicitly banned in `ETHICS.md`.
+explicitly banned in `ETHICS.md`. Likewise, **never** unlock playtime
+for money. The cap is a feature, not a paywall.
 
 ### Feedback panel (`s`)
 
@@ -233,6 +248,56 @@ Streak rules, daily seed behavior, ghost mode, ranked best-of-3 — all
 currently only in the README. New player has no in-game way to learn
 them. One scrollable panel in the account menu or a (?) icon next to
 the hero daily button.
+
+### Game-over screen — fill the empty space (`s`)
+
+Game-over today: score + share + restart/menu. Lots of empty space.
+Worth filling with **data we already store**:
+
+- **Mini leaderboard strip**: top 3 today + your rank
+  ("you: #47 of 14k")
+- **Personal best chip**: "your daily PB: 32 — beat it next attempt"
+- **Recent friends scores** on the same daily (1-2), with an inline
+  "challenge them back" button
+- **Next unlock hint**: "play 4 more games to mint a new skin"
+- **Streak progress bar** — how close to the next milestone
+
+Build the mini-leaderboard + PB first. Pure data, no schema change,
+fits the existing layout.
+
+### Pipe sprite redesign — distance from Flappy Bird (`s`)
+
+Current pipes are `#3d8b58` green with caps. Reads as Mario warp
+pipes. Brief explicitly says "distinct from Flappy Bird in name and
+visual." Three options:
+
+- **Folded paper columns**: cream body + tan center crease + dark
+  outline, matches the player skin language. Recommended.
+- **Geometric monoliths**: dark grey towers, no caps, slight bevel.
+  Reads as obstacle, not pipe.
+- **Theme-driven**: pipes change look per background — paper at
+  default, neon at night, charred at sunset. Layered with the
+  theme abstraction (already a prereq for visual modifiers).
+
+Recommendation: paper columns first. Single change in `render.ts`,
+half a day. Theme variants come along when the theme abstraction
+lands.
+
+### Butterfly as alternate character shape (`m`)
+
+User-provided sprite. Two upper wings (cream), two lower wings
+(tan), thin body, antennae. Front-view symmetric, very different
+silhouette from the side-view plane. Could ship as:
+
+- A **rare unlock** (e.g. play during the first day of spring, or
+  reach a specific score milestone)
+- A **selectable shape** alongside paper-plane in the gallery once
+  we ship the `{ shape, skin }` two-axis equip flow
+
+Sketch lives at `design/skins/butterfly.svg`. When porting into the
+renderer, hand-translate the path commands into canvas polygon
+commands inside `drawPlane` (rename to `drawShape` and dispatch on
+shape id).
 
 ## Maybe — interesting but unclear payoff
 
@@ -282,6 +347,36 @@ server-side renderer.
 
 Top-N players from a season get invited to a bracket. Stake nothing,
 win a special skin. Could be very engaging once player base is real.
+
+### Monetisation paths — ethics-aligned (`s` to `m` each)
+
+`ETHICS.md` rules out aggressive ads, microtransactions, loot boxes,
+and push spam. What's left if the project ever needs revenue:
+
+| approach                    | mechanic                                                       | feel       |
+|-----------------------------|----------------------------------------------------------------|------------|
+| Ko-fi / Buy Me a Coffee     | One link in account panel: "support the project"               | clean      |
+| Patreon supporter badge     | One-time or monthly, permanent cosmetic supporter chip         | clean      |
+| Sponsored daily             | A brand pays for a small logo on one daily's share card        | risky      |
+| Premium skin pack           | Once-off purchase of a curated set, no random rolls            | borderline (would need an ETHICS update) |
+| Banner / interstitial ads   | What we said we don't want                                     | forbidden  |
+
+Recommendation: **start with Ko-fi**. One button, no functional
+gate, nothing to nag the player about. Patreon supporter chip later
+if the project grows.
+
+### Capacitor app store builds (`m`)
+
+Wraps the same web build into a real iOS / Android binary that
+goes through the App Store / Play Store. Same code, two more deploy
+targets. Performance ~95% of native — Canvas + RAF runs fine in
+mobile webviews. Issues: Apple's 30% cut on in-app purchases (moot
+if no purchases), Apple's review process (4-7 days, occasionally
+rejects PWAs that "duplicate web functionality"), push notifications
+need native plumbing (we don't ship push by design).
+
+Skip until there's a real reason. PWA install handles 90% of "feels
+like an app." Half a week to set up cleanly when the time comes.
 
 ## Tech debt / pain points
 

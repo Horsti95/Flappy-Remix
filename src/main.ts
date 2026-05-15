@@ -16,15 +16,18 @@ import {
 } from "./ui/menu";
 import { initAuth, authState, subscribeAuth } from "./social/auth";
 import { renderAccountPanel } from "./ui/account";
-import { renderSkinPicker } from "./ui/skin-picker";
+import { renderGallery } from "./ui/gallery";
 import { renderLeaderboard } from "./ui/leaderboard";
 import {
   listOwnedSkins,
   setEquippedSkin,
   getEquippedSkinIdLocal,
+  getEquippedShapeLocal,
+  setEquippedShapeLocal,
   type SkinRow,
   rowToColors,
 } from "./social/skins";
+import { DEFAULT_SHAPE_ID, type ShapeId } from "./game/shapes";
 import { type SubmitResult } from "./social/runs";
 import { installFlushHooks, pendingCount, submitOrEnqueue } from "./social/offline-queue";
 import { fetchDaily, type DailyInfo } from "./social/daily";
@@ -52,6 +55,8 @@ let loop: GameLoop | null = null;
 let currentSeed = 0;
 let currentRunMode: RunMode = "casual";
 let equippedSkin: SkinRow | null = null;
+let equippedShapeId: ShapeId = DEFAULT_SHAPE_ID;
+let bestScoreSeen = 0;
 let dailyInfo: DailyInfo | null = null;
 let activeChallenge: FetchedChallenge | null = null;
 let activeRanked: { match: RankedMatch; round: number } | null = null;
@@ -75,9 +80,23 @@ function announce(msg: string): void {
   if (liveRegion) liveRegion.textContent = msg;
 }
 
+const initialShape: ShapeId = ((): ShapeId => {
+  const stored = getEquippedShapeLocal();
+  return (stored as ShapeId | null) ?? DEFAULT_SHAPE_ID;
+})();
+equippedShapeId = initialShape;
+bestScoreSeen = ((): number => {
+  try {
+    return Number(localStorage.getItem("pflug.bestScore.v1") ?? "0") || 0;
+  } catch {
+    return 0;
+  }
+})();
+
 const renderer = new Renderer(canvas, DEFAULT_CONFIG, {
   highContrast: settings.highContrast,
   skin: DEFAULT_SKIN,
+  shape: equippedShapeId,
   reducedMotion: settings.reducedMotion || matchMedia("(prefers-reduced-motion: reduce)").matches,
 });
 const observer = new ResizeObserver(() => renderer.resize());
@@ -197,15 +216,26 @@ function showMenu(): void {
       onToggleSetting,
       onOpenAccount: () => renderAccountPanel(overlays, () => showMenu()),
       onOpenSkins: () => {
-        renderSkinPicker(
+        renderGallery(
           overlays,
-          equippedSkin?.id ?? null,
-          async (id) => {
-            await setEquippedSkin(id);
-            await loadEquippedSkin();
-            showMenu();
+          { skinId: equippedSkin?.id ?? null, shapeId: equippedShapeId },
+          {
+            totalGames: authState().profile?.total_games ?? 0,
+            bestScore: bestScoreSeen,
+            streakDays: authState().profile?.streak_days ?? 0,
           },
-          () => showMenu(),
+          {
+            onEquipSkin: async (id) => {
+              await setEquippedSkin(id);
+              await loadEquippedSkin();
+            },
+            onEquipShape: (id) => {
+              equippedShapeId = id;
+              setEquippedShapeLocal(id);
+              renderer.options.shape = id;
+            },
+            onClose: () => showMenu(),
+          },
         );
       },
       onOpenLeaderboard: () => renderLeaderboard(overlays, () => showMenu()),
@@ -281,6 +311,14 @@ function startRun(runMode: RunMode = "casual"): void {
         pauseBtn.classList.add("hidden");
         const score = sim.score;
         const ticks = sim.dieTick;
+        if (score > bestScoreSeen) {
+          bestScoreSeen = score;
+          try {
+            localStorage.setItem("pflug.bestScore.v1", String(bestScoreSeen));
+          } catch {
+            /* localStorage blocked — non-fatal */
+          }
+        }
         announce(`Run ended. Score ${score}. Press R to play again.`);
         const result = await trySubmit(sim);
         const share = (): void => {

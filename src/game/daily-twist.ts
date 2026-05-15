@@ -2,13 +2,24 @@ import { hashStringToSeed, Rng } from "./rng";
 import { type SimConfig } from "./config";
 
 /**
- * Daily twist — physics-only first iteration.
+ * Daily twist — deterministic per UTC date.
  *
- * Every UTC date deterministically picks both a difficulty tier and a
- * modifier from a fixed registry. Same date = same pick across all
- * clients worldwide. Visual modifiers (fog, night sky, blinding sun)
- * are stubbed out and will land once the renderer has a theme
- * abstraction.
+ * Every UTC date hashes to a difficulty tier (easy / medium / hard /
+ * super_hard via 1/3/2/1 weighting) plus 1-2 modifiers from a fixed
+ * registry. Same date = same pick across all clients worldwide.
+ *
+ * Shipped: physics + geometry modifiers (wider/tighter gaps,
+ * floaty/heavy gravity, big flap, small/big hitbox, faster scroll).
+ * applyModifiers() composes their config overrides onto a base
+ * SimConfig; both the client GameLoop and the server replay
+ * validator run under the same overridden physics so daily replays
+ * stay byte-identical.
+ *
+ * Not yet wired (visual / mechanical / geometric extras like fog,
+ * night sky, sunset, blinding sun, rain, headwind, wind gusts,
+ * tunnel, mirror): the registry doesn't include them today. They
+ * land once the renderer grows a `theme` abstraction — tracked in
+ * IDEAS.md under tech debt.
  */
 
 export type ModifierKind = "physics" | "geometry" | "visual" | "mechanical";

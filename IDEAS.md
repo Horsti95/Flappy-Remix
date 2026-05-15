@@ -10,51 +10,43 @@ shape so future-you remembers what you meant.
 
 ## Next — concrete, deciding what to start
 
-### Daily twist with difficulty tiers + pre-game warning (`m`)
+### Daily twist — pre-game warning + remaining modifiers (`s` to `m` each)
 
-The daily seed currently only varies pipe positions. Boring after a
-few days. Derive a **difficulty tier and a modifier set** from the
-same seed each day so the daily has a clear identity and an honest
-warning before you press play.
+The daily twist core shipped in `src/game/daily-twist.ts`: tier
+picker (1/3/2/1 weighting for easy/medium/hard/super-hard), modifier
+registry, `applyModifiers()` composing config overrides onto a base
+`SimConfig`, server-side replay validator running under the same
+overridden physics, tier chip + modifier name on the home button,
+tier badge + modifier label on share cards.
 
-**Tier mapping** (rolled from the seed):
+**What still needs to happen** for the daily to feel complete:
 
-| tier        | frequency | modifier mix                                     |
-|-------------|-----------|--------------------------------------------------|
-| Easy        | 1 in 7    | one friendly mod (wider gaps, floaty, big flap)  |
-| Medium      | 3 in 7    | one neutral mod (night sky, fog, sunset visual)  |
-| Hard        | 2 in 7    | one hostile mod (tight gaps, faster, headwind)   |
-| Super hard  | 1 in 7    | two hostile mods stacked                         |
-
-**Pre-game screen** shows the tier prominently, the modifier list,
-and a one-line warning (`SUPER HARD — tight gaps + heavy gravity.
-you've been warned.`). Player taps "play anyway" to start. Share card
-+ OG image both show the tier so beating "super hard fog day at 28"
-reads like a real achievement.
-
-**Modifier candidates** (the per-day pick draws from these):
-
-- Physics-only (1-2 hours each):
-  - Wider gaps (`gapH + 20`)
-  - Tighter gaps (`gapH - 15`)
-  - Faster scroll (`* 1.25`)
-  - Heavier gravity (`* 1.15`)
-  - Floaty gravity (`* 0.85`)
-  - Big flap (`flapImpulse * 1.2`)
-- Visual (half-day each, needs theme abstraction first — see tech debt):
+- **Pre-game warning screen** (`s`). Tap "today's daily" → currently
+  starts the run immediately. Replace with a landing screen showing
+  the tier label, modifier list, one-line warning
+  (`SUPER HARD — tight gaps + heavy gravity. you've been warned.`),
+  and a "play anyway" button. This is also where the missing daily
+  context belongs: your best so far, attempts remaining, plays
+  count, recent friend scores. Pulls together with the
+  "pre-game daily landing screen" tech-debt item.
+- **Visual modifiers** (half-day each, blocked on the renderer
+  theme abstraction — see tech debt):
   - **Fog** — visibility ~ 60% of screen, radial reveal around the plane
   - **Night sky** — dark gradient, dim pipes
   - **Sunset** — purple → orange → gold gradient
   - **Blinding sun** — bright radial bloom on the right side, makes incoming pipes hard to read until close (pairs naturally with sunset)
   - **Rain** — light particle pass, mild visual noise
-- Mechanical (half-day each):
+- **Mechanical modifiers** (half-day each):
   - **Headwind** — small leftward force pulses every ~2s
   - **Wind gusts** — short bursts of headwind, randomized within the run (still seed-deterministic)
-- Geometric (full day each):
-  - **Tunnel** — pipes are doubled (two gaps in quick succession)
-  - **Mirror** — flip the world horizontally (bird scrolls right-to-left). Disorienting in a fun way.
-  - **Small hitbox** — bird collision circle shrinks 30%, gaps stay the same — gentler hostile
-  - **Big hitbox** — opposite: collision circle grows 25%, hostile
+- **Geometric extras** not in the first cut:
+  - **Tunnel** (`m`) — pipes are doubled (two gaps in quick succession)
+  - **Mirror** (`s`) — flip the world horizontally at the renderer level. The sim is already left-scrolling-deterministic, so only the canvas transform flips; collision math stays the same.
+
+Already in the registry and live: wider gaps, tighter gaps, faster
+scroll, heavier gravity, floaty gravity, big flap, small hitbox,
+big hitbox. Sim determinism preserved across all modifiers
+(13 tests in `tests/daily-twist.test.ts`).
 
 ### Daily: 3 attempts, best counts (`m`)
 
@@ -445,6 +437,8 @@ of-3 attempts. The screen pulls all three together.
 
 | Date       | What                                                                |
 |------------|---------------------------------------------------------------------|
+| 2026-05-15 | daily-twist: physics + geometry modifiers, tier picker (1/3/2/1), server-side replay under modifier-aware cfg, tier chip on home screen + share card |
+| 2026-05-14 | docs: design gallery v2 (paper-plane-v2 + butterfly sprites)        |
 | 2026-05-14 | docs: design gallery (SVG sketches for skins / themes / palettes)   |
 | 2026-05-14 | M6 — offline queue, a11y pass, GDPR endpoints, LICENSE/PRIVACY/ETHICS |
 | 2026-05-14 | M5 — ranked best-of-three, ELO, seasons, season-end top-100 badges  |

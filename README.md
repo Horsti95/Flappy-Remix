@@ -76,6 +76,11 @@ See [`IDEAS.md`](./IDEAS.md) for the running list of what to build next.
   accepted run is re-simulated and rejected if its score doesn't match.
 - Daily seed shared by every player on a given UTC date, with a daily
   leaderboard view and home-screen plays-count surface.
+- Daily twist: the daily seed also rolls a difficulty tier (easy / medium
+  / hard / super hard at 1/3/2/1 frequency) plus 1-2 physics modifiers
+  (wider/tighter gaps, floaty/heavy gravity, big flap, small/big hitbox,
+  faster scroll). Same modifier worldwide; both client and server
+  replay under matched physics so the daily leaderboard stays honest.
 - Streak counter (any mode +1 per day, daily +2 — bonus once per day).
 - 1080×1920 PNG share card rendered client-side; 1200×630 OG image
   rendered server-side via @vercel/og; `/run/<id>` URLs unfurl on
@@ -106,7 +111,7 @@ only — runs aren't persisted and there is no leaderboard, friends, or
 ranked. The game itself plays the same.
 
 ```sh
-npm test                   # vitest — 76 unit + integration tests
+npm test                   # vitest — 85 unit + integration tests
 npm run typecheck          # tsc --noEmit
 npm run build              # production build to dist/
 npm run icons              # regenerate PWA / OG icons from the SVG
@@ -246,10 +251,11 @@ fake notifications.
 
 ## Tests
 
-76 vitest tests cover: PRNG stability, sim determinism, ΔE2000 + rarity
+85 vitest tests cover: PRNG stability, sim determinism, ΔE2000 + rarity
 classification, replay validator (cadence, score mismatch, tampering),
 daily seed determinism + UTC boundary + leap-year math, all 8 streak
 rules, ELO math (16 cases), BO3 settlement, season soft-reset chain,
+daily-twist tier distribution + modifier-aware replay divergence,
 the death → challenge → friend-plays integration loop. A Playwright
 spec scaffold lives at `tests/e2e/` for browser-driven verification
 when a runner is added to CI.

@@ -16,6 +16,10 @@ export interface ShareCardData {
   dailyTier?: Tier | null;
   dailyModifierLabel?: string | null;
   topRank?: number | null;
+  /** When this share card targets a specific friend (e.g. via the
+   *  'Challenge a friend' flow), include their handle so the copy
+   *  can say "for @lennart". Null for open challenges. */
+  addressedTo?: string | null;
   brand?: string;
 }
 

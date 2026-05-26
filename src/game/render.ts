@@ -1,14 +1,17 @@
 import { Sim } from "./sim";
 import { type SimConfig } from "./config";
-import { DEFAULT_SKIN, rgbCss, type SkinColors } from "./skin";
+import { DEFAULT_SKIN, type SkinColors } from "./skin";
 import { type GhostSim } from "./ghost";
 import { DEFAULT_THEME_ID, getTheme, type ThemeId } from "./themes";
+import { DEFAULT_SHAPE_ID, getShape, type ShapeId } from "./shapes";
 
 export interface RenderOptions {
   highContrast: boolean;
   skin: SkinColors;
   theme: ThemeId;
+  shape: ShapeId;
   ghostSkin?: SkinColors;
+  ghostShape?: ShapeId;
   reducedMotion: boolean;
 }
 
@@ -31,6 +34,7 @@ export class Renderer {
       highContrast: false,
       skin: DEFAULT_SKIN,
       theme: DEFAULT_THEME_ID,
+      shape: DEFAULT_SHAPE_ID,
       reducedMotion: false,
       ...options,
     };
@@ -65,7 +69,6 @@ export class Renderer {
     ctx.fillStyle = grd;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Optional sun-spot (e.g. blinding-sun theme).
     if (!this.options.highContrast && theme.colors.sunSpot) {
       const s = theme.colors.sunSpot;
       const sxPx = this.offsetX + s.x * this.scale;
@@ -97,22 +100,20 @@ export class Renderer {
     if (ghost && ghost.isAlive()) {
       const gy = ghost.prevBirdY() + (ghost.birdY() - ghost.prevBirdY()) * alpha;
       ctx.globalAlpha = 0.45;
-      this.drawPlane(
+      this.drawShape(
         cfg.birdX,
         gy,
         0,
         this.options.ghostSkin ?? { body: [200, 200, 200], accent: [80, 80, 80] },
+        this.options.ghostShape ?? this.options.shape,
       );
       ctx.globalAlpha = 1;
     }
 
     const by = sim.alive ? sim.prevBirdY + (sim.birdY - sim.prevBirdY) * alpha : sim.birdY;
     const tilt = this.options.reducedMotion ? 0 : Math.max(-0.6, Math.min(1.0, sim.birdVY / 600));
-    this.drawPlane(cfg.birdX, by, tilt, this.options.skin);
+    this.drawShape(cfg.birdX, by, tilt, this.options.skin, this.options.shape);
 
-    // Fog overlay: a radial cutout centered on the plane so visibility
-    // drops the further out you look. Stays in world space so it
-    // scales with the canvas.
     if (!this.options.highContrast && theme.colors.fogIntensity) {
       const cx = cfg.birdX;
       const cy = by;
@@ -139,32 +140,13 @@ export class Renderer {
     ctx.restore();
   }
 
-  private drawPlane(x: number, y: number, tilt: number, skin: SkinColors): void {
+  private drawShape(x: number, y: number, tilt: number, skin: SkinColors, shapeId: ShapeId): void {
     const ctx = this.ctx;
     const r = this.cfg.birdRadius;
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(tilt);
-    ctx.fillStyle = rgbCss(skin.body);
-    ctx.strokeStyle = this.options.highContrast ? "#ffffff" : "#1a1a1a";
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(-r, r * 0.45);
-    ctx.lineTo(r * 1.05, -r * 0.35);
-    ctx.lineTo(r * 0.05, 0);
-    ctx.lineTo(r * 1.05, -r * 0.35);
-    ctx.lineTo(-r * 0.05, r * 0.75);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = rgbCss(skin.accent);
-    ctx.beginPath();
-    ctx.moveTo(r * 0.05, 0);
-    ctx.lineTo(-r, r * 0.45);
-    ctx.lineTo(-r * 0.05, r * 0.75);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
+    getShape(shapeId).draw(ctx, r, skin, this.options.highContrast);
     ctx.restore();
   }
 

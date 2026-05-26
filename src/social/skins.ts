@@ -12,6 +12,23 @@ export interface SkinRow {
 }
 
 const EQUIPPED_KEY = "pflug.equipped.v1";
+const EQUIPPED_SHAPE_KEY = "pflug.shape.v1";
+
+export function getEquippedShapeLocal(): string | null {
+  try {
+    return JSON.parse(localStorage.getItem(EQUIPPED_SHAPE_KEY) ?? "null");
+  } catch {
+    return null;
+  }
+}
+
+export function setEquippedShapeLocal(shapeId: string | null): void {
+  try {
+    localStorage.setItem(EQUIPPED_SHAPE_KEY, JSON.stringify(shapeId));
+  } catch {
+    /* ignore — localStorage may be blocked */
+  }
+}
 
 export async function listOwnedSkins(): Promise<SkinRow[]> {
   const sb = getSupabase();

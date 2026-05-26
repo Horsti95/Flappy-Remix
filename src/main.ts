@@ -31,6 +31,7 @@ import { fetchDaily, type DailyInfo } from "./social/daily";
 import { renderShareSheet } from "./ui/share-sheet";
 import { type ShareCardData } from "./social/share-card";
 import { renderFriendsPanel } from "./ui/friends";
+import { renderDailyLanding } from "./ui/daily-landing";
 import { renderRankedPanel } from "./ui/ranked";
 import { type RankedMatch } from "./social/ranked";
 import { createChallenge, fetchChallenge, ghostSkinFromChallenge, type FetchedChallenge } from "./social/challenges";
@@ -193,7 +194,7 @@ function showMenu(): void {
     settings,
     {
       onPlay: () => startRun("casual"),
-      onPlayDaily: () => startRun("daily"),
+      onPlayDaily: () => openDailyLanding(),
       onToggleSetting,
       onOpenAccount: () => renderAccountPanel(overlays, () => showMenu()),
       onOpenSkins: () => {
@@ -235,6 +236,46 @@ function showMenu(): void {
       online: typeof navigator !== "undefined" ? navigator.onLine : true,
     },
   );
+}
+
+function openDailyLanding(): void {
+  if (!dailyInfo) {
+    startRun("daily");
+    return;
+  }
+  overlays.innerHTML = "";
+  const dateKey = `pflug.dailyBest.${dailyInfo.date}`;
+  let bestScore: number | null = null;
+  try {
+    const raw = localStorage.getItem(dateKey);
+    if (raw) bestScore = Number(raw) || 0;
+  } catch {
+    /* localStorage blocked — silent fall back to no PB */
+  }
+  renderDailyLanding(
+    overlays,
+    {
+      date: dailyInfo.date,
+      pick: dailyInfo.pick,
+      playsCount: dailyInfo.plays_count,
+      bestScore,
+      streakDays: authState().profile?.streak_days ?? 0,
+    },
+    {
+      onPlay: () => startRun("daily"),
+      onClose: () => showMenu(),
+    },
+  );
+}
+
+function recordDailyBest(date: string, score: number): void {
+  const key = `pflug.dailyBest.${date}`;
+  try {
+    const prev = Number(localStorage.getItem(key) ?? "0") || 0;
+    if (score > prev) localStorage.setItem(key, String(score));
+  } catch {
+    /* localStorage blocked — silent fall back */
+  }
 }
 
 function onToggleSetting(key: keyof Settings): void {
@@ -281,6 +322,9 @@ function startRun(runMode: RunMode = "casual"): void {
         pauseBtn.classList.add("hidden");
         const score = sim.score;
         const ticks = sim.dieTick;
+        if (currentRunMode === "daily" && dailyInfo) {
+          recordDailyBest(dailyInfo.date, score);
+        }
         announce(`Run ended. Score ${score}. Press R to play again.`);
         const result = await trySubmit(sim);
         const share = (): void => {

@@ -437,6 +437,11 @@ of-3 attempts. The screen pulls all three together.
 
 | Date       | What                                                                |
 |------------|---------------------------------------------------------------------|
+| 2026-05-26 | feat/challenge-friend-button: top-level menu entry + friend picker + auto-create challenge on death |
+| 2026-05-26 | feat/shape-gallery: 6 shapes (plane/v2/dart/kite/crane/butterfly) + gallery with unlock predicates replacing old skin picker |
+| 2026-05-26 | feat/pregame-daily-landing: pre-game screen with tier/modifier/PB/streak before daily starts |
+| 2026-05-26 | feat/theme-abstraction: 6 themes (sunny/cloudy/sunset/dawn/night/fog) + fog radial overlay + sun-spot hook |
+| 2026-05-26 | chore/doc-refresh: README 76→101 tests, daily-twist mention, IDEAS shipped/remaining split |
 | 2026-05-15 | daily-twist: physics + geometry modifiers, tier picker (1/3/2/1), server-side replay under modifier-aware cfg, tier chip on home screen + share card |
 | 2026-05-14 | docs: design gallery v2 (paper-plane-v2 + butterfly sprites)        |
 | 2026-05-14 | docs: design gallery (SVG sketches for skins / themes / palettes)   |

@@ -65,18 +65,13 @@ score counts**. Three reasons:
 - Locked at 3 attempts per UTC day per player. Submissions past 3
   are accepted as casual runs (no daily leaderboard credit).
 
-### In-game gallery for skins + themes (locked + unlocked) (`s`)
+### Gallery — add Themes tab + Badges tab (`s`)
 
-Today's skin picker shows **only owned** skins. Players don't know
-what they're working toward. Replace with a single Gallery panel
-that shows everything, owned and locked, with tap-to-expand
-descriptions explaining how to unlock each one. Easy back button.
-
-Layout: tabs at top (Skins / Themes / Badges), 3-col grid below, each
-card shows the SVG, name, rarity tier, lock state, and a one-line
-hint ("play 50 games between 20:00 and 02:00 to unlock").
-
-Replaces the current `ui/skin-picker.ts`.
+The Shapes + Colors gallery shipped (replaces old skin-picker). Still
+missing: a **Themes** tab (once themes become equippable cosmetics)
+and a **Badges** tab (season-end placements, ordinal-tier marker).
+Both are data we already have; the tab scaffold in `gallery.ts` is
+ready to extend.
 
 ### Local-time ambient sky (`s`, after theme abstraction)
 
@@ -103,21 +98,13 @@ over night" and LA player at 6pm same day gets "fog over sunset" —
 same physics, different mood. No anti-cheat concern (no scoring
 advantage to spoofing your clock for a different ambient).
 
-### "Challenge a friend" as a top-level menu button (`s`)
+### "Challenge a friend" — remaining polish (`xs`)
 
-Today the only way to challenge a friend is to **die first, then
-share**. There's no "I want to challenge Lennart" button. Add one to
-the main menu:
-
-1. Tap "Challenge a friend" → friend picker (lists your friends)
-2. Pick the seed source — today's daily, a past daily, or a fresh
-   random one
-3. Game starts. On death, run is auto-converted to a challenge
-   addressed to the chosen friend; link auto-copied for sharing,
-   plus optional in-app inbox surface for them
-
-Hooks into the existing challenge-create endpoint; mostly a new
-picker UI and a small flow change.
+The top-level button + friend picker + auto-create-on-death shipped.
+Still missing: the picker doesn't show the friend's recent score for
+context ("@lennart's best today: 18 — beat that?"), and the share
+text could include the challenge short_id in the URL (currently it
+uses the friend_code param which doesn't route to the ghost).
 
 ### Random color variants on alternate plane shapes (`s`)
 
@@ -375,15 +362,10 @@ like an app." Half a week to set up cleanly when the time comes.
 Honest record of where the code is starting to creak. Each gets a
 "when to fix" note.
 
-### Renderer has no `theme` abstraction (`s` to refactor)
+### ~~Renderer has no `theme` abstraction~~ — SHIPPED
 
-The renderer hardcodes sky gradient + pipe colors in `render.ts`.
-Three "Next" features (backgrounds, daily visual modifiers, local-
-time ambient sky) all need this abstraction first.
-
-**When to fix**: before any of those three lands. Probably the
-first thing to do when starting "Daily twist" because the visual
-modifiers can't ship without it.
+Shipped in feat/theme-abstraction. 6 themes registered, fog overlay
+wired, sun-spot hook ready. Unblocks visual modifiers + ambient sky.
 
 ### `api/submit-run.ts` is doing too many things (`m` to split)
 
@@ -413,23 +395,16 @@ new enum value plus a column. Neither scales.
 **When to fix**: only if we add 2+ more modes. For now, "daily" can
 carry the best-of-3 state via an `attempt_number` column.
 
-### Skin picker doesn't preview locked items (`s`)
+### ~~Skin picker doesn't preview locked items~~ — SHIPPED
 
-Mentioned in "Next → In-game gallery." This is a UX gap that becomes
-worse as we add more rarity tiers and ordinal skins.
+Shipped in feat/shape-gallery. Gallery shows all shapes with lock
+state + unlock hints. Colors tab shows owned procedural skins.
 
-**When to fix**: ship the Gallery refactor when we add ordinal skins,
-not before.
+### ~~Pre-game daily landing screen is missing~~ — SHIPPED
 
-### Pre-game daily landing screen is missing (`s`)
-
-Tap "today's daily" → game starts immediately. No pre-game state
-showing the modifier, the difficulty tier, your best so far, the
-plays count, recent friends' scores. This is the most important
-"showcase" screen we don't have.
-
-**When to fix**: when shipping daily twist + difficulty tiers + best-
-of-3 attempts. The screen pulls all three together.
+Shipped in feat/pregame-daily-landing. Shows tier, modifiers, PB,
+streak, plays count. Still missing: friend scores + attempts counter
+(those arrive with daily-best-of-3).
 
 ---
 

@@ -1,7 +1,7 @@
-# start-dev.ps1 — starts the game server + cloudflare tunnel in one go.
-# Run from the project root: .\start-dev.ps1
+# start-dev.ps1 - starts the game server + cloudflare tunnel in one go.
+# Run from the project root: powershell -ExecutionPolicy Bypass -File .\start-dev.ps1
 
-# Set server-side env vars that Vite doesn't load from .env automatically
+# Set server-side env vars that Vite does not load from .env automatically
 $envFile = Join-Path $PSScriptRoot ".env"
 if (Test-Path $envFile) {
     Get-Content $envFile | ForEach-Object {
@@ -13,7 +13,7 @@ if (Test-Path $envFile) {
     }
     Write-Host "[start-dev] Loaded .env into process environment" -ForegroundColor Green
 } else {
-    Write-Host "[start-dev] No .env file found — running in offline mode" -ForegroundColor Yellow
+    Write-Host "[start-dev] No .env file found - running in offline mode" -ForegroundColor Yellow
 }
 
 # Pull latest code

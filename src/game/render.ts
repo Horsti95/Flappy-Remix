@@ -2,10 +2,12 @@ import { Sim } from "./sim";
 import { type SimConfig } from "./config";
 import { DEFAULT_SKIN, rgbCss, type SkinColors } from "./skin";
 import { type GhostSim } from "./ghost";
+import { DEFAULT_THEME_ID, getTheme, type ThemeId } from "./themes";
 
 export interface RenderOptions {
   highContrast: boolean;
   skin: SkinColors;
+  theme: ThemeId;
   ghostSkin?: SkinColors;
   reducedMotion: boolean;
 }
@@ -28,6 +30,7 @@ export class Renderer {
     this.options = {
       highContrast: false,
       skin: DEFAULT_SKIN,
+      theme: DEFAULT_THEME_ID,
       reducedMotion: false,
       ...options,
     };
@@ -54,25 +57,39 @@ export class Renderer {
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    const skyTop = this.options.highContrast ? "#000000" : "#87ceeb";
-    const skyBottom = this.options.highContrast ? "#202020" : "#b3e5fc";
+    const theme = getTheme(this.options.theme);
+    const palette = this.options.highContrast ? theme.colors.highContrast : theme.colors;
     const grd = ctx.createLinearGradient(0, 0, 0, this.canvas.height);
-    grd.addColorStop(0, skyTop);
-    grd.addColorStop(1, skyBottom);
+    grd.addColorStop(0, palette.skyTop);
+    grd.addColorStop(1, palette.skyBottom);
     ctx.fillStyle = grd;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Optional sun-spot (e.g. blinding-sun theme).
+    if (!this.options.highContrast && theme.colors.sunSpot) {
+      const s = theme.colors.sunSpot;
+      const sxPx = this.offsetX + s.x * this.scale;
+      const syPx = this.offsetY + s.y * this.scale;
+      const rPx = s.r * this.scale;
+      const radial = ctx.createRadialGradient(sxPx, syPx, 0, sxPx, syPx, rPx);
+      radial.addColorStop(0, s.color);
+      radial.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = radial;
+      ctx.globalAlpha = s.opacity;
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      ctx.globalAlpha = 1;
+    }
 
     ctx.translate(this.offsetX, this.offsetY);
     ctx.scale(this.scale, this.scale);
 
-    ctx.fillStyle = this.options.highContrast ? "#000" : "#2b6f4d";
     for (const p of sim.pipes) {
       const prev = sim.prevPipeXs.get(p.id);
       const x = prev !== undefined ? prev + (p.x - prev) * alpha : p.x;
-      ctx.fillStyle = this.options.highContrast ? "#ffffff" : "#3d8b58";
+      ctx.fillStyle = palette.pipeBody;
       ctx.fillRect(x, 0, cfg.pipeWidth, p.gapY);
       ctx.fillRect(x, p.gapY + p.gapH, cfg.pipeWidth, cfg.worldHeight - (p.gapY + p.gapH));
-      ctx.fillStyle = this.options.highContrast ? "#cccccc" : "#2b6f4d";
+      ctx.fillStyle = palette.pipeCap;
       ctx.fillRect(x - 3, p.gapY - 14, cfg.pipeWidth + 6, 14);
       ctx.fillRect(x - 3, p.gapY + p.gapH, cfg.pipeWidth + 6, 14);
     }
@@ -92,6 +109,20 @@ export class Renderer {
     const by = sim.alive ? sim.prevBirdY + (sim.birdY - sim.prevBirdY) * alpha : sim.birdY;
     const tilt = this.options.reducedMotion ? 0 : Math.max(-0.6, Math.min(1.0, sim.birdVY / 600));
     this.drawPlane(cfg.birdX, by, tilt, this.options.skin);
+
+    // Fog overlay: a radial cutout centered on the plane so visibility
+    // drops the further out you look. Stays in world space so it
+    // scales with the canvas.
+    if (!this.options.highContrast && theme.colors.fogIntensity) {
+      const cx = cfg.birdX;
+      const cy = by;
+      const radius = cfg.worldWidth * 0.45;
+      const grad = ctx.createRadialGradient(cx, cy, radius * 0.45, cx, cy, radius);
+      grad.addColorStop(0, `rgba(205, 214, 221, 0)`);
+      grad.addColorStop(1, `rgba(205, 214, 221, ${theme.colors.fogIntensity})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, cfg.worldWidth, cfg.worldHeight);
+    }
 
     ctx.fillStyle = this.options.highContrast ? "#fff" : "#1a1a1a";
     ctx.font = "bold 36px system-ui,sans-serif";

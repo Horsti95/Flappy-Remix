@@ -28,5 +28,5 @@ enable_signup = false
 enable_confirmations = false
 
 [auth.external.google]
-enabled = true
+enabled = false
 # client_id / secret pulled from env via the dashboard or CLI secrets

@@ -9,7 +9,10 @@ export function buildShareText(data: ShareCardData): ShareLinkContext {
   const handle = data.username ? `@${data.username}` : "I";
   const verb = data.score === 0 ? "just bombed" : `just scored ${data.score} on`;
   const mode = data.mode === "daily" ? `the daily (${data.dailyDate ?? "today"})` : "Pflug";
-  const text = `${handle} ${verb} ${mode}. beat me →`;
+  // 'Challenge a friend' flow lets us address a specific recipient
+  // — the receiver only needs the URL, so this is just copy.
+  const callout = data.addressedTo ? ` @${data.addressedTo}, beat me ↓` : ". beat me →";
+  const text = `${handle} ${verb} ${mode}${callout}`;
   const params = new URLSearchParams();
   if (data.mode === "daily" && data.dailyDate) params.set("d", data.dailyDate);
   if (data.friendCode) params.set("c", data.friendCode);

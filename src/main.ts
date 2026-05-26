@@ -35,6 +35,7 @@ import { renderShareSheet } from "./ui/share-sheet";
 import { type ShareCardData } from "./social/share-card";
 import { renderFriendsPanel } from "./ui/friends";
 import { renderDailyLanding } from "./ui/daily-landing";
+import { renderChallengePickFriend, type ChallengePickResult } from "./ui/challenge-pick-friend";
 import { renderRankedPanel } from "./ui/ranked";
 import { type RankedMatch } from "./social/ranked";
 import { createChallenge, fetchChallenge, ghostSkinFromChallenge, type FetchedChallenge } from "./social/challenges";
@@ -61,6 +62,7 @@ let bestScoreSeen = 0;
 let dailyInfo: DailyInfo | null = null;
 let activeChallenge: FetchedChallenge | null = null;
 let activeRanked: { match: RankedMatch; round: number } | null = null;
+let pendingChallengeTarget: ChallengePickResult | null = null;
 
 app.innerHTML = `
   <section id="stage" role="application" aria-label="Pflug play area" class="relative w-full h-full max-w-md max-h-[90vh] aspect-[9/16] mx-auto bg-sky-day overflow-hidden touch-none select-none">
@@ -206,6 +208,7 @@ function showMenu(): void {
   loop?.stop();
   loop = null;
   activeChallenge = null;
+  pendingChallengeTarget = null;
   renderer.options.ghostSkin = undefined;
   overlays.innerHTML = "";
   renderMenu(
@@ -214,6 +217,18 @@ function showMenu(): void {
     {
       onPlay: () => startRun("casual"),
       onPlayDaily: () => openDailyLanding(),
+      onChallengeFriend: () =>
+        renderChallengePickFriend(overlays, {
+          onPick: (result) => {
+            pendingChallengeTarget = result;
+            if (result.seedSource === "daily" && dailyInfo) {
+              startRun("daily");
+            } else {
+              startRun("casual");
+            }
+          },
+          onClose: () => showMenu(),
+        }),
       onToggleSetting,
       onOpenAccount: () => renderAccountPanel(overlays, () => showMenu()),
       onOpenSkins: () => {
@@ -365,6 +380,17 @@ function startRun(runMode: RunMode = "casual"): void {
         }
         announce(`Run ended. Score ${score}. Press R to play again.`);
         const result = await trySubmit(sim);
+        // If this run was queued from the 'Challenge a friend' menu
+        // entry, auto-spin up a challenge and surface the share sheet.
+        if (pendingChallengeTarget && result?.run_id) {
+          const target = pendingChallengeTarget;
+          pendingChallengeTarget = null;
+          const created = await createChallenge(result.run_id, null);
+          if (created.ok && created.short_id) {
+            shareChallenge(score, created.short_id, target.friend?.username ?? null);
+            return;
+          }
+        }
         const share = (): void => {
           void openShare(score, result);
         };
@@ -425,7 +451,7 @@ async function openShare(score: number, result: SubmitResult | null): Promise<vo
   });
 }
 
-function shareChallenge(score: number, shortId: string): void {
+function shareChallenge(score: number, shortId: string, addressedTo: string | null = null): void {
   const s = authState();
   const data: ShareCardData = {
     score,
@@ -438,6 +464,7 @@ function shareChallenge(score: number, shortId: string): void {
     dailyDate: null,
     dailyRank: null,
     totalPlayed: null,
+    addressedTo,
   };
   // Inject the challenge short-id into the share URL so opening the
   // link kicks the recipient into the ghost run.

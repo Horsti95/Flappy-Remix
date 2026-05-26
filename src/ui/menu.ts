@@ -5,6 +5,7 @@ import { TIER_COLOR, TIER_LABEL, type Tier } from "../game/daily-twist";
 export interface MenuCallbacks {
   onPlay(): void;
   onPlayDaily(): void;
+  onChallengeFriend(): void;
   onToggleSetting(key: keyof Settings): void;
   onOpenAccount(): void;
   onOpenSkins(): void;
@@ -70,9 +71,14 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
         ${modifierLine}
       </button>
 
-      <button data-action="play" class="mt-3 w-full rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
-        Casual run
-      </button>
+      <div class="mt-3 grid grid-cols-2 gap-2">
+        <button data-action="play" class="rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
+          Casual run
+        </button>
+        <button data-action="challenge-friend" class="rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
+          Challenge friend
+        </button>
+      </div>
 
       <button data-action="ranked" class="mt-3 w-full rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
         Ranked (best of 3)
@@ -104,6 +110,10 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   wrap.querySelector('[data-action="daily"]')?.addEventListener("click", (e) => {
     e.stopPropagation();
     cbs.onPlayDaily();
+  });
+  wrap.querySelector('[data-action="challenge-friend"]')?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    cbs.onChallengeFriend();
   });
   wrap.querySelector('[data-action="skins"]')?.addEventListener("click", (e) => {
     e.stopPropagation();

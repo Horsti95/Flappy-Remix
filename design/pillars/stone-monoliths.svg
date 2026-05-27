@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 640" width="180" height="320">
+  <title>Pillar style: Stone monoliths</title>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#87ceeb"/>
+      <stop offset="100%" stop-color="#b3e5fc"/>
+    </linearGradient>
+  </defs>
+  <rect width="360" height="640" fill="url(#sky)"/>
+
+  <!-- Top pillar - stone monolith, no caps -->
+  <rect x="120" y="0" width="56" height="240" fill="#4a4a4a"/>
+  <rect x="120" y="0" width="56" height="240" fill="url(#stoneTex)" opacity="0.3"/>
+  <rect x="122" y="0" width="2" height="240" fill="#5a5a5a" opacity="0.4"/>
+  <rect x="170" y="0" width="2" height="240" fill="#3a3a3a" opacity="0.3"/>
+  <rect x="120" y="236" width="56" height="4" fill="#3a3a3a"/>
+
+  <!-- Bottom pillar - stone monolith -->
+  <rect x="120" y="400" width="56" height="240" fill="#4a4a4a"/>
+  <rect x="122" y="400" width="2" height="240" fill="#5a5a5a" opacity="0.4"/>
+  <rect x="170" y="400" width="2" height="240" fill="#3a3a3a" opacity="0.3"/>
+  <rect x="120" y="400" width="56" height="4" fill="#3a3a3a"/>
+
+  <!-- Paper plane -->
+  <g transform="translate(80 320) rotate(-8) scale(2.4)">
+    <polygon points="-14,6 14,-6 1,0 14,-6 -1,11" fill="#f4ead5" stroke="#1a1a1a" stroke-width="0.6"/>
+    <polygon points="1,0 -14,6 -1,11" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="0.6"/>
+  </g>
+
+  <text x="180" y="620" text-anchor="middle" fill="#1a1a1a" opacity="0.5" font-family="system-ui" font-size="12">stone monoliths — dark grey, no caps</text>
+</svg>

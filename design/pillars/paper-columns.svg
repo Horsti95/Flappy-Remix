@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 640" width="180" height="320">
+  <title>Pillar style: Paper columns (recommended)</title>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#87ceeb"/>
+      <stop offset="100%" stop-color="#b3e5fc"/>
+    </linearGradient>
+  </defs>
+  <rect width="360" height="640" fill="url(#sky)"/>
+
+  <!-- Top pillar - paper column -->
+  <rect x="120" y="0" width="56" height="240" fill="#f4ead5" stroke="#1a1a1a" stroke-width="1"/>
+  <line x1="148" y1="0" x2="148" y2="240" stroke="#bdb39f" stroke-width="1" opacity="0.6"/>
+  <rect x="114" y="234" width="68" height="12" fill="#e8dcc6" stroke="#1a1a1a" stroke-width="1" rx="2"/>
+
+  <!-- Bottom pillar - paper column -->
+  <rect x="120" y="400" width="56" height="240" fill="#f4ead5" stroke="#1a1a1a" stroke-width="1"/>
+  <line x1="148" y1="400" x2="148" y2="640" stroke="#bdb39f" stroke-width="1" opacity="0.6"/>
+  <rect x="114" y="400" width="68" height="12" fill="#e8dcc6" stroke="#1a1a1a" stroke-width="1" rx="2"/>
+
+  <!-- Paper plane -->
+  <g transform="translate(80 320) rotate(-8) scale(2.4)">
+    <polygon points="-14,6 14,-6 1,0 14,-6 -1,11" fill="#f4ead5" stroke="#1a1a1a" stroke-width="0.6"/>
+    <polygon points="1,0 -14,6 -1,11" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="0.6"/>
+  </g>
+
+  <text x="180" y="620" text-anchor="middle" fill="#1a1a1a" opacity="0.5" font-family="system-ui" font-size="12">paper columns — cream + fold line</text>
+</svg>

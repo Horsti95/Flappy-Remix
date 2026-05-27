@@ -106,13 +106,14 @@ export class Renderer {
         0,
         this.options.ghostSkin ?? { body: [200, 200, 200], accent: [80, 80, 80] },
         this.options.ghostShape ?? this.options.shape,
+        sim.cfg.birdRadius,
       );
       ctx.globalAlpha = 1;
     }
 
     const by = sim.alive ? sim.prevBirdY + (sim.birdY - sim.prevBirdY) * alpha : sim.birdY;
     const tilt = this.options.reducedMotion ? 0 : Math.max(-0.6, Math.min(1.0, sim.birdVY / 600));
-    this.drawShape(cfg.birdX, by, tilt, this.options.skin, this.options.shape);
+    this.drawShape(cfg.birdX, by, tilt, this.options.skin, this.options.shape, sim.cfg.birdRadius);
 
     if (!this.options.highContrast && theme.colors.fogIntensity) {
       const cx = cfg.birdX;
@@ -140,9 +141,9 @@ export class Renderer {
     ctx.restore();
   }
 
-  private drawShape(x: number, y: number, tilt: number, skin: SkinColors, shapeId: ShapeId): void {
+  private drawShape(x: number, y: number, tilt: number, skin: SkinColors, shapeId: ShapeId, radius?: number): void {
     const ctx = this.ctx;
-    const r = this.cfg.birdRadius;
+    const r = radius ?? this.cfg.birdRadius;
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(tilt);

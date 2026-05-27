@@ -52,7 +52,7 @@ const FRIENDLY: DailyModifier[] = [
       pipeGapBase: c.pipeGapBase + 20,
       pipeGapMin: c.pipeGapMin + 10,
     }),
-    blurb: "+20px gap",
+    blurb: "gap +20px",
   },
   {
     id: "floaty",
@@ -60,7 +60,7 @@ const FRIENDLY: DailyModifier[] = [
     kind: "physics",
     difficulty: "friendly",
     configOverride: (c) => ({ ...c, gravity: Math.round(c.gravity * 0.85) }),
-    blurb: "softer gravity",
+    blurb: "gravity -15%",
   },
   {
     id: "big_flap",
@@ -68,7 +68,7 @@ const FRIENDLY: DailyModifier[] = [
     kind: "physics",
     difficulty: "friendly",
     configOverride: (c) => ({ ...c, flapImpulse: Math.round(c.flapImpulse * 1.2) }),
-    blurb: "stronger taps",
+    blurb: "flap +20%",
   },
   {
     id: "small_hitbox",
@@ -76,7 +76,7 @@ const FRIENDLY: DailyModifier[] = [
     kind: "geometry",
     difficulty: "friendly",
     configOverride: (c) => ({ ...c, birdRadius: Math.round(c.birdRadius * 0.7) }),
-    blurb: "smaller plane",
+    blurb: "hitbox -30%",
   },
 ];
 
@@ -114,7 +114,7 @@ const HOSTILE: DailyModifier[] = [
       pipeGapBase: c.pipeGapBase - 15,
       pipeGapMin: Math.max(80, c.pipeGapMin - 10),
     }),
-    blurb: "-15px gap",
+    blurb: "gap -15px",
   },
   {
     id: "faster",
@@ -122,7 +122,7 @@ const HOSTILE: DailyModifier[] = [
     kind: "physics",
     difficulty: "hostile",
     configOverride: (c) => ({ ...c, scrollSpeed: Math.round(c.scrollSpeed * 1.25) }),
-    blurb: "1.25x scroll",
+    blurb: "speed +25%",
   },
   {
     id: "heavy",
@@ -130,7 +130,7 @@ const HOSTILE: DailyModifier[] = [
     kind: "physics",
     difficulty: "hostile",
     configOverride: (c) => ({ ...c, gravity: Math.round(c.gravity * 1.15) }),
-    blurb: "heavier gravity",
+    blurb: "gravity +15%",
   },
   {
     id: "big_hitbox",
@@ -138,7 +138,7 @@ const HOSTILE: DailyModifier[] = [
     kind: "geometry",
     difficulty: "hostile",
     configOverride: (c) => ({ ...c, birdRadius: Math.round(c.birdRadius * 1.25) }),
-    blurb: "bigger plane",
+    blurb: "hitbox +25%",
   },
 ];
 

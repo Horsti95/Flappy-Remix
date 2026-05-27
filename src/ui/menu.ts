@@ -56,50 +56,44 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
     <button data-account class="absolute top-3 right-3 text-[11px] rounded-full px-3 py-1 bg-white/15">${escapeHtml(meta.accountLabel)}${streakBadge}</button>
     <div class="px-6 max-w-sm w-full">
       <h1 class="text-5xl font-bold tracking-tight">Pflug</h1>
-      <p class="mt-1 text-xs opacity-70">a daily flap-through-gaps arcade</p>
+      <p class="mt-1 text-xs opacity-70">tap to flap, dodge the gaps</p>
 
-      <button data-action="daily" class="mt-7 w-full rounded-2xl bg-paper text-ink font-bold py-4 text-left px-5 shadow-lg active:scale-95 transition">
-        <div class="flex items-center justify-between gap-2">
-          <div class="min-w-0">
-            <div class="text-[10px] uppercase tracking-wider opacity-60 flex items-center gap-2">
-              <span>today's daily</span>${tierChip}
-            </div>
-            <div class="text-lg leading-tight">${meta.daily ? escapeHtml(meta.daily.date) : "daily"}</div>
-          </div>
-          <div class="text-[10px] opacity-60 text-right leading-tight shrink-0">${dailyLine}<br/>same seed worldwide</div>
-        </div>
-        ${modifierLine}
-      </button>
-
-      <div class="mt-3 grid grid-cols-2 gap-2">
-        <button data-action="play" class="rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
-          Casual run
+      <div class="mt-7 grid grid-cols-2 gap-3">
+        <button data-action="play" class="rounded-2xl bg-paper text-ink font-bold py-5 text-lg shadow-lg active:scale-95 transition">
+          Play
         </button>
-        <button data-action="challenge-friend" class="rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
-          Challenge friend
+        <button data-action="daily" class="rounded-2xl bg-paper text-ink font-bold py-3 px-4 text-left shadow-lg active:scale-95 transition">
+          <div class="text-[10px] uppercase tracking-wider opacity-60 flex items-center gap-1.5">
+            <span>Daily</span>${tierChip}
+          </div>
+          <div class="text-sm leading-tight mt-0.5">${modifierLine ? meta.daily!.modifierBlurbs.map(escapeHtml).join(" + ") : "same seed worldwide"}</div>
+          <div class="text-[9px] opacity-50 mt-1">${dailyLine}</div>
         </button>
       </div>
 
-      <button data-action="ranked" class="mt-3 w-full rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
-        Ranked (best of 3)
+      <button data-action="challenge-friend" class="mt-3 w-full rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
+        Challenge friend
       </button>
-      <div class="mt-3 grid grid-cols-3 gap-2">
-        <button data-action="skins" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[11px]">
-          Skins
+
+      <div class="mt-3 grid grid-cols-4 gap-2">
+        <button data-action="ranked" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
+          Ranked
         </button>
-        <button data-action="leaderboard" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[11px]">
+        <button data-action="skins" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
+          Gallery
+        </button>
+        <button data-action="leaderboard" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
           Board
         </button>
-        <button data-action="friends" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[11px]">
+        <button data-action="friends" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
           Friends
         </button>
       </div>
-      <div class="mt-5 grid grid-cols-3 gap-2 text-[11px]">
+      <div class="mt-4 grid grid-cols-3 gap-2 text-[11px]">
         ${toggle("sound", "Sound", settings.sound)}
         ${toggle("highContrast", "Contrast", settings.highContrast)}
-        ${toggle("reducedMotion", "Reduced motion", settings.reducedMotion)}
+        ${toggle("reducedMotion", "Motion", settings.reducedMotion)}
       </div>
-      <p class="mt-6 text-[10px] opacity-50">tap, click, or space to flap · esc to pause</p>
     </div>
   `;
   host.appendChild(wrap);

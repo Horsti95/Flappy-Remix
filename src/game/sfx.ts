@@ -84,6 +84,134 @@ export function playUnlockSound(rarity: Rarity): void {
   }
 }
 
+// ---- Flap-sound variants ---------------------------------------------------
+// Five distinct candidates for the per-tap sound. Run an A/B preview via
+// the ?sounds=preview URL param.
+
+export type FlapSoundId = "soft_pop" | "paper_whoosh" | "wood_click" | "tonal_blip" | "bird_chirp";
+
+export const FLAP_SOUND_OPTIONS: { id: FlapSoundId; label: string; blurb: string }[] = [
+  { id: "soft_pop", label: "Soft pop", blurb: "low-pitched bubble, friendly + subtle" },
+  { id: "paper_whoosh", label: "Paper whoosh", blurb: "noisy air burst, paper-airplane vibe" },
+  { id: "wood_click", label: "Wood click", blurb: "sharp percussive click, arcadey" },
+  { id: "tonal_blip", label: "Tonal blip", blurb: "clean sine ping, chiptune-y" },
+  { id: "bird_chirp", label: "Bird chirp", blurb: "ascending whistle, playful" },
+];
+
+const FLAP_KEY = "pflug.flapSound.v1";
+
+export function getActiveFlapSound(): FlapSoundId {
+  try {
+    const stored = localStorage.getItem(FLAP_KEY) as FlapSoundId | null;
+    if (stored && FLAP_SOUND_OPTIONS.some((o) => o.id === stored)) return stored;
+  } catch {
+    /* localStorage may be blocked */
+  }
+  return "soft_pop";
+}
+
+export function setActiveFlapSound(id: FlapSoundId): void {
+  try {
+    localStorage.setItem(FLAP_KEY, id);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function playFlap(id: FlapSoundId = getActiveFlapSound()): void {
+  if (reducedMotion()) return;
+  const ac = getCtx();
+  if (!ac) return;
+  if (ac.state === "suspended") ac.resume().catch(() => undefined);
+  const master = ac.createGain();
+  master.gain.value = 0.5;
+  master.connect(ac.destination);
+  const t = ac.currentTime + 0.005;
+
+  switch (id) {
+    case "soft_pop": {
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(420, t);
+      osc.frequency.exponentialRampToValueAtTime(180, t + 0.08);
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.18, t + 0.005);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+      osc.connect(gain).connect(master);
+      osc.start(t);
+      osc.stop(t + 0.1);
+      break;
+    }
+    case "paper_whoosh": {
+      const buf = ac.createBuffer(1, ac.sampleRate * 0.08, ac.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) {
+        const env = Math.pow(1 - i / data.length, 1.6);
+        data[i] = (Math.random() * 2 - 1) * env;
+      }
+      const src = ac.createBufferSource();
+      src.buffer = buf;
+      const hp = ac.createBiquadFilter();
+      hp.type = "highpass";
+      hp.frequency.value = 800;
+      const lp = ac.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.value = 4500;
+      const gain = ac.createGain();
+      gain.gain.value = 0.5;
+      src.connect(hp).connect(lp).connect(gain).connect(master);
+      src.start(t);
+      break;
+    }
+    case "wood_click": {
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.type = "square";
+      osc.frequency.setValueAtTime(900, t);
+      osc.frequency.exponentialRampToValueAtTime(600, t + 0.025);
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.13, t + 0.003);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+      osc.connect(gain).connect(master);
+      osc.start(t);
+      osc.stop(t + 0.06);
+      break;
+    }
+    case "tonal_blip": {
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(660, t);
+      osc.frequency.linearRampToValueAtTime(880, t + 0.06);
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.16, t + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
+      osc.connect(gain).connect(master);
+      osc.start(t);
+      osc.stop(t + 0.11);
+      break;
+    }
+    case "bird_chirp": {
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(1200, t);
+      osc.frequency.exponentialRampToValueAtTime(2200, t + 0.05);
+      osc.frequency.exponentialRampToValueAtTime(1500, t + 0.09);
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.12, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+      osc.connect(gain).connect(master);
+      osc.start(t);
+      osc.stop(t + 0.13);
+      break;
+    }
+  }
+}
+
+// ---- Unlock haptics --------------------------------------------------------
+
 const HAPTIC: Record<Rarity, number | number[]> = {
   common: 15,
   uncommon: [10, 40, 15],

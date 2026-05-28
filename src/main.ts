@@ -37,6 +37,8 @@ import { renderFriendsPanel } from "./ui/friends";
 import { renderDailyLanding } from "./ui/daily-landing";
 import { renderChallengePickFriend, type ChallengePickResult } from "./ui/challenge-pick-friend";
 import { renderRankedPanel } from "./ui/ranked";
+import { playFlap } from "./game/sfx";
+import { renderSoundsPreview } from "./ui/sounds-preview";
 import { type RankedMatch } from "./social/ranked";
 import { createChallenge, fetchChallenge, ghostSkinFromChallenge, type FetchedChallenge } from "./social/challenges";
 import { listMyBadges } from "./social/badges";
@@ -107,7 +109,10 @@ observer.observe(stage);
 
 const input = new InputController(stage, {
   onFlap: () => {
-    if (mode === "playing") loop?.flap();
+    if (mode === "playing") {
+      loop?.flap();
+      if (settings.sound) playFlap();
+    }
   },
   onTogglePause: () => {
     if (mode === "playing") setPaused(true);
@@ -154,7 +159,19 @@ const deepLink = (() => {
 
 void refreshDaily();
 setInterval(refreshDaily, 60_000);
+
+const soundsPreviewParam = new URL(window.location.href).searchParams.get("sounds");
+if (soundsPreviewParam === "preview") {
+  renderSoundsPreview(overlays, { onClose: () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("sounds");
+    window.history.replaceState(null, "", url.toString());
+    showMenu();
+  } });
+}
+
 loadEquippedSkin().then(async () => {
+  if (soundsPreviewParam === "preview") return;
   // Deep-link priority: challenge first, then daily, then menu.
   if (deepLink.challenge) {
     const c = await fetchChallenge(deepLink.challenge);

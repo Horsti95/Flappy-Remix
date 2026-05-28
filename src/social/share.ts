@@ -8,7 +8,7 @@ export interface ShareLinkContext {
 export function buildShareText(data: ShareCardData): ShareLinkContext {
   const handle = data.username ? `@${data.username}` : "I";
   const verb = data.score === 0 ? "just bombed" : `just scored ${data.score} on`;
-  const mode = data.mode === "daily" ? `the daily (${data.dailyDate ?? "today"})` : "Pflug";
+  const mode = data.mode === "daily" ? `the daily (${data.dailyDate ?? "today"})` : "Glide";
   // 'Challenge a friend' flow lets us address a specific recipient
   // — the receiver only needs the URL, so this is just copy.
   const callout = data.addressedTo ? ` @${data.addressedTo}, beat me ↓` : ". beat me →";
@@ -31,7 +31,7 @@ export async function nativeShareOrFallback(data: ShareCardData): Promise<Native
   let file: File | null = null;
   try {
     const blob = await shareCardBlob(data);
-    file = new File([blob], `pflug-${data.score}.png`, { type: "image/png" });
+    file = new File([blob], `glide-${data.score}.png`, { type: "image/png" });
   } catch (err) {
     console.warn("[share] card render failed", err);
   }

@@ -109,7 +109,7 @@ function card(p: OgPayload): Node {
   }, [
     el("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, [
       el("div", { style: { display: "flex", flexDirection: "column" } }, [
-        el("div", { style: { fontSize: 64, fontWeight: 800, lineHeight: 1 } }, "Pflug"),
+        el("div", { style: { fontSize: 64, fontWeight: 800, lineHeight: 1 } }, "Glide"),
         el("div", { style: { marginTop: 8, fontSize: 24, opacity: 0.7 } }, subline),
       ]),
       planeSvg(bodyRgb, accentRgb),

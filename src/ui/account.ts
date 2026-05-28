@@ -99,7 +99,7 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void): () =
         const blob = await res.blob();
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = `pflug-export-${(s.user?.id ?? "").slice(0, 8)}.json`;
+        a.download = `glide-export-${(s.user?.id ?? "").slice(0, 8)}.json`;
         a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 5000);
         status.textContent = "downloaded";

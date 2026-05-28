@@ -20,8 +20,8 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["icon.svg", "favicon.ico", "robots.txt"],
       manifest: {
-        name: "Pflug",
-        short_name: "Pflug",
+        name: "PaperPlane",
+        short_name: "PaperPlane",
         description: "Daily flap-through-gaps. Same seed for the world, every day.",
         theme_color: "#87ceeb",
         background_color: "#87ceeb",

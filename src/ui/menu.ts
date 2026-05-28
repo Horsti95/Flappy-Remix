@@ -56,8 +56,8 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
     ${offlineBadge}
     <button data-account class="absolute top-3 right-3 text-[11px] rounded-full px-3 py-1 bg-white/15">${escapeHtml(meta.accountLabel)}${streakBadge}</button>
     <div class="px-6 max-w-sm w-full">
-      <h1 class="text-5xl font-bold tracking-tight">Pflug</h1>
-      <p class="mt-1 text-xs opacity-70">tap to flap, dodge the gaps</p>
+      <h1 class="text-5xl font-bold tracking-tight">PaperPlane</h1>
+      <p class="mt-1 text-xs opacity-70">tap to fly, dodge the gaps</p>
 
       <div class="mt-7 grid grid-cols-2 gap-3">
         <button data-action="play" class="rounded-2xl bg-paper text-ink font-bold py-5 text-lg shadow-lg active:scale-95 transition">

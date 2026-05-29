@@ -21,6 +21,7 @@ export interface AchievementStats {
   morningGames: number;
   challengeWins: number;
   dailyStreakDays: number;
+  friendCount: number;
 }
 
 export const ACHIEVEMENTS: AchievementDef[] = [
@@ -146,6 +147,22 @@ export const ACHIEVEMENTS: AchievementDef[] = [
 
   // --- Social-based ---
   {
+    id: "friend_5",
+    name: "small flock",
+    blurb: "add 5 friends",
+    category: "social",
+    reward: { type: "color", body: [120, 220, 200], accent: [40, 90, 110] },
+    check: (s) => s.friendCount >= 5,
+  },
+  {
+    id: "friend_25",
+    name: "big flock",
+    blurb: "add 25 friends — paper plane swarm unlocked",
+    category: "social",
+    reward: { type: "color", body: [255, 200, 80], accent: [180, 40, 120] },
+    check: (s) => s.friendCount >= 25,
+  },
+  {
     id: "challenger",
     name: "challenger",
     blurb: "win 5 challenges",
@@ -213,6 +230,7 @@ export function loadAchievementStats(): AchievementStats {
     morningGames: 0,
     challengeWins: 0,
     dailyStreakDays: 0,
+    friendCount: 0,
   };
   try {
     const raw = localStorage.getItem(STATS_KEY);

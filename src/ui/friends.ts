@@ -1,4 +1,4 @@
-import { addFriendByUsername, getRecordVsFriend, listFriends, removeFriend, type Friend, type VsRecord } from "../social/friends";
+import { addFriendByUsername, getRecordVsFriend, listFriends, refreshFriendCount, removeFriend, type Friend, type VsRecord } from "../social/friends";
 import { authState } from "../social/auth";
 
 export function renderFriendsPanel(host: HTMLElement, onClose: () => void): () => void {
@@ -60,6 +60,7 @@ export function renderFriendsPanel(host: HTMLElement, onClose: () => void): () =
       status.textContent = "added";
       input.value = "";
       await load();
+      void refreshFriendCount();
     } else {
       status.textContent = r.reason;
     }
@@ -77,6 +78,7 @@ export function renderFriendsPanel(host: HTMLElement, onClose: () => void): () =
     rows.forEach((f) => list.appendChild(row(f, async () => {
       await removeFriend(f.user_id);
       await load();
+      void refreshFriendCount();
     })));
     // Backfill the vs-record badges asynchronously so the list paints fast.
     void Promise.all(

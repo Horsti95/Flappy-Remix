@@ -34,6 +34,7 @@ import { fetchDaily, type DailyInfo } from "./social/daily";
 import { renderShareSheet } from "./ui/share-sheet";
 import { type ShareCardData } from "./social/share-card";
 import { renderFriendsPanel } from "./ui/friends";
+import { refreshFriendCount } from "./social/friends";
 import { renderDailyLanding } from "./ui/daily-landing";
 import { renderChallengePickFriend, type ChallengePickResult } from "./ui/challenge-pick-friend";
 import { renderRankedPanel } from "./ui/ranked";
@@ -127,6 +128,7 @@ pauseBtn.addEventListener("click", (e) => {
 
 subscribeAuth(async () => {
   await loadEquippedSkin();
+  void refreshFriendCount();
   if (mode === "menu") showMenu();
 });
 

@@ -62,7 +62,7 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
           <polygon points="1,0 -14,6 -1,11" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="0.8"/>
         </svg>
       </div>
-      <h1 class="menu-title text-6xl font-bold tracking-tight">Pflug</h1>
+      <h1 class="menu-title text-6xl font-bold tracking-tight">Glide</h1>
       <p class="mt-2 text-[11px] italic opacity-60">guide the paper plane through the gaps</p>
 
       <div class="mt-6 grid grid-cols-2 gap-3">

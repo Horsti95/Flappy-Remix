@@ -1,6 +1,7 @@
 import { getSupabase } from "../lib/supabase";
 import { authState } from "./auth";
 import { validateUsername } from "./profanity";
+import { loadAchievementStats, saveAchievementStats } from "../game/achievements";
 
 export interface Friend {
   user_id: string;
@@ -28,6 +29,84 @@ export async function addFriendByUsername(rawUsername: string): Promise<
   if (payload.error) return { ok: false, reason: payload.error };
   if (payload.friend_id) return { ok: true, friendId: payload.friend_id };
   return { ok: false, reason: "unknown" };
+}
+
+export interface VsRecord {
+  wins: number;
+  losses: number;
+  draws: number;
+  /** Total played challenges (= wins + losses + draws). */
+  total: number;
+}
+
+const EMPTY_RECORD: VsRecord = { wins: 0, losses: 0, draws: 0, total: 0 };
+
+export async function getRecordVsFriend(friendId: string): Promise<VsRecord> {
+  const sb = getSupabase();
+  const s = authState();
+  if (!sb || !s.user) return EMPTY_RECORD;
+  // Two halves of the record:
+  //   (a) I created, friend responded
+  //   (b) friend created, I responded
+  // A challenge counts once we know both scores (responded_at is not null).
+  const me = s.user.id;
+  const [iCreated, theyCreated] = await Promise.all([
+    sb
+      .from("challenges")
+      .select("creator_score, responder_score")
+      .eq("creator_id", me)
+      .eq("responder_id", friendId)
+      .not("responded_at", "is", null),
+    sb
+      .from("challenges")
+      .select("creator_score, responder_score")
+      .eq("creator_id", friendId)
+      .eq("responder_id", me)
+      .not("responded_at", "is", null),
+  ]);
+  if (iCreated.error || theyCreated.error) {
+    if (iCreated.error) console.error("[vs] mine", iCreated.error);
+    if (theyCreated.error) console.error("[vs] theirs", theyCreated.error);
+    return EMPTY_RECORD;
+  }
+  const tally = { wins: 0, losses: 0, draws: 0, total: 0 };
+  for (const row of (iCreated.data ?? []) as Array<{ creator_score: number; responder_score: number | null }>) {
+    if (row.responder_score == null) continue;
+    if (row.creator_score > row.responder_score) tally.wins++;
+    else if (row.creator_score < row.responder_score) tally.losses++;
+    else tally.draws++;
+    tally.total++;
+  }
+  for (const row of (theyCreated.data ?? []) as Array<{ creator_score: number; responder_score: number | null }>) {
+    if (row.responder_score == null) continue;
+    if (row.responder_score > row.creator_score) tally.wins++;
+    else if (row.responder_score < row.creator_score) tally.losses++;
+    else tally.draws++;
+    tally.total++;
+  }
+  return tally;
+}
+
+export async function getFriendCount(): Promise<number> {
+  const sb = getSupabase();
+  const s = authState();
+  if (!sb || !s.user) return 0;
+  const { count, error } = await sb
+    .from("friendships")
+    .select("friend_id", { count: "exact", head: true })
+    .eq("user_id", s.user.id);
+  if (error) {
+    console.error("[friends] count", error);
+    return 0;
+  }
+  return count ?? 0;
+}
+
+export async function refreshFriendCount(): Promise<void> {
+  const count = await getFriendCount();
+  const stats = loadAchievementStats();
+  if (stats.friendCount === count) return;
+  saveAchievementStats({ ...stats, friendCount: count });
 }
 
 export async function listFriends(): Promise<Friend[]> {

@@ -62,7 +62,18 @@ export function renderRankedPanel(host: HTMLElement, cbs: RankedCallbacks): () =
 
   function renderQueue(): void {
     const el = wrap.querySelector("[data-queue]") as HTMLDivElement;
+    const hasUsername = Boolean(authState().profile?.username);
     if (!queue) {
+      if (!hasUsername) {
+        el.innerHTML = `
+          <div class="rounded-2xl bg-white/10 p-4 text-center">
+            <div class="text-sm font-bold">Pick a name to play ranked</div>
+            <div class="mt-1 text-[11px] opacity-70">Ranked opponents see your handle. Open the account button (top-right) to set a 3–8 char name.</div>
+          </div>
+          <p class="mt-2 text-[11px] opacity-60 text-center">best-of-three · 24h per round · ELO</p>
+        `;
+        return;
+      }
       el.innerHTML = `
         <button data-find class="w-full rounded-2xl bg-paper text-ink font-bold py-4">Find match</button>
         <p class="mt-2 text-[11px] opacity-60 text-center">best-of-three · 24h per round · ELO</p>
@@ -156,14 +167,16 @@ function matchCard(m: RankedMatch, onPlayRound: (m: RankedMatch, round: number) 
         : `<span class="text-[10px] uppercase tracking-wider text-paper/80">in progress</span>`;
 
   const oppLabel = m.opponent.username ? `@${escapeHtml(m.opponent.username)}` : "anon";
+  const revealOpp = m.state === "completed" || m.state === "expired";
   const rounds = [0, 1, 2]
     .map((i) => {
       const a = mine[i];
       const b = them[i];
+      const bShown = revealOpp ? (b == null ? "—" : String(b)) : (b == null ? "—" : "?");
       if (a == null && b == null) return roundChip(i, "—", "—", false);
-      if (a == null) return roundChip(i, "—", String(b ?? "—"), false);
+      if (a == null) return roundChip(i, "—", bShown, false);
       if (b == null) return roundChip(i, String(a), "·", a !== undefined);
-      return roundChip(i, String(a), String(b), a > b);
+      return roundChip(i, String(a), bShown, revealOpp ? a > b : false);
     })
     .join("");
 

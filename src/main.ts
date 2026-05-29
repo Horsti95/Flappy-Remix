@@ -46,6 +46,16 @@ setupPWA();
 initAuth();
 installFlushHooks();
 
+let splashHidden = false;
+function hideSplash(): void {
+  if (splashHidden) return;
+  splashHidden = true;
+  const splash = document.getElementById("splash");
+  if (!splash) return;
+  splash.classList.add("splash-leaving");
+  window.setTimeout(() => splash.remove(), 420);
+}
+
 // Intercept browser/system back so it returns to the in-app menu
 // instead of leaving the page. We seed a base state on load and push
 // a sentinel whenever the player opens a sub-view (game, panel,
@@ -187,14 +197,17 @@ loadEquippedSkin().then(async () => {
     if (c) {
       activeChallenge = c;
       startRun("challenge");
+      hideSplash();
       return;
     }
   }
   if (deepLink.dailyDate && dailyInfo && deepLink.dailyDate === dailyInfo.date) {
     startRun("daily");
+    hideSplash();
     return;
   }
   showMenu();
+  hideSplash();
 });
 
 async function refreshDaily(): Promise<void> {

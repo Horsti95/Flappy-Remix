@@ -54,6 +54,18 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void): () =
         </div>
 
         <div class="mt-3 rounded-2xl bg-white/5 p-4">
+          <div class="text-[11px] uppercase tracking-wider opacity-60">redeem code</div>
+          <form data-redeem-form class="mt-2 flex gap-2">
+            <input data-redeem-input name="code" autocomplete="off" autocapitalize="characters" spellcheck="false"
+                   maxlength="32"
+                   class="flex-1 rounded-xl bg-white/10 px-3 py-2 text-base outline-none focus:bg-white/20 uppercase tracking-wider"
+                   placeholder="enter code" />
+            <button class="rounded-xl bg-paper text-ink px-4 py-2 font-bold disabled:opacity-50">redeem</button>
+          </form>
+          <div data-redeem-status class="mt-2 text-[12px] min-h-[1em] opacity-70"></div>
+        </div>
+
+        <div class="mt-3 rounded-2xl bg-white/5 p-4">
           <div class="text-[11px] uppercase tracking-wider opacity-60">stats</div>
           <div class="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
             <div><div class="opacity-60">games</div><div class="font-bold text-base">${s.profile?.total_games ?? 0}</div></div>
@@ -78,6 +90,46 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void): () =
     wrap.querySelector("[data-signout]")?.addEventListener("click", (e) => {
       e.stopPropagation();
       signOut();
+    });
+    wrap.querySelector("[data-redeem-form]")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const input = wrap.querySelector("[data-redeem-input]") as HTMLInputElement;
+      const status = wrap.querySelector("[data-redeem-status]") as HTMLDivElement;
+      const raw = input.value.trim();
+      if (!raw) return;
+      if (!s.session) {
+        status.textContent = "not signed in";
+        return;
+      }
+      status.className = "mt-2 text-[12px] min-h-[1em] opacity-70";
+      status.textContent = "checking…";
+      try {
+        const res = await fetch("/api/redeem-code", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${s.session.access_token}`,
+          },
+          body: JSON.stringify({ code: raw }),
+        });
+        const body = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          label?: string;
+          error?: string;
+        };
+        if (!res.ok || !body.ok) {
+          status.className = "mt-2 text-[12px] min-h-[1em] text-red-300";
+          status.textContent = redeemErrorMessage(body.error ?? `http_${res.status}`);
+          return;
+        }
+        status.className = "mt-2 text-[12px] min-h-[1em] text-emerald-300";
+        status.textContent = `unlocked: ${body.label}. open Gallery to equip.`;
+        input.value = "";
+      } catch {
+        status.className = "mt-2 text-[12px] min-h-[1em] text-red-300";
+        status.textContent = "network error. try again.";
+      }
     });
     wrap.querySelector("[data-export]")?.addEventListener("click", async (e) => {
       e.stopPropagation();
@@ -186,6 +238,18 @@ function bindCloseButtons(host: HTMLElement, onClose: () => void): void {
       onClose();
     }),
   );
+}
+
+function redeemErrorMessage(code: string): string {
+  switch (code) {
+    case "invalid_format": return "codes are 3–32 characters.";
+    case "not_found":      return "code doesn't exist.";
+    case "expired":        return "this code has expired.";
+    case "depleted":       return "this code has been fully claimed.";
+    case "already_redeemed": return "you've already used this code.";
+    case "unauthorized":   return "sign in first to redeem.";
+    default:               return `couldn't redeem (${code}).`;
+  }
 }
 
 function escapeHtml(s: string): string {

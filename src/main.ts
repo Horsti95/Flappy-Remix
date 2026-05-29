@@ -45,6 +45,16 @@ setupPWA();
 initAuth();
 installFlushHooks();
 
+let splashHidden = false;
+function hideSplash(): void {
+  if (splashHidden) return;
+  splashHidden = true;
+  const splash = document.getElementById("splash");
+  if (!splash) return;
+  splash.classList.add("splash-leaving");
+  window.setTimeout(() => splash.remove(), 420);
+}
+
 type Mode = "menu" | "playing" | "paused" | "dead";
 type RunMode = "casual" | "daily" | "challenge" | "ranked";
 
@@ -161,14 +171,17 @@ loadEquippedSkin().then(async () => {
     if (c) {
       activeChallenge = c;
       startRun("challenge");
+      hideSplash();
       return;
     }
   }
   if (deepLink.dailyDate && dailyInfo && deepLink.dailyDate === dailyInfo.date) {
     startRun("daily");
+    hideSplash();
     return;
   }
   showMenu();
+  hideSplash();
 });
 
 async function refreshDaily(): Promise<void> {

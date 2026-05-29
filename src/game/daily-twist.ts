@@ -9,7 +9,7 @@ import { type SimConfig } from "./config";
  * registry. Same date = same pick across all clients worldwide.
  *
  * Shipped: physics + geometry modifiers (wider/tighter gaps,
- * floaty/heavy gravity, big flap, small/big hitbox, faster scroll).
+ * floaty/heavy gravity, big flap, small/big size, faster scroll).
  * applyModifiers() composes their config overrides onto a base
  * SimConfig; both the client GameLoop and the server replay
  * validator run under the same overridden physics so daily replays
@@ -72,11 +72,11 @@ const FRIENDLY: DailyModifier[] = [
   },
   {
     id: "small_hitbox",
-    name: "lean day",
+    name: "small day",
     kind: "geometry",
     difficulty: "friendly",
     configOverride: (c) => ({ ...c, birdRadius: Math.round(c.birdRadius * 0.7) }),
-    blurb: "hitbox -30%",
+    blurb: "size -30%",
   },
 ];
 
@@ -134,11 +134,11 @@ const HOSTILE: DailyModifier[] = [
   },
   {
     id: "big_hitbox",
-    name: "wide load day",
+    name: "big day",
     kind: "geometry",
     difficulty: "hostile",
     configOverride: (c) => ({ ...c, birdRadius: Math.round(c.birdRadius * 1.25) }),
-    blurb: "hitbox +25%",
+    blurb: "size +25%",
   },
 ];
 

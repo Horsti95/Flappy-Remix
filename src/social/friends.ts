@@ -1,6 +1,7 @@
 import { getSupabase } from "../lib/supabase";
 import { authState } from "./auth";
 import { validateUsername } from "./profanity";
+import { loadAchievementStats, saveAchievementStats } from "../game/achievements";
 
 export interface Friend {
   user_id: string;
@@ -28,6 +29,28 @@ export async function addFriendByUsername(rawUsername: string): Promise<
   if (payload.error) return { ok: false, reason: payload.error };
   if (payload.friend_id) return { ok: true, friendId: payload.friend_id };
   return { ok: false, reason: "unknown" };
+}
+
+export async function getFriendCount(): Promise<number> {
+  const sb = getSupabase();
+  const s = authState();
+  if (!sb || !s.user) return 0;
+  const { count, error } = await sb
+    .from("friendships")
+    .select("friend_id", { count: "exact", head: true })
+    .eq("user_id", s.user.id);
+  if (error) {
+    console.error("[friends] count", error);
+    return 0;
+  }
+  return count ?? 0;
+}
+
+export async function refreshFriendCount(): Promise<void> {
+  const count = await getFriendCount();
+  const stats = loadAchievementStats();
+  if (stats.friendCount === count) return;
+  saveAchievementStats({ ...stats, friendCount: count });
 }
 
 export async function listFriends(): Promise<Friend[]> {

@@ -65,7 +65,7 @@ let activeRanked: { match: RankedMatch; round: number } | null = null;
 let pendingChallengeTarget: ChallengePickResult | null = null;
 
 app.innerHTML = `
-  <section id="stage" role="application" aria-label="Pflug play area" class="relative w-full h-full max-w-md max-h-[90vh] aspect-[9/16] mx-auto bg-sky-day overflow-hidden touch-none select-none">
+  <section id="stage" role="application" aria-label="Glide play area" class="relative w-full h-full max-w-md max-h-[90vh] aspect-[9/16] mx-auto bg-sky-day overflow-hidden touch-none select-none">
     <canvas id="canvas" class="absolute inset-0 w-full h-full" aria-hidden="true"></canvas>
     <div id="live-region" aria-live="polite" aria-atomic="true" class="sr-only"></div>
     <button id="pause-btn" data-no-flap aria-label="Pause game" type="button" class="hidden absolute top-3 right-3 z-20 bg-black/30 text-paper rounded-full w-10 h-10 flex items-center justify-center text-lg font-bold">II</button>

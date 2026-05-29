@@ -1,6 +1,7 @@
 import { type Settings } from "../game/settings";
 import { RARITY_COLOR, type Rarity } from "../game/rarity";
 import { TIER_COLOR, TIER_LABEL, type Tier } from "../game/daily-twist";
+import { playUnlockSound, triggerUnlockHaptic } from "../game/sfx";
 
 export interface MenuCallbacks {
   onPlay(): void;
@@ -55,8 +56,8 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
     ${offlineBadge}
     <button data-account class="absolute top-3 right-3 text-[11px] rounded-full px-3 py-1 bg-white/15">${escapeHtml(meta.accountLabel)}${streakBadge}</button>
     <div class="px-6 max-w-sm w-full">
-      <h1 class="text-5xl font-bold tracking-tight">Pflug</h1>
-      <p class="mt-1 text-xs opacity-70">tap to flap, dodge the gaps</p>
+      <h1 class="text-5xl font-bold tracking-tight">Glide</h1>
+      <p class="mt-1 text-xs opacity-70">tap to lift, dodge the gaps</p>
 
       <div class="mt-7 grid grid-cols-2 gap-3">
         <button data-action="play" class="rounded-2xl bg-paper text-ink font-bold py-5 text-lg shadow-lg active:scale-95 transition">
@@ -213,6 +214,23 @@ export function renderGameOver(
   onMenu: () => void,
   extra?: GameOverResult,
 ): void {
+  const unlocks = extra?.result?.unlocked ?? [];
+  if (unlocks.length > 0) {
+    renderUnlockCelebration(host, unlocks, () => {
+      renderGameOverInner(host, score, onRestart, onMenu, extra);
+    });
+    return;
+  }
+  renderGameOverInner(host, score, onRestart, onMenu, extra);
+}
+
+function renderGameOverInner(
+  host: HTMLElement,
+  score: number,
+  onRestart: () => void,
+  onMenu: () => void,
+  extra?: GameOverResult,
+): void {
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
   wrap.className = "pointer-events-auto absolute inset-x-0 bottom-0 z-10 px-4 pb-6 pt-6 bg-gradient-to-t from-black/80 to-transparent text-paper font-display";
@@ -297,4 +315,55 @@ function renderUnlocks(unlocks: NonNullable<GameOverResult["result"]>["unlocked"
       </div>
     </div>
   `;
+}
+
+type Unlock = NonNullable<NonNullable<GameOverResult["result"]>["unlocked"]>[number];
+
+function renderUnlockCelebration(host: HTMLElement, unlocks: Unlock[], onDone: () => void): void {
+  let index = 0;
+
+  const showOne = (): void => {
+    const u = unlocks[index];
+    if (!u) {
+      onDone();
+      return;
+    }
+    const glow = RARITY_COLOR[u.rarity];
+    const overlay = document.createElement("div");
+    overlay.dataset.noFlap = "true";
+    overlay.className =
+      "unlock-celebrate-backdrop pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-black/70 backdrop-blur-sm text-paper font-display";
+    const remaining = unlocks.length - index - 1;
+    const moreLabel = remaining > 0 ? `<div class="mt-3 text-[10px] opacity-60">${remaining} more after this</div>` : "";
+    overlay.innerHTML = `
+      <div class="max-w-sm w-full px-6 text-center">
+        <div class="unlock-celebrate-headline text-[11px] uppercase font-bold opacity-80" style="letter-spacing:0.25em">new skin</div>
+        <div class="mt-6 flex justify-center" style="--unlock-glow:${glow}">
+          <svg viewBox="-20 -20 40 40" class="unlock-celebrate-svg w-60 h-60">
+            <polygon points="-14,6 14,-6 1,0 14,-6 -1,11" fill="rgb(${u.body.join(",")})" stroke="#1a1a1a" stroke-width="0.8"/>
+            <polygon points="1,0 -14,6 -1,11" fill="rgb(${u.accent.join(",")})" stroke="#1a1a1a" stroke-width="0.8"/>
+          </svg>
+        </div>
+        <div class="mt-6 text-2xl font-bold capitalize tracking-widest" style="color:${glow}">${u.rarity}</div>
+        <div class="mt-1 text-[11px] opacity-70">unlocked at ${u.threshold} games</div>
+        ${moreLabel}
+        <button data-unlock-continue class="mt-8 w-full rounded-2xl bg-paper text-ink font-bold py-3">Continue</button>
+      </div>
+    `;
+    host.appendChild(overlay);
+    playUnlockSound(u.rarity);
+    triggerUnlockHaptic(u.rarity);
+
+    const advance = (): void => {
+      overlay.remove();
+      index += 1;
+      showOne();
+    };
+    overlay.querySelector("[data-unlock-continue]")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      advance();
+    });
+  };
+
+  showOne();
 }

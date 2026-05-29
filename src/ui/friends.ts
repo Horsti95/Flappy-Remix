@@ -1,4 +1,4 @@
-import { addFriendByUsername, listFriends, removeFriend, type Friend } from "../social/friends";
+import { addFriendByUsername, getRecordVsFriend, listFriends, removeFriend, type Friend, type VsRecord } from "../social/friends";
 import { authState } from "../social/auth";
 
 export function renderFriendsPanel(host: HTMLElement, onClose: () => void): () => void {
@@ -78,6 +78,15 @@ export function renderFriendsPanel(host: HTMLElement, onClose: () => void): () =
       await removeFriend(f.user_id);
       await load();
     })));
+    // Backfill the vs-record badges asynchronously so the list paints fast.
+    void Promise.all(
+      rows.map(async (f) => {
+        const record = await getRecordVsFriend(f.user_id);
+        if (cancelled) return;
+        const el = list.querySelector(`[data-friend-id="${f.user_id}"] [data-record]`);
+        if (el) el.innerHTML = recordBadge(record);
+      }),
+    );
   }
 
   load();
@@ -90,9 +99,13 @@ export function renderFriendsPanel(host: HTMLElement, onClose: () => void): () =
 
 function row(f: Friend, onRemove: () => void): HTMLElement {
   const el = document.createElement("div");
+  el.dataset.friendId = f.user_id;
   el.className = "flex items-center justify-between gap-3 px-3 py-3 rounded-xl bg-white/5";
   el.innerHTML = `
-    <div class="text-sm">${f.username ? escapeHtml("@" + f.username) : "(no handle)"}</div>
+    <div class="flex-1 min-w-0">
+      <div class="text-sm truncate">${f.username ? escapeHtml("@" + f.username) : "(no handle)"}</div>
+      <div data-record class="text-[10px] opacity-50 mt-0.5">vs: …</div>
+    </div>
     <button data-remove class="text-[11px] underline opacity-60">remove</button>
   `;
   el.querySelector("[data-remove]")?.addEventListener("click", (e) => {
@@ -100,6 +113,16 @@ function row(f: Friend, onRemove: () => void): HTMLElement {
     onRemove();
   });
   return el;
+}
+
+function recordBadge(r: VsRecord): string {
+  if (r.total === 0) {
+    return `<span class="opacity-60">vs: no matches yet</span>`;
+  }
+  const pct = r.total > 0 ? Math.round((r.wins / r.total) * 100) : 0;
+  const tone = r.wins > r.losses ? "text-emerald-300" : r.wins < r.losses ? "text-orange-300" : "opacity-70";
+  const draws = r.draws > 0 ? ` <span class="opacity-50">${r.draws}D</span>` : "";
+  return `<span class="${tone}">vs: ${r.wins}W ${r.losses}L${draws}</span> <span class="opacity-40 ml-1">· ${pct}% win</span>`;
 }
 
 function escapeHtml(s: string): string {

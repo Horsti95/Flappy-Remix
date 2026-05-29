@@ -2,6 +2,20 @@ import { listOwnedSkins, type SkinRow } from "../social/skins";
 import { RARITY_COLOR, rarityRank } from "../game/rarity";
 import { SHAPES, type ShapeId, type ShapeMeta } from "../game/shapes";
 import { DEFAULT_SKIN } from "../game/skin";
+import {
+  ACHIEVEMENTS,
+  loadAchievementStats,
+  type AchievementDef,
+  type AchievementStats,
+} from "../game/achievements";
+import {
+  FLAP_SOUND_OPTIONS,
+  getActiveFlapSound,
+  playFlap,
+  setActiveFlapSound,
+  flapSoundUnlock,
+  type FlapSoundId,
+} from "../game/sfx";
 
 export interface GalleryCallbacks {
   onEquipSkin(skinId: string | null): void;
@@ -35,15 +49,18 @@ export function renderGallery(
       <h2 class="text-xl font-bold">gallery</h2>
       <button data-close class="text-sm underline opacity-70">close</button>
     </div>
-    <div data-tabs class="px-5 flex gap-2 text-[12px]">
-      <button data-tab="shapes" class="rounded-full px-3 py-1 bg-paper text-ink">shapes</button>
-      <button data-tab="skins" class="rounded-full px-3 py-1 bg-white/5 opacity-60">colors</button>
+    <div data-tabs class="px-5 flex gap-2 text-[12px] overflow-x-auto">
+      <button data-tab="shapes" class="rounded-full px-3 py-1 bg-paper text-ink whitespace-nowrap">shapes</button>
+      <button data-tab="skins" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">colors</button>
+      <button data-tab="awards" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">awards</button>
+      <button data-tab="sounds" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">sounds</button>
     </div>
     <div data-body class="mt-3 px-3 flex-1 overflow-y-auto pb-6"></div>
   `;
   host.appendChild(wrap);
 
-  let activeTab: "shapes" | "skins" = "shapes";
+  type Tab = "shapes" | "skins" | "awards" | "sounds";
+  let activeTab: Tab = "shapes";
   let currentEquipped = { ...equipped };
   let cancelled = false;
 
@@ -60,7 +77,7 @@ export function renderGallery(
   wrap.querySelectorAll<HTMLButtonElement>("[data-tab]").forEach((btn) =>
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
-      activeTab = btn.dataset.tab as "shapes" | "skins";
+      activeTab = btn.dataset.tab as Tab;
       wrap.querySelectorAll<HTMLButtonElement>("[data-tab]").forEach((b) => {
         b.classList.toggle("bg-paper", b === btn);
         b.classList.toggle("text-ink", b === btn);
@@ -74,7 +91,45 @@ export function renderGallery(
   function render(): void {
     if (cancelled) return;
     if (activeTab === "shapes") renderShapes();
-    else void renderSkins();
+    else if (activeTab === "skins") void renderSkins();
+    else if (activeTab === "awards") renderAwards();
+    else if (activeTab === "sounds") renderSounds();
+  }
+
+  function renderAwards(): void {
+    const body = wrap.querySelector("[data-body]") as HTMLDivElement;
+    const achStats = loadAchievementStats();
+    const unlockedN = ACHIEVEMENTS.filter((a) => a.check(achStats)).length;
+    const pct = Math.round((unlockedN / ACHIEVEMENTS.length) * 100);
+    body.innerHTML = `
+      <div class="px-2 mb-3">
+        <div class="text-[11px] opacity-70">${unlockedN} / ${ACHIEVEMENTS.length} unlocked · ${pct}%</div>
+        <div class="mt-1 h-2 bg-white/10 rounded-full overflow-hidden">
+          <div class="h-full bg-paper transition-all" style="width:${pct}%"></div>
+        </div>
+        <p class="mt-3 text-[10px] opacity-60">each achievement gives a reward color. play to unlock new ones — the painted plane below is the look you'll equip.</p>
+      </div>
+      <div data-awards-grid class="grid grid-cols-2 gap-2 px-2"></div>
+    `;
+    const grid = body.querySelector("[data-awards-grid]") as HTMLDivElement;
+    for (const a of ACHIEVEMENTS) grid.appendChild(awardCard(a, achStats));
+  }
+
+  function renderSounds(): void {
+    const body = wrap.querySelector("[data-body]") as HTMLDivElement;
+    const achStats = loadAchievementStats();
+    const active = getActiveFlapSound();
+    body.innerHTML = `
+      <div class="px-2 mb-3 text-[10px] opacity-60">your tap sound. tap any unlocked row to preview; pick to set it for runs.</div>
+      <div data-sounds-list class="space-y-2 px-2"></div>
+    `;
+    const list = body.querySelector("[data-sounds-list]") as HTMLDivElement;
+    for (const opt of FLAP_SOUND_OPTIONS) {
+      list.appendChild(soundCard(opt.id, opt.label, opt.blurb, achStats, active === opt.id, (id) => {
+        setActiveFlapSound(id);
+        renderSounds();
+      }));
+    }
   }
 
   function renderShapes(): void {
@@ -288,4 +343,69 @@ function shapeSvg(shapeId: ShapeId, unlocked: boolean): string {
 
 function svg(inner: string): string {
   return `<svg viewBox="-20 -16 40 32" class="w-3/4 h-3/4">${inner}</svg>`;
+}
+
+function awardCard(a: AchievementDef, stats: AchievementStats): HTMLElement {
+  const got = a.check(stats);
+  const bodyFill = got ? `rgb(${a.reward.body.join(",")})` : "#3a3a3a";
+  const accentFill = got ? `rgb(${a.reward.accent.join(",")})` : "#262626";
+  const el = document.createElement("div");
+  el.dataset.noFlap = "true";
+  el.className = `relative rounded-2xl p-3 flex flex-col items-center text-center bg-white/5 ${got ? "" : "opacity-60"}`;
+  el.innerHTML = `
+    <div class="w-full aspect-square flex items-center justify-center bg-ink/80 rounded-xl">
+      <svg viewBox="-20 -20 40 40" class="w-3/4 h-3/4">
+        <polygon points="-14,6 14,-6 1,0 14,-6 -1,11" fill="${bodyFill}" stroke="#1a1a1a" stroke-width="0.8"/>
+        <polygon points="1,0 -14,6 -1,11" fill="${accentFill}" stroke="#1a1a1a" stroke-width="0.8"/>
+      </svg>
+    </div>
+    <div class="mt-2 text-[12px] font-bold capitalize leading-tight">${escapeHtml(a.name)}</div>
+    <div class="text-[10px] opacity-70 mt-0.5 leading-snug">${escapeHtml(a.blurb)}</div>
+    <div class="mt-1.5 text-[9px] uppercase tracking-wider font-bold ${got ? "text-emerald-300" : "opacity-50"}">${got ? "unlocked" : "locked"}</div>
+  `;
+  return el;
+}
+
+function soundCard(
+  id: FlapSoundId,
+  label: string,
+  blurb: string,
+  stats: AchievementStats,
+  active: boolean,
+  onPick: (id: FlapSoundId) => void,
+): HTMLElement {
+  const state = flapSoundUnlock(id, stats);
+  const el = document.createElement("div");
+  el.dataset.noFlap = "true";
+  el.className = `rounded-2xl p-3 border-2 ${active ? "border-paper bg-paper/10" : state.unlocked ? "border-white/10 bg-white/5" : "border-white/5 bg-white/5 opacity-60"}`;
+  el.innerHTML = `
+    <div class="flex items-center justify-between gap-3">
+      <div class="text-left flex-1 min-w-0">
+        <div class="text-sm font-bold truncate">${escapeHtml(label)}</div>
+        <div class="text-[11px] opacity-70 mt-0.5 truncate">${state.unlocked ? escapeHtml(blurb) : escapeHtml(state.hint ?? "locked")}</div>
+      </div>
+      ${state.unlocked
+        ? `<button data-preview class="rounded-full bg-white/15 px-3 py-1.5 text-[11px] font-bold">▶</button>
+           <button data-pick class="rounded-full ${active ? "bg-emerald-400/30 text-emerald-100" : "bg-paper text-ink"} px-3 py-1.5 text-[11px] font-bold">${active ? "active" : "pick"}</button>`
+        : `<div class="text-[10px] uppercase tracking-wider opacity-50 font-bold">locked</div>`
+      }
+    </div>
+  `;
+  if (state.unlocked) {
+    el.querySelector("[data-preview]")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      playFlap(id);
+    });
+    el.querySelector("[data-pick]")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      onPick(id);
+    });
+  }
+  return el;
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
+  );
 }

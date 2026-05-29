@@ -45,6 +45,24 @@ setupPWA();
 initAuth();
 installFlushHooks();
 
+// Intercept browser/system back so it returns to the in-app menu
+// instead of leaving the page. We seed a base state on load and push
+// a sentinel whenever the player opens a sub-view (game, panel,
+// modal). A popstate at any non-menu state collapses straight back
+// to the menu and re-pushes the sentinel so a second back press is
+// available.
+type ViewState = { glide: "menu" | "view" };
+if (typeof window !== "undefined" && typeof history !== "undefined") {
+  if ((history.state as ViewState | null)?.glide !== "menu") {
+    history.replaceState({ glide: "menu" } satisfies ViewState, "");
+  }
+}
+
+function pushSubView(): void {
+  if (typeof history === "undefined") return;
+  history.pushState({ glide: "view" } satisfies ViewState, "");
+}
+
 type Mode = "menu" | "playing" | "paused" | "dead";
 type RunMode = "casual" | "daily" | "challenge" | "ranked";
 
@@ -137,6 +155,12 @@ if (typeof window !== "undefined") {
   window.addEventListener("offline", () => {
     if (mode === "menu") showMenu();
   });
+  window.addEventListener("popstate", () => {
+    if (mode !== "menu" || overlays.children.length > 0) {
+      showMenu();
+      history.replaceState({ glide: "menu" } satisfies ViewState, "");
+    }
+  });
 }
 
 const deepLink = (() => {
@@ -215,9 +239,10 @@ function showMenu(): void {
     overlays,
     settings,
     {
-      onPlay: () => startRun("casual"),
-      onPlayDaily: () => openDailyLanding(),
-      onChallengeFriend: () =>
+      onPlay: () => { pushSubView(); startRun("casual"); },
+      onPlayDaily: () => { pushSubView(); openDailyLanding(); },
+      onChallengeFriend: () => {
+        pushSubView();
         renderChallengePickFriend(overlays, {
           onPick: (result) => {
             pendingChallengeTarget = result;
@@ -228,10 +253,12 @@ function showMenu(): void {
             }
           },
           onClose: () => showMenu(),
-        }),
+        });
+      },
       onToggleSetting,
-      onOpenAccount: () => renderAccountPanel(overlays, () => showMenu()),
+      onOpenAccount: () => { pushSubView(); renderAccountPanel(overlays, () => showMenu()); },
       onOpenSkins: () => {
+        pushSubView();
         renderGallery(
           overlays,
           { skinId: equippedSkin?.id ?? null, shapeId: equippedShapeId },
@@ -254,16 +281,18 @@ function showMenu(): void {
           },
         );
       },
-      onOpenLeaderboard: () => renderLeaderboard(overlays, () => showMenu()),
-      onOpenFriends: () => renderFriendsPanel(overlays, () => showMenu()),
-      onOpenRanked: () =>
+      onOpenLeaderboard: () => { pushSubView(); renderLeaderboard(overlays, () => showMenu()); },
+      onOpenFriends: () => { pushSubView(); renderFriendsPanel(overlays, () => showMenu()); },
+      onOpenRanked: () => {
+        pushSubView();
         renderRankedPanel(overlays, {
           onPlayRound: (match, round) => {
             activeRanked = { match, round };
             startRun("ranked");
           },
           onClose: () => showMenu(),
-        }),
+        });
+      },
     },
     {
       accountLabel: menuAccountLabel(),

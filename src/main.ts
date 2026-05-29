@@ -431,6 +431,20 @@ async function openShare(score: number, result: SubmitResult | null): Promise<vo
   const badges = await listMyBadges();
   const topRank = badges.length > 0 ? Math.min(...badges.map((b) => b.rank)) : null;
   const dailyPick = currentRunMode === "daily" ? dailyInfo?.pick : null;
+  // Every share becomes a challenge link so opening it plays the friend
+  // against the recorded ghost. Falls back to a bare landing URL if we
+  // can't create one (offline, ranked, etc.).
+  let challengeShortId: string | null = null;
+  if (result?.run_id && currentRunMode !== "ranked") {
+    const created = await createChallenge(result.run_id, activeChallenge?.short_id ?? null);
+    if (created.ok && created.short_id) {
+      challengeShortId = created.short_id;
+      const params = new URLSearchParams();
+      params.set("c", challengeShortId);
+      if (s.profile?.friend_code) params.set("u", s.profile.friend_code);
+      history.replaceState(null, "", `${window.location.origin}/?${params}`);
+    }
+  }
   const data: ShareCardData = {
     score,
     username: s.profile?.username ?? null,
@@ -438,7 +452,7 @@ async function openShare(score: number, result: SubmitResult | null): Promise<vo
     rarity: equippedSkin?.rarity,
     streakDays: result?.streak_days ?? s.profile?.streak_days ?? 0,
     friendCode: s.profile?.friend_code ?? null,
-    mode: currentRunMode === "ranked" ? "ranked" : currentRunMode,
+    mode: challengeShortId ? "challenge" : (currentRunMode === "ranked" ? "ranked" : currentRunMode),
     dailyDate: currentRunMode === "daily" ? dailyInfo?.date ?? null : null,
     dailyRank: null,
     totalPlayed: currentRunMode === "daily" ? dailyInfo?.plays_count ?? null : null,

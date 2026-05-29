@@ -37,6 +37,7 @@ import { renderFriendsPanel } from "./ui/friends";
 import { renderDailyLanding } from "./ui/daily-landing";
 import { renderChallengePickFriend, type ChallengePickResult } from "./ui/challenge-pick-friend";
 import { renderRankedPanel } from "./ui/ranked";
+import { playFlap } from "./game/sfx";
 import { type RankedMatch } from "./social/ranked";
 import { createChallenge, fetchChallenge, ghostSkinFromChallenge, type FetchedChallenge } from "./social/challenges";
 import { listMyBadges } from "./social/badges";
@@ -107,7 +108,10 @@ observer.observe(stage);
 
 const input = new InputController(stage, {
   onFlap: () => {
-    if (mode === "playing") loop?.flap();
+    if (mode === "playing") {
+      loop?.flap();
+      if (settings.sound) playFlap();
+    }
   },
   onTogglePause: () => {
     if (mode === "playing") setPaused(true);

@@ -33,7 +33,7 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   host.innerHTML = "";
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
-  wrap.className = "pointer-events-auto absolute inset-0 z-10 flex flex-col items-center justify-center text-center font-display bg-black/40 backdrop-blur-sm text-paper";
+  wrap.className = "pointer-events-auto absolute inset-0 z-10 flex flex-col items-center justify-center text-center font-display menu-bg-paper backdrop-blur-sm text-paper";
   const dailyLine = meta.daily
     ? `${formatPlays(meta.daily.playsCount)} played today`
     : "world plays the same level today";
@@ -55,11 +55,17 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   wrap.innerHTML = `
     ${offlineBadge}
     <button data-account class="absolute top-3 right-3 text-[11px] rounded-full px-3 py-1 bg-white/15">${escapeHtml(meta.accountLabel)}${streakBadge}</button>
-    <div class="px-6 max-w-sm w-full">
-      <h1 class="text-5xl font-bold tracking-tight">Pflug</h1>
-      <p class="mt-1 text-xs opacity-70">tap to flap, dodge the gaps</p>
+    <div data-menu-content class="px-6 max-w-sm w-full">
+      <div class="relative h-16 mb-2">
+        <svg viewBox="-20 -20 40 40" data-menu-mascot class="menu-mascot absolute left-1/2 -translate-x-1/2 w-16 h-16">
+          <polygon points="-14,6 14,-6 1,0 14,-6 -1,11" fill="#f4ead5" stroke="#1a1a1a" stroke-width="0.8"/>
+          <polygon points="1,0 -14,6 -1,11" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="0.8"/>
+        </svg>
+      </div>
+      <h1 class="menu-title text-6xl font-bold tracking-tight">Glide</h1>
+      <p class="mt-2 text-[11px] italic opacity-60">guide the paper plane through the gaps</p>
 
-      <div class="mt-7 grid grid-cols-2 gap-3">
+      <div class="mt-6 grid grid-cols-2 gap-3">
         <button data-action="play" class="rounded-2xl bg-paper text-ink font-bold py-5 text-lg shadow-lg active:scale-95 transition">
           Play
         </button>
@@ -98,9 +104,21 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
     </div>
   `;
   host.appendChild(wrap);
+  const flyOutThenPlay = (action: () => void): void => {
+    const mascot = wrap.querySelector("[data-menu-mascot]");
+    const content = wrap.querySelector("[data-menu-content]");
+    if (!mascot || !content || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      action();
+      return;
+    }
+    mascot.classList.remove("menu-mascot");
+    mascot.classList.add("menu-mascot-flyout");
+    content.classList.add("menu-content-fade");
+    window.setTimeout(action, 380);
+  };
   wrap.querySelector('[data-action="play"]')?.addEventListener("click", (e) => {
     e.stopPropagation();
-    cbs.onPlay();
+    flyOutThenPlay(() => cbs.onPlay());
   });
   wrap.querySelector('[data-action="daily"]')?.addEventListener("click", (e) => {
     e.stopPropagation();

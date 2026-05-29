@@ -27,6 +27,50 @@ a:focus-visible {
   border-radius: 8px;
 }
 
+@keyframes menu-float {
+  0%, 100% { transform: translate(-50%, 0) rotate(-6deg); }
+  50%      { transform: translate(-50%, -10px) rotate(6deg); }
+}
+
+@keyframes menu-title-fade {
+  from { opacity: 0; transform: translateY(8px); letter-spacing: 0.2em; }
+  to   { opacity: 1; transform: translateY(0);   letter-spacing: 0.04em; }
+}
+
+@keyframes mascot-flyout {
+  0%   { transform: translate(-50%, 0) rotate(-6deg) scale(1); opacity: 1; }
+  60%  { transform: translate(-160%, -8vh) rotate(-30deg) scale(0.85); opacity: 1; }
+  100% { transform: translate(-220%, -22vh) rotate(-45deg) scale(0.55); opacity: 0; }
+}
+
+@keyframes menu-content-fade {
+  to { opacity: 0; transform: translateY(8px); }
+}
+
+.menu-mascot {
+  animation: menu-float 3.4s ease-in-out infinite;
+}
+
+.menu-title {
+  animation: menu-title-fade 0.7s ease-out both;
+  text-shadow: 0 4px 24px rgba(255, 255, 255, 0.18), 0 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+.menu-bg-paper {
+  background:
+    radial-gradient(1200px 600px at 50% -10%, rgba(244, 234, 213, 0.22), transparent 60%),
+    radial-gradient(800px 700px at 50% 110%, rgba(135, 206, 235, 0.28), transparent 55%),
+    linear-gradient(180deg, rgba(20,20,40,0.55), rgba(0,0,0,0.45));
+}
+
+.menu-mascot-flyout {
+  animation: mascot-flyout 480ms cubic-bezier(.55,.05,.7,.0) forwards;
+}
+
+.menu-content-fade {
+  animation: menu-content-fade 240ms ease-out 60ms forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

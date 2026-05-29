@@ -107,7 +107,7 @@ export const FLAP_SOUND_OPTIONS: { id: FlapSoundId; label: string; blurb: string
   { id: "wood_click", label: "Wood click", blurb: "sharp percussive click",
     unlock: (s) => ({ unlocked: s.streakDays >= 7, hint: "7-day streak" }) },
   { id: "tonal_blip", label: "Tonal blip", blurb: "clean sine ping",
-    unlock: (s) => ({ unlocked: s.totalGames >= 100, hint: "play 100 games" }) },
+    unlock: (s) => ({ unlocked: s.friendCount >= 5, hint: "add 5 friends" }) },
   { id: "bird_chirp", label: "Bird chirp", blurb: "ascending whistle",
     unlock: (s) => ({ unlocked: s.challengeWins >= 5, hint: "win 5 challenges" }) },
 ];

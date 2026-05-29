@@ -34,6 +34,7 @@ import { fetchDaily, type DailyInfo } from "./social/daily";
 import { renderShareSheet } from "./ui/share-sheet";
 import { type ShareCardData } from "./social/share-card";
 import { renderFriendsPanel } from "./ui/friends";
+import { refreshFriendCount } from "./social/friends";
 import { renderDailyLanding } from "./ui/daily-landing";
 import { renderChallengePickFriend, type ChallengePickResult } from "./ui/challenge-pick-friend";
 import { renderRankedPanel } from "./ui/ranked";
@@ -45,6 +46,34 @@ import { listMyBadges } from "./social/badges";
 setupPWA();
 initAuth();
 installFlushHooks();
+
+let splashHidden = false;
+function hideSplash(): void {
+  if (splashHidden) return;
+  splashHidden = true;
+  const splash = document.getElementById("splash");
+  if (!splash) return;
+  splash.classList.add("splash-leaving");
+  window.setTimeout(() => splash.remove(), 420);
+}
+
+// Intercept browser/system back so it returns to the in-app menu
+// instead of leaving the page. We seed a base state on load and push
+// a sentinel whenever the player opens a sub-view (game, panel,
+// modal). A popstate at any non-menu state collapses straight back
+// to the menu and re-pushes the sentinel so a second back press is
+// available.
+type ViewState = { glide: "menu" | "view" };
+if (typeof window !== "undefined" && typeof history !== "undefined") {
+  if ((history.state as ViewState | null)?.glide !== "menu") {
+    history.replaceState({ glide: "menu" } satisfies ViewState, "");
+  }
+}
+
+function pushSubView(): void {
+  if (typeof history === "undefined") return;
+  history.pushState({ glide: "view" } satisfies ViewState, "");
+}
 
 type Mode = "menu" | "playing" | "paused" | "dead";
 type RunMode = "casual" | "daily" | "challenge" | "ranked";
@@ -66,7 +95,7 @@ let activeRanked: { match: RankedMatch; round: number } | null = null;
 let pendingChallengeTarget: ChallengePickResult | null = null;
 
 app.innerHTML = `
-  <section id="stage" role="application" aria-label="Pflug play area" class="relative w-full h-full max-w-md max-h-[90vh] aspect-[9/16] mx-auto bg-sky-day overflow-hidden touch-none select-none">
+  <section id="stage" role="application" aria-label="Glide play area" class="relative w-full h-full max-w-md max-h-[90vh] aspect-[9/16] mx-auto bg-sky-day overflow-hidden touch-none select-none">
     <canvas id="canvas" class="absolute inset-0 w-full h-full" aria-hidden="true"></canvas>
     <div id="live-region" aria-live="polite" aria-atomic="true" class="sr-only"></div>
     <button id="pause-btn" data-no-flap aria-label="Pause game" type="button" class="hidden absolute top-3 right-3 z-20 bg-black/30 text-paper rounded-full w-10 h-10 flex items-center justify-center text-lg font-bold">II</button>
@@ -131,6 +160,7 @@ pauseBtn.addEventListener("click", (e) => {
 
 subscribeAuth(async () => {
   await loadEquippedSkin();
+  void refreshFriendCount();
   if (mode === "menu") showMenu();
 });
 
@@ -140,6 +170,12 @@ if (typeof window !== "undefined") {
   });
   window.addEventListener("offline", () => {
     if (mode === "menu") showMenu();
+  });
+  window.addEventListener("popstate", () => {
+    if (mode !== "menu" || overlays.children.length > 0) {
+      showMenu();
+      history.replaceState({ glide: "menu" } satisfies ViewState, "");
+    }
   });
 }
 
@@ -165,14 +201,17 @@ loadEquippedSkin().then(async () => {
     if (c) {
       activeChallenge = c;
       startRun("challenge");
+      hideSplash();
       return;
     }
   }
   if (deepLink.dailyDate && dailyInfo && deepLink.dailyDate === dailyInfo.date) {
     startRun("daily");
+    hideSplash();
     return;
   }
   showMenu();
+  hideSplash();
 });
 
 async function refreshDaily(): Promise<void> {
@@ -219,9 +258,10 @@ function showMenu(): void {
     overlays,
     settings,
     {
-      onPlay: () => startRun("casual"),
-      onPlayDaily: () => openDailyLanding(),
-      onChallengeFriend: () =>
+      onPlay: () => { pushSubView(); startRun("casual"); },
+      onPlayDaily: () => { pushSubView(); openDailyLanding(); },
+      onChallengeFriend: () => {
+        pushSubView();
         renderChallengePickFriend(overlays, {
           onPick: (result) => {
             pendingChallengeTarget = result;
@@ -232,10 +272,12 @@ function showMenu(): void {
             }
           },
           onClose: () => showMenu(),
-        }),
+        });
+      },
       onToggleSetting,
-      onOpenAccount: () => renderAccountPanel(overlays, () => showMenu()),
+      onOpenAccount: () => { pushSubView(); renderAccountPanel(overlays, () => showMenu()); },
       onOpenSkins: () => {
+        pushSubView();
         renderGallery(
           overlays,
           { skinId: equippedSkin?.id ?? null, shapeId: equippedShapeId },
@@ -258,16 +300,18 @@ function showMenu(): void {
           },
         );
       },
-      onOpenLeaderboard: () => renderLeaderboard(overlays, () => showMenu()),
-      onOpenFriends: () => renderFriendsPanel(overlays, () => showMenu()),
-      onOpenRanked: () =>
+      onOpenLeaderboard: () => { pushSubView(); renderLeaderboard(overlays, () => showMenu()); },
+      onOpenFriends: () => { pushSubView(); renderFriendsPanel(overlays, () => showMenu()); },
+      onOpenRanked: () => {
+        pushSubView();
         renderRankedPanel(overlays, {
           onPlayRound: (match, round) => {
             activeRanked = { match, round };
             startRun("ranked");
           },
           onClose: () => showMenu(),
-        }),
+        });
+      },
     },
     {
       accountLabel: menuAccountLabel(),
@@ -435,6 +479,20 @@ async function openShare(score: number, result: SubmitResult | null): Promise<vo
   const badges = await listMyBadges();
   const topRank = badges.length > 0 ? Math.min(...badges.map((b) => b.rank)) : null;
   const dailyPick = currentRunMode === "daily" ? dailyInfo?.pick : null;
+  // Every share becomes a challenge link so opening it plays the friend
+  // against the recorded ghost. Falls back to a bare landing URL if we
+  // can't create one (offline, ranked, etc.).
+  let challengeShortId: string | null = null;
+  if (result?.run_id && currentRunMode !== "ranked") {
+    const created = await createChallenge(result.run_id, activeChallenge?.short_id ?? null);
+    if (created.ok && created.short_id) {
+      challengeShortId = created.short_id;
+      const params = new URLSearchParams();
+      params.set("c", challengeShortId);
+      if (s.profile?.friend_code) params.set("u", s.profile.friend_code);
+      history.replaceState(null, "", `${window.location.origin}/?${params}`);
+    }
+  }
   const data: ShareCardData = {
     score,
     username: s.profile?.username ?? null,
@@ -442,7 +500,7 @@ async function openShare(score: number, result: SubmitResult | null): Promise<vo
     rarity: equippedSkin?.rarity,
     streakDays: result?.streak_days ?? s.profile?.streak_days ?? 0,
     friendCode: s.profile?.friend_code ?? null,
-    mode: currentRunMode === "ranked" ? "ranked" : currentRunMode,
+    mode: challengeShortId ? "challenge" : (currentRunMode === "ranked" ? "ranked" : currentRunMode),
     dailyDate: currentRunMode === "daily" ? dailyInfo?.date ?? null : null,
     dailyRank: null,
     totalPlayed: currentRunMode === "daily" ? dailyInfo?.plays_count ?? null : null,

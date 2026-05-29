@@ -99,7 +99,7 @@ export class Renderer {
 
     if (ghost && ghost.isAlive()) {
       const gy = ghost.prevBirdY() + (ghost.birdY() - ghost.prevBirdY()) * alpha;
-      ctx.globalAlpha = 0.45;
+      ctx.globalAlpha = 0.25;
       this.drawShape(
         cfg.birdX,
         gy,
@@ -135,7 +135,7 @@ export class Renderer {
     if (sim.startGrace && sim.alive) {
       ctx.fillStyle = this.options.highContrast ? "#fff" : "#1a1a1a";
       ctx.font = "16px system-ui,sans-serif";
-      ctx.fillText("tap to flap", cfg.worldWidth / 2, cfg.worldHeight * 0.62);
+      ctx.fillText("tap to lift", cfg.worldWidth / 2, cfg.worldHeight * 0.62);
     }
 
     ctx.restore();

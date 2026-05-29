@@ -50,7 +50,7 @@ export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData): v
   ctx.font = "600 56px system-ui,sans-serif";
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
-  ctx.fillText(data.brand ?? "Pflug", 96, 96);
+  ctx.fillText(data.brand ?? "Glide", 96, 96);
 
   ctx.font = "500 28px system-ui,sans-serif";
   ctx.fillStyle = "#f4ead5aa";

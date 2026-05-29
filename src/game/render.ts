@@ -99,7 +99,7 @@ export class Renderer {
 
     if (ghost && ghost.isAlive()) {
       const gy = ghost.prevBirdY() + (ghost.birdY() - ghost.prevBirdY()) * alpha;
-      ctx.globalAlpha = 0.45;
+      ctx.globalAlpha = 0.25;
       this.drawShape(
         cfg.birdX,
         gy,

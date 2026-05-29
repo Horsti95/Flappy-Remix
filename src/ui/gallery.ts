@@ -16,16 +16,19 @@ import {
   flapSoundUnlock,
   type FlapSoundId,
 } from "../game/sfx";
+import { THEMES, type Theme, type ThemeId } from "../game/themes";
 
 export interface GalleryCallbacks {
   onEquipSkin(skinId: string | null): void;
   onEquipShape(shapeId: ShapeId): void;
+  onEquipTheme(themeId: ThemeId): void;
   onClose(): void;
 }
 
 export interface GalleryEquipped {
   skinId: string | null;
   shapeId: ShapeId;
+  themeId: ThemeId;
 }
 
 export interface GalleryStats {
@@ -52,14 +55,14 @@ export function renderGallery(
     <div data-tabs class="px-5 flex gap-2 text-[12px] overflow-x-auto">
       <button data-tab="shapes" class="rounded-full px-3 py-1 bg-paper text-ink whitespace-nowrap">shapes</button>
       <button data-tab="skins" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">colors</button>
-      <button data-tab="awards" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">awards</button>
+      <button data-tab="backgrounds" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">backgrounds</button>
       <button data-tab="sounds" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">sounds</button>
     </div>
     <div data-body class="mt-3 px-3 flex-1 overflow-y-auto pb-6"></div>
   `;
   host.appendChild(wrap);
 
-  type Tab = "shapes" | "skins" | "awards" | "sounds";
+  type Tab = "shapes" | "skins" | "backgrounds" | "sounds";
   let activeTab: Tab = "shapes";
   let currentEquipped = { ...equipped };
   let cancelled = false;
@@ -92,27 +95,24 @@ export function renderGallery(
     if (cancelled) return;
     if (activeTab === "shapes") renderShapes();
     else if (activeTab === "skins") void renderSkins();
-    else if (activeTab === "awards") renderAwards();
+    else if (activeTab === "backgrounds") renderBackgrounds();
     else if (activeTab === "sounds") renderSounds();
   }
 
-  function renderAwards(): void {
+  function renderBackgrounds(): void {
     const body = wrap.querySelector("[data-body]") as HTMLDivElement;
-    const achStats = loadAchievementStats();
-    const unlockedN = ACHIEVEMENTS.filter((a) => a.check(achStats)).length;
-    const pct = Math.round((unlockedN / ACHIEVEMENTS.length) * 100);
-    body.innerHTML = `
-      <div class="px-2 mb-3">
-        <div class="text-[11px] opacity-70">${unlockedN} / ${ACHIEVEMENTS.length} unlocked · ${pct}%</div>
-        <div class="mt-1 h-2 bg-white/10 rounded-full overflow-hidden">
-          <div class="h-full bg-paper transition-all" style="width:${pct}%"></div>
-        </div>
-        <p class="mt-3 text-[10px] opacity-60">each achievement gives a reward color. play to unlock new ones — the painted plane below is the look you'll equip.</p>
-      </div>
-      <div data-awards-grid class="grid grid-cols-2 gap-2 px-2"></div>
-    `;
-    const grid = body.querySelector("[data-awards-grid]") as HTMLDivElement;
-    for (const a of ACHIEVEMENTS) grid.appendChild(awardCard(a, achStats));
+    body.innerHTML = `<div class="grid grid-cols-2 gap-3 px-2"></div>`;
+    const grid = body.firstElementChild as HTMLDivElement;
+    for (const theme of THEMES) {
+      grid.appendChild(
+        themeCard(theme, currentEquipped.themeId === theme.id, stats, () => {
+          if (!theme.unlock(stats).unlocked) return;
+          currentEquipped.themeId = theme.id;
+          cbs.onEquipTheme(theme.id);
+          renderBackgrounds();
+        }),
+      );
+    }
   }
 
   function renderSounds(): void {
@@ -154,19 +154,28 @@ export function renderGallery(
     const rows = await listOwnedSkins();
     if (cancelled || activeTab !== "skins") return;
     body.innerHTML = "";
-    if (rows.length === 0) {
-      body.innerHTML = `<div class="text-center text-xs opacity-60 mt-8">no color unlocks yet — play one game to mint your first.</div>`;
-      return;
-    }
+    const achStats = loadAchievementStats();
+
+    // Owned + default card. We always show the default-paper card so
+    // the player can revert; achievement-locked rewards live in a
+    // separate section underneath.
+    const ownedGrid = document.createElement("div");
+    ownedGrid.className = "grid grid-cols-3 gap-3 px-2";
+    body.appendChild(headerLabel("owned"));
+    body.appendChild(ownedGrid);
+    ownedGrid.appendChild(
+      defaultSkinCard(currentEquipped.skinId === null, currentEquipped.shapeId, () => {
+        currentEquipped.skinId = null;
+        cbs.onEquipSkin(null);
+        void renderSkins();
+      }),
+    );
     rows.sort(
       (a, b) =>
         rarityRank(b.rarity) - rarityRank(a.rarity) || b.unlocked_at_games - a.unlocked_at_games,
     );
-    const grid = document.createElement("div");
-    grid.className = "grid grid-cols-3 gap-3 px-2";
-    body.appendChild(grid);
     for (const row of rows) {
-      grid.appendChild(
+      ownedGrid.appendChild(
         skinCard(row, row.id === currentEquipped.skinId, currentEquipped.shapeId, () => {
           const newId = row.id === currentEquipped.skinId ? null : row.id;
           currentEquipped.skinId = newId;
@@ -175,16 +184,23 @@ export function renderGallery(
         }),
       );
     }
-    // Add a "default colors" card so the player can revert to the
-    // built-in palette without losing their procedurally unlocked
-    // skins.
-    grid.appendChild(
-      defaultSkinCard(currentEquipped.skinId === null, currentEquipped.shapeId, () => {
-        currentEquipped.skinId = null;
-        cbs.onEquipSkin(null);
-        void renderSkins();
-      }),
-    );
+
+    // Achievement-rewarded colors. Show their reward palette painted
+    // on the equipped shape. Cards stay locked until the player
+    // crosses the threshold — at which point they'll appear in the
+    // owned grid too once the server mints the skin row.
+    const ach = ACHIEVEMENTS;
+    const unlockedN = ach.filter((a) => a.check(achStats)).length;
+    const pct = Math.round((unlockedN / ach.length) * 100);
+    body.appendChild(headerLabel(`achievement rewards — ${unlockedN} / ${ach.length}`));
+    const progress = document.createElement("div");
+    progress.className = "px-3 mb-2";
+    progress.innerHTML = `<div class="h-1.5 bg-white/10 rounded-full overflow-hidden"><div class="h-full bg-paper transition-all" style="width:${pct}%"></div></div>`;
+    body.appendChild(progress);
+    const achGrid = document.createElement("div");
+    achGrid.className = "grid grid-cols-3 gap-3 px-2";
+    body.appendChild(achGrid);
+    for (const a of ach) achGrid.appendChild(achievementColorCard(a, achStats, currentEquipped.shapeId));
   }
 
   render();
@@ -208,7 +224,7 @@ function shapeCard(
     equipped ? "border-paper" : state.unlocked ? "border-white/10" : "border-white/5"
   } bg-white/5 ${state.unlocked ? "active:scale-95" : "opacity-50 cursor-not-allowed"} transition`;
   el.innerHTML = `
-    <div class="w-full aspect-square flex items-center justify-center bg-ink/80 rounded-xl">
+    <div class="w-full aspect-square flex items-center justify-center bg-sky-day/30 rounded-xl">
       ${shapeSvg(shape.id, state.unlocked)}
     </div>
     <div class="font-bold">${shape.name}</div>
@@ -244,7 +260,7 @@ function skinCard(
   } bg-white/5 active:scale-95 transition`;
   el.style.setProperty("--ring", RARITY_COLOR[row.rarity]);
   el.innerHTML = `
-    <div class="w-full aspect-square flex items-center justify-center bg-ink/80 rounded-xl">
+    <div class="w-full aspect-square flex items-center justify-center bg-sky-day/30 rounded-xl">
       ${shapeSvgWithColors(shapeId, row.body, row.accent)}
     </div>
     <div class="font-bold capitalize" style="color: var(--ring)">${row.rarity}</div>
@@ -265,7 +281,7 @@ function defaultSkinCard(equipped: boolean, shapeId: ShapeId, onTap: () => void)
     equipped ? "border-paper" : "border-white/10"
   } bg-white/5 active:scale-95 transition`;
   el.innerHTML = `
-    <div class="w-full aspect-square flex items-center justify-center bg-ink/80 rounded-xl">
+    <div class="w-full aspect-square flex items-center justify-center bg-sky-day/30 rounded-xl">
       ${shapeSvgWithColors(shapeId, DEFAULT_SKIN.body, DEFAULT_SKIN.accent)}
     </div>
     <div class="font-bold opacity-70">default</div>
@@ -345,23 +361,59 @@ function svg(inner: string): string {
   return `<svg viewBox="-20 -16 40 32" class="w-3/4 h-3/4">${inner}</svg>`;
 }
 
-function awardCard(a: AchievementDef, stats: AchievementStats): HTMLElement {
+function headerLabel(text: string): HTMLElement {
+  const el = document.createElement("div");
+  el.className = "px-3 mt-1 mb-2 text-[10px] uppercase tracking-wider opacity-60 font-bold";
+  el.textContent = text;
+  return el;
+}
+
+function themeCard(theme: Theme, equipped: boolean, stats: GalleryStats, onTap: () => void): HTMLElement {
+  const state = theme.unlock(stats);
+  const el = document.createElement("button");
+  el.dataset.noFlap = "true";
+  el.className = `relative rounded-2xl p-3 flex flex-col items-center text-[11px] gap-2 border-2 ${
+    equipped ? "border-paper" : state.unlocked ? "border-white/10" : "border-white/5"
+  } bg-white/5 ${state.unlocked ? "active:scale-95" : "opacity-50 cursor-not-allowed"} transition`;
+  const c = theme.colors;
+  el.innerHTML = `
+    <div class="w-full aspect-square rounded-xl overflow-hidden relative" style="background: linear-gradient(180deg, ${c.skyTop} 0%, ${c.skyBottom} 100%)">
+      <div class="absolute left-3 right-3 top-3 h-8 rounded" style="background:${c.pipeBody}"></div>
+      <div class="absolute left-3 right-3 bottom-3 h-12 rounded" style="background:${c.pipeBody}"></div>
+      ${c.fogIntensity ? `<div class="absolute inset-0" style="background: radial-gradient(circle at 45% 55%, transparent 25%, rgba(205,214,221,${c.fogIntensity}) 80%)"></div>` : ""}
+    </div>
+    <div class="font-bold">${escapeHtml(theme.name)}</div>
+    <div class="opacity-60 text-[10px] text-center leading-tight">${state.unlocked ? escapeHtml(theme.blurb) : escapeHtml(state.hint ?? "locked")}</div>
+    ${
+      equipped
+        ? `<div class="absolute top-1 right-1 text-[9px] bg-paper text-ink rounded-full px-1.5 py-0.5">equipped</div>`
+        : !state.unlocked
+          ? `<div class="absolute top-1 right-1 text-[9px] bg-white/15 rounded-full px-1.5 py-0.5">locked</div>`
+          : ""
+    }
+  `;
+  el.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!state.unlocked) return;
+    onTap();
+  });
+  return el;
+}
+
+function achievementColorCard(a: AchievementDef, stats: AchievementStats, shapeId: ShapeId): HTMLElement {
   const got = a.check(stats);
-  const bodyFill = got ? `rgb(${a.reward.body.join(",")})` : "#3a3a3a";
-  const accentFill = got ? `rgb(${a.reward.accent.join(",")})` : "#262626";
   const el = document.createElement("div");
   el.dataset.noFlap = "true";
-  el.className = `relative rounded-2xl p-3 flex flex-col items-center text-center bg-white/5 ${got ? "" : "opacity-60"}`;
+  el.className = `relative rounded-2xl p-3 flex flex-col items-center text-[10px] gap-2 border-2 bg-white/5 ${got ? "border-emerald-400/40" : "border-white/5 opacity-60"}`;
+  const body = got ? a.reward.body : [120, 120, 120] as [number, number, number];
+  const accent = got ? a.reward.accent : [60, 60, 60] as [number, number, number];
   el.innerHTML = `
-    <div class="w-full aspect-square flex items-center justify-center bg-ink/80 rounded-xl">
-      <svg viewBox="-20 -20 40 40" class="w-3/4 h-3/4">
-        <polygon points="-14,6 14,-6 1,0 14,-6 -1,11" fill="${bodyFill}" stroke="#1a1a1a" stroke-width="0.8"/>
-        <polygon points="1,0 -14,6 -1,11" fill="${accentFill}" stroke="#1a1a1a" stroke-width="0.8"/>
-      </svg>
+    <div class="w-full aspect-square flex items-center justify-center bg-sky-day/30 rounded-xl">
+      ${shapeSvgWithColors(shapeId, body, accent)}
     </div>
-    <div class="mt-2 text-[12px] font-bold capitalize leading-tight">${escapeHtml(a.name)}</div>
-    <div class="text-[10px] opacity-70 mt-0.5 leading-snug">${escapeHtml(a.blurb)}</div>
-    <div class="mt-1.5 text-[9px] uppercase tracking-wider font-bold ${got ? "text-emerald-300" : "opacity-50"}">${got ? "unlocked" : "locked"}</div>
+    <div class="font-bold capitalize leading-tight text-center">${escapeHtml(a.name)}</div>
+    <div class="opacity-60 text-[10px] text-center leading-snug">${escapeHtml(a.blurb)}</div>
+    <div class="text-[9px] uppercase tracking-wider font-bold ${got ? "text-emerald-300" : "opacity-50"}">${got ? "unlocked" : "locked"}</div>
   `;
   return el;
 }

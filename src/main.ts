@@ -28,6 +28,7 @@ import {
   rowToColors,
 } from "./social/skins";
 import { DEFAULT_SHAPE_ID, type ShapeId } from "./game/shapes";
+import { getEquippedThemeLocal, setEquippedThemeLocal, type ThemeId } from "./game/themes";
 import { type SubmitResult } from "./social/runs";
 import { installFlushHooks, pendingCount, submitOrEnqueue } from "./social/offline-queue";
 import { fetchDaily, type DailyInfo } from "./social/daily";
@@ -88,6 +89,7 @@ let currentSeed = 0;
 let currentRunMode: RunMode = "casual";
 let equippedSkin: SkinRow | null = null;
 let equippedShapeId: ShapeId = DEFAULT_SHAPE_ID;
+let equippedThemeId: ThemeId = getEquippedThemeLocal();
 let bestScoreSeen = 0;
 let dailyInfo: DailyInfo | null = null;
 let activeChallenge: FetchedChallenge | null = null;
@@ -130,6 +132,7 @@ const renderer = new Renderer(canvas, DEFAULT_CONFIG, {
   highContrast: settings.highContrast,
   skin: DEFAULT_SKIN,
   shape: equippedShapeId,
+  theme: equippedThemeId,
   reducedMotion: settings.reducedMotion || matchMedia("(prefers-reduced-motion: reduce)").matches,
 });
 const observer = new ResizeObserver(() => renderer.resize());
@@ -158,18 +161,23 @@ pauseBtn.addEventListener("click", (e) => {
   else if (mode === "paused") setPaused(false);
 });
 
+let panelOpen = false;
+
 subscribeAuth(async () => {
   await loadEquippedSkin();
   void refreshFriendCount();
-  if (mode === "menu") showMenu();
+  // Don't tear down an open panel (account, gallery, leaderboard, …)
+  // when supabase fires an auth refresh — that was wiping the gallery
+  // mid-browse.
+  if (mode === "menu" && !panelOpen) showMenu();
 });
 
 if (typeof window !== "undefined") {
   window.addEventListener("online", () => {
-    if (mode === "menu") showMenu();
+    if (mode === "menu" && !panelOpen) showMenu();
   });
   window.addEventListener("offline", () => {
-    if (mode === "menu") showMenu();
+    if (mode === "menu" && !panelOpen) showMenu();
   });
   window.addEventListener("popstate", () => {
     if (mode !== "menu" || overlays.children.length > 0) {
@@ -247,6 +255,7 @@ function menuAccountLabel(): string {
 
 function showMenu(): void {
   mode = "menu";
+  panelOpen = false;
   pauseBtn.classList.add("hidden");
   loop?.stop();
   loop = null;
@@ -262,6 +271,7 @@ function showMenu(): void {
       onPlayDaily: () => { pushSubView(); openDailyLanding(); },
       onChallengeFriend: () => {
         pushSubView();
+        panelOpen = true;
         renderChallengePickFriend(overlays, {
           onPick: (result) => {
             pendingChallengeTarget = result;
@@ -275,12 +285,13 @@ function showMenu(): void {
         });
       },
       onToggleSetting,
-      onOpenAccount: () => { pushSubView(); renderAccountPanel(overlays, () => showMenu()); },
+      onOpenAccount: () => { pushSubView(); panelOpen = true; renderAccountPanel(overlays, () => showMenu()); },
       onOpenSkins: () => {
         pushSubView();
+        panelOpen = true;
         renderGallery(
           overlays,
-          { skinId: equippedSkin?.id ?? null, shapeId: equippedShapeId },
+          { skinId: equippedSkin?.id ?? null, shapeId: equippedShapeId, themeId: equippedThemeId },
           {
             totalGames: authState().profile?.total_games ?? 0,
             bestScore: bestScoreSeen,
@@ -296,14 +307,20 @@ function showMenu(): void {
               setEquippedShapeLocal(id);
               renderer.options.shape = id;
             },
+            onEquipTheme: (id) => {
+              equippedThemeId = id;
+              setEquippedThemeLocal(id);
+              renderer.options.theme = id;
+            },
             onClose: () => showMenu(),
           },
         );
       },
-      onOpenLeaderboard: () => { pushSubView(); renderLeaderboard(overlays, () => showMenu()); },
-      onOpenFriends: () => { pushSubView(); renderFriendsPanel(overlays, () => showMenu()); },
+      onOpenLeaderboard: () => { pushSubView(); panelOpen = true; renderLeaderboard(overlays, () => showMenu()); },
+      onOpenFriends: () => { pushSubView(); panelOpen = true; renderFriendsPanel(overlays, () => showMenu()); },
       onOpenRanked: () => {
         pushSubView();
+        panelOpen = true;
         renderRankedPanel(overlays, {
           onPlayRound: (match, round) => {
             activeRanked = { match, round };

@@ -37,7 +37,7 @@ export interface Theme {
   name: string;
   blurb: string;
   colors: ThemeColors;
-  unlock(stats: { totalGames: number; bestScore: number; streakDays: number }): { unlocked: boolean; hint?: string };
+  unlock(stats: { totalGames: number; bestScore: number; streakDays: number; lateNightGames?: number }): { unlocked: boolean; hint?: string };
 }
 
 const HC_DEFAULT = {
@@ -111,7 +111,10 @@ export const THEMES: Theme[] = [
       pipeCap: "#1f4f37",
       highContrast: HC_DEFAULT,
     },
-    unlock: (s) => ({ unlocked: s.streakDays >= 7, hint: "7-day streak" }),
+    unlock: (s) => ({
+      unlocked: (s.lateNightGames ?? 0) >= 1,
+      hint: "play a run between 23:00 and 04:00",
+    }),
   },
   {
     id: "fog",

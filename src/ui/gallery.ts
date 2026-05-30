@@ -35,6 +35,7 @@ export interface GalleryStats {
   totalGames: number;
   bestScore: number;
   streakDays: number;
+  lateNightGames: number;
 }
 
 export function renderGallery(

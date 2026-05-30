@@ -36,6 +36,7 @@ import { renderShareSheet } from "./ui/share-sheet";
 import { type ShareCardData } from "./social/share-card";
 import { renderFriendsPanel } from "./ui/friends";
 import { refreshFriendCount } from "./social/friends";
+import { loadAchievementStats } from "./game/achievements";
 import { renderDailyLanding } from "./ui/daily-landing";
 import { renderChallengePickFriend, type ChallengePickResult } from "./ui/challenge-pick-friend";
 import { renderRankedPanel } from "./ui/ranked";
@@ -296,6 +297,7 @@ function showMenu(): void {
             totalGames: authState().profile?.total_games ?? 0,
             bestScore: bestScoreSeen,
             streakDays: authState().profile?.streak_days ?? 0,
+            lateNightGames: loadAchievementStats().lateNightGames,
           },
           {
             onEquipSkin: async (id) => {

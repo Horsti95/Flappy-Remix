@@ -22,6 +22,8 @@ export interface AchievementStats {
   challengeWins: number;
   dailyStreakDays: number;
   friendCount: number;
+  /** Plays where the local hour was in [23, 0, 1, 2, 3]. */
+  lateNightGames: number;
 }
 
 export const ACHIEVEMENTS: AchievementDef[] = [
@@ -231,6 +233,7 @@ export function loadAchievementStats(): AchievementStats {
     challengeWins: 0,
     dailyStreakDays: 0,
     friendCount: 0,
+    lateNightGames: 0,
   };
   try {
     const raw = localStorage.getItem(STATS_KEY);
@@ -270,6 +273,7 @@ export function updateStatsAfterRun(
 
   const hour = new Date().getHours();
   if (hour >= 22 || hour < 4) s.nightGames++;
+  if (hour === 23 || hour < 4) s.lateNightGames++;
   if (hour >= 5 && hour < 7) s.morningGames++;
 
   return s;

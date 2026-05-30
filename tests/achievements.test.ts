@@ -19,6 +19,7 @@ const EMPTY: AchievementStats = {
   challengeWins: 0,
   dailyStreakDays: 0,
   friendCount: 0,
+  lateNightGames: 0,
 };
 
 describe("achievements", () => {

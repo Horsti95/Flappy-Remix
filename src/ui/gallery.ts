@@ -17,6 +17,7 @@ import {
   type FlapSoundId,
 } from "../game/sfx";
 import { THEMES, isThemesLabMode, type Theme, type ThemeId } from "../game/themes";
+import { getGrantedShapesLocal } from "../social/grants";
 
 export interface GalleryCallbacks {
   onEquipSkin(skinId: string | null): void;
@@ -36,6 +37,7 @@ export interface GalleryStats {
   bestScore: number;
   streakDays: number;
   lateNightGames: number;
+  morningGames: number;
   dailyStreakDays: number;
   challengeWins: number;
 }
@@ -139,14 +141,16 @@ export function renderGallery(
     const body = wrap.querySelector("[data-body]") as HTMLDivElement;
     body.innerHTML = `<div class="grid grid-cols-2 gap-3 px-2"></div>`;
     const grid = body.firstElementChild as HTMLDivElement;
+    const granted = new Set(getGrantedShapesLocal());
     for (const shape of SHAPES) {
+      const unlocked = granted.has(shape.id) || shape.unlock(stats).unlocked;
       grid.appendChild(
         shapeCard(shape, currentEquipped.shapeId === shape.id, stats, () => {
-          if (!shape.unlock(stats).unlocked) return;
+          if (!unlocked) return;
           currentEquipped.shapeId = shape.id;
           cbs.onEquipShape(shape.id);
           renderShapes();
-        }),
+        }, unlocked),
       );
     }
   }
@@ -219,32 +223,34 @@ function shapeCard(
   equipped: boolean,
   stats: GalleryStats,
   onTap: () => void,
+  unlockedOverride?: boolean,
 ): HTMLElement {
   const state = shape.unlock(stats);
+  const unlocked = unlockedOverride ?? state.unlocked;
   const el = document.createElement("button");
   el.dataset.noFlap = "true";
   el.className = `relative rounded-2xl p-3 flex flex-col items-center text-[11px] gap-2 border-2 ${
-    equipped ? "border-paper" : state.unlocked ? "border-white/10" : "border-white/5"
-  } bg-white/5 ${state.unlocked ? "active:scale-95" : "opacity-50 cursor-not-allowed"} transition`;
+    equipped ? "border-paper" : unlocked ? "border-white/10" : "border-white/5"
+  } bg-white/5 ${unlocked ? "active:scale-95" : "opacity-50 cursor-not-allowed"} transition`;
   el.innerHTML = `
     <div class="w-full aspect-square flex items-center justify-center bg-sky-day/30 rounded-xl">
-      ${shapeSvg(shape.id, state.unlocked)}
+      ${shapeSvg(shape.id, unlocked)}
     </div>
     <div class="font-bold">${shape.name}</div>
     <div class="opacity-60 text-[10px] text-center leading-tight">${
-      state.unlocked ? shape.blurb : (state.hint ?? "locked")
+      unlocked ? shape.blurb : (state.hint ?? "locked")
     }</div>
     ${
       equipped
         ? `<div class="absolute top-1 right-1 text-[9px] bg-paper text-ink rounded-full px-1.5 py-0.5">equipped</div>`
-        : !state.unlocked
+        : !unlocked
           ? `<div class="absolute top-1 right-1 text-[9px] bg-white/15 rounded-full px-1.5 py-0.5">locked</div>`
           : ""
     }
   `;
   el.addEventListener("click", (e) => {
     e.stopPropagation();
-    if (!state.unlocked) return;
+    if (!unlocked) return;
     onTap();
   });
   return el;
@@ -395,6 +401,10 @@ function themeCard(theme: Theme, equipped: boolean, stats: GalleryStats, onTap: 
   const c = theme.colors;
   el.innerHTML = `
     <div class="w-full aspect-square rounded-xl overflow-hidden relative" style="background: linear-gradient(180deg, ${c.skyTop} 0%, ${c.skyBottom} 100%)">
+      ${c.horizonBand ? `
+        <div class="absolute left-0 right-0" style="top:${(c.horizonBand.topY/640)*100}%;bottom:0;background:linear-gradient(180deg,${c.horizonBand.topColor} 0%,${c.horizonBand.bottomColor} 100%)"></div>
+        ${c.horizonBand.second ? `<div class="absolute left-0 right-0" style="top:${(c.horizonBand.second.topY/640)*100}%;bottom:0;background:linear-gradient(180deg,${c.horizonBand.second.topColor} 0%,${c.horizonBand.second.bottomColor} 100%)"></div>` : ""}
+      ` : ""}
       <div class="absolute left-3 right-3 top-3 h-8 rounded" style="background:${c.pipeBody}"></div>
       <div class="absolute left-3 right-3 bottom-3 h-12 rounded" style="background:${c.pipeBody}"></div>
       ${c.fogIntensity ? `<div class="absolute inset-0" style="background: radial-gradient(circle at 45% 55%, transparent 25%, rgba(205,214,221,${c.fogIntensity}) 80%)"></div>` : ""}

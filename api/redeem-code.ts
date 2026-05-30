@@ -28,7 +28,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   const codeRow = await admin
     .from("skin_codes")
-    .select("code, body_r, body_g, body_b, accent_r, accent_g, accent_b, rarity, label, max_uses, uses, expires_at")
+    .select("code, body_r, body_g, body_b, accent_r, accent_g, accent_b, rarity, label, max_uses, uses, expires_at, unlocks_shape")
     .eq("code", raw)
     .maybeSingle();
   if (codeRow.error || !codeRow.data) {
@@ -101,10 +101,24 @@ export default async function handler(req: Request): Promise<Response> {
 
   await admin.from("skin_codes").update({ uses: (c.uses as number) + 1 }).eq("code", raw);
 
+  // If this code also grants a shape, upsert into shape_grants so the
+  // client unlock check picks it up regardless of the player's stats.
+  let grantedShape: string | null = null;
+  if (c.unlocks_shape) {
+    grantedShape = c.unlocks_shape as string;
+    await admin
+      .from("shape_grants")
+      .upsert(
+        { user_id: userId, shape_id: grantedShape, source: `code:${raw}` },
+        { onConflict: "user_id,shape_id" },
+      );
+  }
+
   return json({
     ok: true,
     label: c.label,
     skin: skinInsert.data,
+    granted_shape: grantedShape,
   });
 }
 

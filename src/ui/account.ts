@@ -1,6 +1,7 @@
 import { authState, claimUsername, signInWithGoogle, signOut, subscribeAuth } from "../social/auth";
 import { validateUsername } from "../social/profanity";
 import { getShowEquippedInMenu, setShowEquippedInMenu } from "../game/menu-prefs";
+import { refreshGrantedShapes } from "../social/grants";
 
 export function renderAccountPanel(host: HTMLElement, onClose: () => void): () => void {
   const wrap = document.createElement("div");
@@ -130,6 +131,7 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void): () =
           ok?: boolean;
           label?: string;
           error?: string;
+          granted_shape?: string | null;
         };
         if (!res.ok || !body.ok) {
           status.className = "mt-2 text-[12px] min-h-[1em] text-red-300";
@@ -137,8 +139,11 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void): () =
           return;
         }
         status.className = "mt-2 text-[12px] min-h-[1em] text-emerald-300";
-        status.textContent = `unlocked: ${body.label}. open Gallery to equip.`;
+        status.textContent = body.granted_shape
+          ? `unlocked: ${body.label} (+ ${body.granted_shape} shape). open Gallery to equip.`
+          : `unlocked: ${body.label}. open Gallery to equip.`;
         input.value = "";
+        void refreshGrantedShapes();
       } catch {
         status.className = "mt-2 text-[12px] min-h-[1em] text-red-300";
         status.textContent = "network error. try again.";

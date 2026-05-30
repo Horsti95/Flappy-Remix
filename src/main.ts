@@ -242,7 +242,11 @@ loadEquippedSkin().then(async () => {
 
 async function refreshDaily(): Promise<void> {
   dailyInfo = await fetchDaily();
-  if (mode === "menu") showMenu();
+  // Only re-render the menu when it's actually the visible surface —
+  // not while a panel (gallery, friends, account, …) is open on top
+  // of it. The 60s daily-refresh interval was calling showMenu() and
+  // wiping whatever panel the player was browsing.
+  if (mode === "menu" && !panelOpen) showMenu();
 }
 
 async function loadEquippedSkin(): Promise<void> {

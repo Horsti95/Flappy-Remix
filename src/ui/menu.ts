@@ -308,12 +308,10 @@ function renderGameOverInner(
       ${acceptStatus}
       ${versus}
       ${unlocksHtml}
-      <button data-share class="mt-4 w-full rounded-2xl bg-paper text-ink font-bold py-3">${ctx ? "Share result" : "Share run"}</button>
+      <button data-restart class="mt-4 w-full rounded-2xl bg-paper text-ink font-bold py-5 text-lg shadow-lg active:scale-95 transition">Play again</button>
+      <button data-share class="mt-3 w-full rounded-2xl border border-paper/40 text-paper font-bold py-3">${ctx ? "Share result" : "Share run"}</button>
       ${cbButton}
-      <div class="mt-3 grid grid-cols-2 gap-3">
-        <button data-restart class="rounded-2xl border border-paper/40 py-3">Play again</button>
-        <button data-menu class="rounded-2xl border border-paper/40 py-3">Menu</button>
-      </div>
+      <button data-menu class="mt-3 w-full text-xs underline opacity-60 py-1">Back to menu</button>
     </div>
   `;
   host.appendChild(wrap);

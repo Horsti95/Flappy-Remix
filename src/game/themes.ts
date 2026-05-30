@@ -301,3 +301,9 @@ export function setEquippedThemeLocal(id: ThemeId): void {
     /* ignore */
   }
 }
+
+/** When true, every theme reads as unlocked so the gallery can show
+ *  the full backdrop catalogue. Toggled via ?themes=lab. */
+let themesLabMode = false;
+export function setThemesLabMode(on: boolean): void { themesLabMode = on; }
+export function isThemesLabMode(): boolean { return themesLabMode; }

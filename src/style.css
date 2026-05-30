@@ -59,8 +59,11 @@ a:focus-visible {
 .menu-bg-paper {
   background:
     radial-gradient(1200px 600px at 50% -10%, rgba(244, 234, 213, 0.22), transparent 60%),
-    radial-gradient(800px 700px at 50% 110%, rgba(135, 206, 235, 0.28), transparent 55%),
-    linear-gradient(180deg, rgba(20,20,40,0.55), rgba(0,0,0,0.45));
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--menu-sky-top, #87ceeb) 80%, black) 0%,
+      color-mix(in srgb, var(--menu-sky-bottom, #b3e5fc) 90%, black) 100%
+    );
 }
 
 .menu-mascot-flyout {

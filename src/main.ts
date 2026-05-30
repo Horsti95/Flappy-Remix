@@ -28,7 +28,7 @@ import {
   rowToColors,
 } from "./social/skins";
 import { DEFAULT_SHAPE_ID, type ShapeId } from "./game/shapes";
-import { getEquippedThemeLocal, setEquippedThemeLocal, type ThemeId } from "./game/themes";
+import { getEquippedThemeLocal, setEquippedThemeLocal, setThemesLabMode, type ThemeId } from "./game/themes";
 import { type SubmitResult } from "./social/runs";
 import { installFlushHooks, pendingCount, submitOrEnqueue } from "./social/offline-queue";
 import { fetchDaily, type DailyInfo } from "./social/daily";
@@ -37,6 +37,7 @@ import { type ShareCardData } from "./social/share-card";
 import { renderFriendsPanel } from "./ui/friends";
 import { refreshFriendCount } from "./social/friends";
 import { loadAchievementStats } from "./game/achievements";
+import { getShowEquippedInMenu } from "./game/menu-prefs";
 import { renderDailyLanding } from "./ui/daily-landing";
 import { renderChallengePickFriend, type ChallengePickResult } from "./ui/challenge-pick-friend";
 import { renderRankedPanel } from "./ui/ranked";
@@ -196,12 +197,14 @@ const deepLink = (() => {
       dailyDate: u.searchParams.get("d"),
       challenge: u.searchParams.get("c"),
       soundsLab: u.searchParams.get("sounds") === "lab",
+      themesLab: u.searchParams.get("themes") === "lab",
     };
   } catch {
-    return { from: null, dailyDate: null, challenge: null, soundsLab: false };
+    return { from: null, dailyDate: null, challenge: null, soundsLab: false, themesLab: false };
   }
 })();
 if (deepLink.soundsLab) setSoundLabMode(true);
+if (deepLink.themesLab) setThemesLabMode(true);
 
 void refreshDaily();
 setInterval(refreshDaily, 60_000);
@@ -350,6 +353,10 @@ function showMenu(): void {
       streakDays: authState().profile?.streak_days ?? 0,
       pendingSubmissions: pendingCount(),
       online: typeof navigator !== "undefined" ? navigator.onLine : true,
+      equippedShape: equippedShapeId,
+      equippedSkin: renderer.options.skin,
+      equippedTheme: equippedThemeId,
+      showEquippedInMenu: getShowEquippedInMenu(),
     },
   );
 }

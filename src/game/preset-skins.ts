@@ -1,5 +1,6 @@
-import type { RGB } from "./color";
 import type { AchievementStats } from "./achievements";
+
+type RGB = [number, number, number];
 
 /**
  * Preset colour palettes.

@@ -227,6 +227,24 @@ export function renderGallery(
       );
     }
 
+    // Preset palettes — hand-picked colours with their own unlock
+    // criteria. Equipping one is local-only (no DB skin row).
+    body.appendChild(headerLabel("palettes"));
+    const presetGrid = document.createElement("div");
+    presetGrid.className = "grid grid-cols-3 gap-3 px-2";
+    body.appendChild(presetGrid);
+    for (const p of PRESET_SKINS) {
+      presetGrid.appendChild(
+        presetCard(p, currentEquipped.presetId === p.id, achStats, currentEquipped.shapeId, () => {
+          if (!presetUnlock(p, achStats).unlocked) return;
+          currentEquipped.presetId = p.id;
+          currentEquipped.skinId = null;
+          cbs.onEquipColorPreset(p.id);
+          void renderSkins();
+        }),
+      );
+    }
+
     // Achievement-rewarded colors. Show their reward palette painted
     // on the equipped shape. Cards stay locked until the player
     // crosses the threshold — at which point they'll appear in the

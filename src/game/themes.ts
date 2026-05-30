@@ -37,6 +37,7 @@ export interface Theme {
   name: string;
   blurb: string;
   colors: ThemeColors;
+  unlock(stats: { totalGames: number; bestScore: number; streakDays: number }): { unlocked: boolean; hint?: string };
 }
 
 const HC_DEFAULT = {
@@ -58,6 +59,7 @@ export const THEMES: Theme[] = [
       pipeCap: "#2b6f4d",
       highContrast: HC_DEFAULT,
     },
+    unlock: () => ({ unlocked: true }),
   },
   {
     id: "cloudy",
@@ -70,6 +72,7 @@ export const THEMES: Theme[] = [
       pipeCap: "#5f6b62",
       highContrast: HC_DEFAULT,
     },
+    unlock: (s) => ({ unlocked: s.totalGames >= 25, hint: "play 25 games" }),
   },
   {
     id: "sunset",
@@ -82,6 +85,7 @@ export const THEMES: Theme[] = [
       pipeCap: "#0e1f29",
       highContrast: HC_DEFAULT,
     },
+    unlock: (s) => ({ unlocked: s.bestScore >= 50, hint: "score 50 in a single run" }),
   },
   {
     id: "dawn",
@@ -94,6 +98,7 @@ export const THEMES: Theme[] = [
       pipeCap: "#3a2839",
       highContrast: HC_DEFAULT,
     },
+    unlock: (s) => ({ unlocked: s.totalGames >= 100, hint: "play 100 games" }),
   },
   {
     id: "night",
@@ -106,6 +111,7 @@ export const THEMES: Theme[] = [
       pipeCap: "#1f4f37",
       highContrast: HC_DEFAULT,
     },
+    unlock: (s) => ({ unlocked: s.streakDays >= 7, hint: "7-day streak" }),
   },
   {
     id: "fog",
@@ -119,6 +125,7 @@ export const THEMES: Theme[] = [
       fogIntensity: 0.85,
       highContrast: HC_DEFAULT,
     },
+    unlock: (s) => ({ unlocked: s.bestScore >= 200, hint: "score 200 in a single run" }),
   },
 ];
 
@@ -129,4 +136,24 @@ export const DEFAULT_THEME_ID: ThemeId = "sunny";
 export function getTheme(id: ThemeId | string | null | undefined): Theme {
   if (!id) return BY_ID.get(DEFAULT_THEME_ID)!;
   return BY_ID.get(id as ThemeId) ?? BY_ID.get(DEFAULT_THEME_ID)!;
+}
+
+const THEME_KEY = "pflug.equippedTheme.v1";
+
+export function getEquippedThemeLocal(): ThemeId {
+  try {
+    const v = localStorage.getItem(THEME_KEY) as ThemeId | null;
+    if (v && BY_ID.has(v)) return v;
+  } catch {
+    /* localStorage blocked */
+  }
+  return DEFAULT_THEME_ID;
+}
+
+export function setEquippedThemeLocal(id: ThemeId): void {
+  try {
+    localStorage.setItem(THEME_KEY, id);
+  } catch {
+    /* ignore */
+  }
 }

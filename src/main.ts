@@ -40,7 +40,7 @@ import { loadAchievementStats } from "./game/achievements";
 import { renderDailyLanding } from "./ui/daily-landing";
 import { renderChallengePickFriend, type ChallengePickResult } from "./ui/challenge-pick-friend";
 import { renderRankedPanel } from "./ui/ranked";
-import { playFlap } from "./game/sfx";
+import { playFlap, setSoundLabMode } from "./game/sfx";
 import { type RankedMatch } from "./social/ranked";
 import { createChallenge, fetchChallenge, ghostSkinFromChallenge, type FetchedChallenge } from "./social/challenges";
 import { listMyBadges } from "./social/badges";
@@ -195,11 +195,13 @@ const deepLink = (() => {
       from: u.searchParams.get("from"),
       dailyDate: u.searchParams.get("d"),
       challenge: u.searchParams.get("c"),
+      soundsLab: u.searchParams.get("sounds") === "lab",
     };
   } catch {
-    return { from: null, dailyDate: null, challenge: null };
+    return { from: null, dailyDate: null, challenge: null, soundsLab: false };
   }
 })();
+if (deepLink.soundsLab) setSoundLabMode(true);
 
 void refreshDaily();
 setInterval(refreshDaily, 60_000);

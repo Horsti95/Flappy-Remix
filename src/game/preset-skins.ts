@@ -1,0 +1,74 @@
+import type { RGB } from "./color";
+import type { AchievementStats } from "./achievements";
+
+/**
+ * Preset colour palettes.
+ *
+ * Unlike the procedurally-minted skins (server-generated at play
+ * thresholds) these are hand-picked body/accent pairs with their own
+ * unlock criteria. They live entirely client-side: equipping one
+ * writes its id to localStorage and the renderer reads the colours
+ * directly — no DB row needed.
+ */
+
+export interface PresetSkin {
+  id: string;
+  name: string;
+  body: RGB;
+  accent: RGB;
+  unlock(stats: AchievementStats): { unlocked: boolean; hint?: string };
+}
+
+export const PRESET_SKINS: PresetSkin[] = [
+  { id: "preset-crimson", name: "crimson", body: [220, 38, 38], accent: [60, 10, 10],
+    unlock: (s) => ({ unlocked: s.totalGames >= 5, hint: "play 5 games" }) },
+  { id: "preset-ocean", name: "ocean", body: [14, 165, 233], accent: [8, 47, 73],
+    unlock: (s) => ({ unlocked: s.totalGames >= 15, hint: "play 15 games" }) },
+  { id: "preset-lime", name: "lime", body: [132, 204, 22], accent: [26, 46, 5],
+    unlock: (s) => ({ unlocked: s.bestScore >= 20, hint: "score 20 in a single run" }) },
+  { id: "preset-grape", name: "grape", body: [168, 85, 247], accent: [40, 10, 70],
+    unlock: (s) => ({ unlocked: s.bestScore >= 35, hint: "score 35 in a single run" }) },
+  { id: "preset-tangerine", name: "tangerine", body: [249, 115, 22], accent: [80, 30, 0],
+    unlock: (s) => ({ unlocked: s.bestScore >= 60, hint: "score 60 in a single run" }) },
+  { id: "preset-rose", name: "rose gold", body: [251, 113, 133], accent: [120, 50, 60],
+    unlock: (s) => ({ unlocked: s.streakDays >= 3, hint: "3-day streak" }) },
+  { id: "preset-mint", name: "mint", body: [94, 234, 212], accent: [15, 70, 65],
+    unlock: (s) => ({ unlocked: s.streakDays >= 10, hint: "10-day streak" }) },
+  { id: "preset-gold", name: "gold", body: [250, 204, 21], accent: [90, 60, 0],
+    unlock: (s) => ({ unlocked: s.challengeWins >= 2, hint: "win 2 challenges" }) },
+  { id: "preset-mono", name: "mono", body: [230, 230, 230], accent: [20, 20, 20],
+    unlock: (s) => ({ unlocked: s.friendCount >= 3, hint: "add 3 friends" }) },
+  { id: "preset-aurora", name: "aurora", body: [110, 231, 183], accent: [99, 102, 241],
+    unlock: (s) => ({ unlocked: s.totalGames >= 300, hint: "play 300 games" }) },
+];
+
+const PRESET_KEY = "pflug.equippedPreset.v1";
+
+export function getEquippedPresetLocal(): string | null {
+  try {
+    return localStorage.getItem(PRESET_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setEquippedPresetLocal(id: string | null): void {
+  try {
+    if (id) localStorage.setItem(PRESET_KEY, id);
+    else localStorage.removeItem(PRESET_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function getPreset(id: string | null | undefined): PresetSkin | null {
+  if (!id) return null;
+  return PRESET_SKINS.find((p) => p.id === id) ?? null;
+}
+
+let labMode = false;
+export function setPresetLabMode(on: boolean): void { labMode = on; }
+export function presetUnlock(p: PresetSkin, stats: AchievementStats): { unlocked: boolean; hint?: string } {
+  if (labMode) return { unlocked: true };
+  return p.unlock(stats);
+}

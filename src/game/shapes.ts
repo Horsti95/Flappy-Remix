@@ -19,7 +19,10 @@ export type ShapeId =
   | "pixel-bird"
   | "kite"
   | "cyber-plane"
-  | "butterfly";
+  | "butterfly"
+  | "rocket"
+  | "heart"
+  | "star";
 
 export interface ShapeUnlock {
   // Computed unlock state for the current player.
@@ -288,6 +291,89 @@ function drawButterfly(ctx: CanvasRenderingContext2D, r: number, skin: SkinColor
 
 // --- registry ---
 
+
+function drawRocket(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
+  outline(ctx, highContrast);
+  // body — capsule pointing right
+  ctx.fillStyle = rgbCss(skin.body);
+  ctx.beginPath();
+  ctx.moveTo(r * 1.2, 0);
+  ctx.lineTo(r * 0.2, -r * 0.5);
+  ctx.lineTo(-r * 0.9, -r * 0.5);
+  ctx.lineTo(-r * 0.9, r * 0.5);
+  ctx.lineTo(r * 0.2, r * 0.5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // fins (accent)
+  ctx.fillStyle = rgbCss(skin.accent);
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.6, -r * 0.5);
+  ctx.lineTo(-r * 1.1, -r * 0.95);
+  ctx.lineTo(-r * 0.6, -r * 0.2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.6, r * 0.5);
+  ctx.lineTo(-r * 1.1, r * 0.95);
+  ctx.lineTo(-r * 0.6, r * 0.2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // window
+  ctx.fillStyle = rgbCss(skin.accent);
+  ctx.beginPath();
+  ctx.arc(r * 0.35, 0, r * 0.22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+}
+
+function drawHeart(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
+  outline(ctx, highContrast);
+  ctx.fillStyle = rgbCss(skin.body);
+  ctx.beginPath();
+  // two lobes + point, drawn nose-right so motion reads forward
+  ctx.moveTo(r * 0.9, 0);
+  ctx.bezierCurveTo(r * 0.2, -r * 0.9, -r * 1.1, -r * 0.5, -r * 0.2, r * 0.05);
+  ctx.bezierCurveTo(-r * 1.1, r * 0.5, r * 0.2, r * 0.9, r * 0.9, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // accent notch
+  ctx.fillStyle = rgbCss(skin.accent);
+  ctx.beginPath();
+  ctx.arc(-r * 0.15, 0, r * 0.22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+}
+
+function drawStar(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
+  outline(ctx, highContrast);
+  ctx.fillStyle = rgbCss(skin.body);
+  const spikes = 5;
+  const outer = r * 1.05;
+  const inner = r * 0.45;
+  ctx.beginPath();
+  for (let i = 0; i < spikes * 2; i++) {
+    const rad = i % 2 === 0 ? outer : inner;
+    const ang = (Math.PI / spikes) * i - Math.PI / 2;
+    const x = Math.cos(ang) * rad;
+    const y = Math.sin(ang) * rad;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // accent core
+  ctx.fillStyle = rgbCss(skin.accent);
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.32, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+}
+
 export const SHAPES: ShapeMeta[] = [
   {
     id: "paper-plane",
@@ -345,6 +431,36 @@ export const SHAPES: ShapeMeta[] = [
       hint: "play 500 games or hold a 14-day streak",
     }),
     draw: drawButterfly,
+  },
+  {
+    id: "rocket",
+    name: "rocket",
+    blurb: "finned capsule with a porthole.",
+    unlock: ({ bestScore }) => ({
+      unlocked: bestScore >= 25,
+      hint: "score 25 in a single run",
+    }),
+    draw: drawRocket,
+  },
+  {
+    id: "heart",
+    name: "heart",
+    blurb: "for the ones you challenge.",
+    unlock: ({ challengeWins }) => ({
+      unlocked: (challengeWins ?? 0) >= 1,
+      hint: "win a challenge",
+    }),
+    draw: drawHeart,
+  },
+  {
+    id: "star",
+    name: "star",
+    blurb: "five points, glowing core.",
+    unlock: ({ totalGames, streakDays }) => ({
+      unlocked: totalGames >= 300 || streakDays >= 20,
+      hint: "play 300 games or hold a 20-day streak",
+    }),
+    draw: drawStar,
   },
 ];
 

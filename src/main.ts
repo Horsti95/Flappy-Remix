@@ -46,7 +46,8 @@ import { renderRankedPanel } from "./ui/ranked";
 import { playFlap, setSoundLabMode } from "./game/sfx";
 import { clearParticles, getActiveFlapFx, setFxLabMode, spawnFlapFx } from "./game/flap-fx";
 import { type RankedMatch } from "./social/ranked";
-import { createChallenge, fetchChallenge, ghostSkinFromChallenge, type FetchedChallenge } from "./social/challenges";
+import { createChallenge, fetchChallenge, ghostSkinFromChallenge, fetchUnseenChallengeCount, type FetchedChallenge } from "./social/challenges";
+import { renderInbox } from "./ui/inbox";
 import { listMyBadges } from "./social/badges";
 
 setupPWA();
@@ -100,6 +101,7 @@ let dailyInfo: DailyInfo | null = null;
 let activeChallenge: FetchedChallenge | null = null;
 let activeRanked: { match: RankedMatch; round: number } | null = null;
 let pendingChallengeTarget: ChallengePickResult | null = null;
+let inboxUnseen = 0;
 
 app.innerHTML = `
   <section id="stage" role="application" aria-label="Glide play area" class="relative w-full h-full max-w-md max-h-[90vh] aspect-[9/16] mx-auto bg-sky-day overflow-hidden touch-none select-none">
@@ -179,11 +181,19 @@ subscribeAuth(async () => {
   await loadEquippedSkin();
   void refreshFriendCount();
   void refreshGrantedShapes();
+  void refreshInboxBadge();
   // Don't tear down an open panel (account, gallery, leaderboard, …)
   // when supabase fires an auth refresh — that was wiping the gallery
   // mid-browse.
   if (mode === "menu" && !panelOpen) showMenu();
 });
+
+async function refreshInboxBadge(): Promise<void> {
+  const n = await fetchUnseenChallengeCount();
+  if (n === inboxUnseen) return;
+  inboxUnseen = n;
+  if (mode === "menu" && !panelOpen) showMenu();
+}
 
 if (typeof window !== "undefined") {
   window.addEventListener("online", () => {
@@ -379,6 +389,25 @@ function showMenu(): void {
           onClose: () => showMenu(),
         });
       },
+      onOpenInbox: () => {
+        pushSubView();
+        panelOpen = true;
+        // Opening the inbox clears the unseen badge immediately for
+        // snappy feedback; the panel itself marks rows seen server-side.
+        inboxUnseen = 0;
+        renderInbox(overlays, {
+          onAccept: async (shortId) => {
+            const c = await fetchChallenge(shortId);
+            if (c) {
+              activeChallenge = c;
+              startRun("challenge");
+            } else {
+              showMenu();
+            }
+          },
+          onClose: () => showMenu(),
+        });
+      },
     },
     {
       accountLabel: menuAccountLabel(),
@@ -398,6 +427,7 @@ function showMenu(): void {
       equippedSkin: renderer.options.skin,
       equippedTheme: equippedThemeId,
       showEquippedInMenu: getShowEquippedInMenu(),
+      inboxUnseen,
     },
   );
 }
@@ -504,7 +534,14 @@ function startRun(runMode: RunMode = "casual"): void {
         if (pendingChallengeTarget && result?.run_id) {
           const target = pendingChallengeTarget;
           pendingChallengeTarget = null;
-          const created = await createChallenge(result.run_id, null);
+          // When a specific friend was picked, address the challenge to
+          // them so it lands in their inbox as 'pending' (not just a
+          // shareable link).
+          const created = await createChallenge(
+            result.run_id,
+            null,
+            target.friend?.username ?? null,
+          );
           if (created.ok && created.short_id) {
             shareChallenge(score, created.short_id, target.friend?.username ?? null);
             return;

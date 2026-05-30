@@ -5,6 +5,9 @@ export const config = { runtime: "edge" };
 interface Body {
   source_run_id: string;
   parent_short_id?: string | null;
+  /** Optional: address this challenge to a friend by username. When
+   *  set, the challenge lands in their inbox as 'pending'. */
+  target_username?: string | null;
 }
 
 function json(body: unknown, status: number): Response {
@@ -58,6 +61,23 @@ export default async function handler(req: Request): Promise<Response> {
     }
   }
 
+  // Resolve an optional target friend by username. A targeted
+  // challenge lands in their inbox as 'pending'; an untargeted one
+  // stays 'open' (shareable link, legacy behaviour).
+  let targetUserId: string | null = null;
+  let status = "open";
+  if (typeof body.target_username === "string" && body.target_username.trim()) {
+    const target = await admin
+      .from("profiles")
+      .select("user_id")
+      .eq("username", body.target_username.trim().toLowerCase())
+      .maybeSingle();
+    if (!target.data) return json({ error: "target_not_found" }, 404);
+    if (target.data.user_id === userId) return json({ error: "cannot_target_self" }, 400);
+    targetUserId = target.data.user_id as string;
+    status = "pending";
+  }
+
   const idRes = await admin.rpc("gen_challenge_short_id");
   if (idRes.error) return json({ error: idRes.error.message }, 500);
   const shortId = idRes.data as string;
@@ -73,10 +93,12 @@ export default async function handler(req: Request): Promise<Response> {
       creator_score: run.data.score,
       parent_id: parentId,
       depth,
+      target_user_id: targetUserId,
+      status,
     })
     .select("id, short_id")
     .single();
   if (ins.error) return json({ error: ins.error.message }, 500);
 
-  return json({ ok: true, short_id: ins.data.short_id, depth }, 200);
+  return json({ ok: true, short_id: ins.data.short_id, depth, targeted: targetUserId !== null }, 200);
 }

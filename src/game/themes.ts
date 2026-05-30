@@ -12,7 +12,35 @@
  * into without another render.ts refactor.
  */
 
-export type ThemeId = "sunny" | "cloudy" | "sunset" | "night" | "dawn" | "fog";
+export type ThemeId =
+  | "sunny"
+  | "cloudy"
+  | "sunset"
+  | "night"
+  | "dawn"
+  | "fog"
+  | "cyber_neon"
+  | "cyber_sunset"
+  | "cyber_rain"
+  | "cyber_noir";
+
+export interface CityBuilding {
+  /** Left edge in world-units (world width is 360). */
+  x: number;
+  /** Width in world-units. */
+  w: number;
+  /** Top edge in world-units (world height is 640). */
+  topY: number;
+  /** Optional roof feature. */
+  top?: "flat" | "antenna" | "step";
+}
+
+export interface CityLayer {
+  silhouetteColor: string;
+  /** Neon palette to colour window lights. Rotated per-building. */
+  neonAccents: string[];
+  buildings: CityBuilding[];
+}
 
 export interface ThemeColors {
   skyTop: string;
@@ -23,6 +51,8 @@ export interface ThemeColors {
   sunSpot?: { x: number; y: number; r: number; color: string; opacity: number };
   /** Optional visibility fog around the bird, 0..1 (0 = none, 1 = total). */
   fogIntensity?: number;
+  /** Optional skyline rendered between sky and pipes. */
+  cityLayer?: CityLayer;
   /** High-contrast accessibility variant — drawn when the player toggles contrast mode. */
   highContrast: {
     skyTop: string;
@@ -37,7 +67,7 @@ export interface Theme {
   name: string;
   blurb: string;
   colors: ThemeColors;
-  unlock(stats: { totalGames: number; bestScore: number; streakDays: number; lateNightGames?: number }): { unlocked: boolean; hint?: string };
+  unlock(stats: { totalGames: number; bestScore: number; streakDays: number; lateNightGames?: number; dailyStreakDays?: number; challengeWins?: number }): { unlocked: boolean; hint?: string };
 }
 
 const HC_DEFAULT = {
@@ -46,6 +76,45 @@ const HC_DEFAULT = {
   pipeBody: "#ffffff",
   pipeCap: "#cccccc",
 };
+
+// Skylines are static silhouettes painted between the sky gradient and
+// the pipes. World is 360 wide / 640 tall; lower topY = taller building.
+const SKYLINE_A: CityBuilding[] = [
+  { x: 0,   w: 38, topY: 320, top: "antenna" },
+  { x: 36,  w: 56, topY: 240, top: "step" },
+  { x: 90,  w: 48, topY: 290, top: "flat" },
+  { x: 136, w: 64, topY: 210, top: "antenna" },
+  { x: 198, w: 44, topY: 270, top: "step" },
+  { x: 240, w: 60, topY: 200, top: "flat" },
+  { x: 296, w: 64, topY: 250, top: "antenna" },
+];
+const SKYLINE_B: CityBuilding[] = [
+  { x: 0,   w: 52, topY: 300, top: "flat" },
+  { x: 50,  w: 38, topY: 260, top: "step" },
+  { x: 86,  w: 70, topY: 230, top: "flat" },
+  { x: 154, w: 38, topY: 270, top: "antenna" },
+  { x: 190, w: 56, topY: 240, top: "flat" },
+  { x: 244, w: 50, topY: 280, top: "step" },
+  { x: 292, w: 68, topY: 220, top: "antenna" },
+];
+const SKYLINE_C: CityBuilding[] = [
+  { x: 0,   w: 44, topY: 280, top: "step" },
+  { x: 42,  w: 36, topY: 320, top: "flat" },
+  { x: 76,  w: 60, topY: 220, top: "antenna" },
+  { x: 134, w: 50, topY: 260, top: "flat" },
+  { x: 182, w: 70, topY: 200, top: "step" },
+  { x: 250, w: 46, topY: 290, top: "flat" },
+  { x: 294, w: 66, topY: 230, top: "antenna" },
+];
+const SKYLINE_D: CityBuilding[] = [
+  { x: 0,   w: 60, topY: 250, top: "antenna" },
+  { x: 58,  w: 42, topY: 300, top: "flat" },
+  { x: 98,  w: 52, topY: 230, top: "step" },
+  { x: 148, w: 38, topY: 290, top: "flat" },
+  { x: 184, w: 70, topY: 200, top: "antenna" },
+  { x: 252, w: 48, topY: 270, top: "step" },
+  { x: 298, w: 62, topY: 240, top: "flat" },
+];
 
 export const THEMES: Theme[] = [
   {
@@ -129,6 +198,78 @@ export const THEMES: Theme[] = [
       highContrast: HC_DEFAULT,
     },
     unlock: (s) => ({ unlocked: s.bestScore >= 200, hint: "score 200 in a single run" }),
+  },
+  {
+    id: "cyber_neon",
+    name: "neo tokyo",
+    blurb: "violet sky over a glowing skyline.",
+    colors: {
+      skyTop: "#1a0d2e",
+      skyBottom: "#6b1f8a",
+      pipeBody: "#1f1633",
+      pipeCap: "#ff2bd6",
+      cityLayer: {
+        silhouetteColor: "#0b0816",
+        neonAccents: ["#ff2bd6", "#21e5ff", "#a0ff00", "#ffea00"],
+        buildings: SKYLINE_A,
+      },
+      highContrast: HC_DEFAULT,
+    },
+    unlock: (s) => ({ unlocked: s.totalGames >= 50, hint: "play 50 games" }),
+  },
+  {
+    id: "cyber_sunset",
+    name: "miami drive",
+    blurb: "synthwave sunset, ocean horizon.",
+    colors: {
+      skyTop: "#ff2d75",
+      skyBottom: "#ff8c42",
+      pipeBody: "#0d2238",
+      pipeCap: "#21e5ff",
+      cityLayer: {
+        silhouetteColor: "#0b1626",
+        neonAccents: ["#21e5ff", "#ff2d75", "#ffea00"],
+        buildings: SKYLINE_B,
+      },
+      highContrast: HC_DEFAULT,
+    },
+    unlock: (s) => ({ unlocked: s.bestScore >= 75, hint: "score 75 in a single run" }),
+  },
+  {
+    id: "cyber_rain",
+    name: "acid rain",
+    blurb: "wet city, toxic green neons.",
+    colors: {
+      skyTop: "#0d1f1a",
+      skyBottom: "#1b3a32",
+      pipeBody: "#0a1410",
+      pipeCap: "#39ff14",
+      cityLayer: {
+        silhouetteColor: "#070d0b",
+        neonAccents: ["#39ff14", "#ffea00", "#21e5ff"],
+        buildings: SKYLINE_C,
+      },
+      highContrast: HC_DEFAULT,
+    },
+    unlock: (s) => ({ unlocked: (s.dailyStreakDays ?? 0) >= 3, hint: "3-day daily streak with 20+ scores" }),
+  },
+  {
+    id: "cyber_noir",
+    name: "blood district",
+    blurb: "crimson haze, shadow towers.",
+    colors: {
+      skyTop: "#1a0608",
+      skyBottom: "#4a0e14",
+      pipeBody: "#0e0205",
+      pipeCap: "#ff2b3d",
+      cityLayer: {
+        silhouetteColor: "#06010a",
+        neonAccents: ["#ff2b3d", "#ff9a2b", "#ffe14d"],
+        buildings: SKYLINE_D,
+      },
+      highContrast: HC_DEFAULT,
+    },
+    unlock: (s) => ({ unlocked: (s.challengeWins ?? 0) >= 5, hint: "win 5 challenges" }),
   },
 ];
 

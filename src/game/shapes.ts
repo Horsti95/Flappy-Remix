@@ -16,9 +16,9 @@ import { rgbCss, type SkinColors } from "./skin";
 export type ShapeId =
   | "paper-plane"
   | "paper-plane-v2"
-  | "dart"
+  | "pixel-bird"
   | "kite"
-  | "paper-crane"
+  | "cyber-plane"
   | "butterfly";
 
 export interface ShapeUnlock {
@@ -35,13 +35,18 @@ export interface ShapeMeta {
   blurb: string;
   /**
    * Returns the unlock state given the player's lifetime counters.
-   * Pure function — no network. We pass total_games and best_score
-   * because those are the cheap things we already have client-side.
+   * Pure function — no network. Extra optional counters give variety
+   * to unlock conditions (challenge wins, late-night plays, etc.).
    */
   unlock(input: {
     totalGames: number;
     bestScore: number;
     streakDays: number;
+    challengeWins?: number;
+    lateNightGames?: number;
+    morningGames?: number;
+    dailyStreakDays?: number;
+    friendCount?: number;
   }): ShapeUnlock;
   /**
    * Draw the shape at origin, given the bird radius and the skin
@@ -106,36 +111,85 @@ function drawPaperPlaneV2(ctx: CanvasRenderingContext2D, r: number, skin: SkinCo
   ctx.stroke();
 }
 
-function drawDart(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
+function drawPixelBird(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
+  // 8-bit silhouette. Each "pixel" is a unit cell of size px = r/8.
+  // Layout is a hand-painted bitmap so the proportions read tight at
+  // any radius. Body uses skin.body, accent uses skin.accent for
+  // beak + eye.
+  const px = r / 8;
+  const body = rgbCss(skin.body);
+  const accent = rgbCss(skin.accent);
+  const outlineCol = highContrast ? "#ffffff" : "#1a1a1a";
+
+  // bitmap rows (top-to-bottom). x range [-7, +7]
+  // 1 = body, 2 = accent, 0 = empty
+  const bmp: number[][] = [
+    [0,0,0,1,1,1,1,1,1,0,0,0,0,0,0],
+    [0,0,1,1,1,1,1,1,1,1,1,0,0,0,0],
+    [0,1,1,1,1,2,2,1,1,1,1,1,0,0,0],
+    [1,1,1,1,1,2,2,1,1,1,1,1,1,0,0],
+    [1,1,1,1,1,1,1,1,1,1,1,2,2,2,0],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+    [0,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+    [0,0,1,1,1,1,1,1,1,1,1,0,0,0,0],
+  ];
+  const offX = -7;
+  const offY = -4;
+  for (let row = 0; row < bmp.length; row++) {
+    for (let col = 0; col < bmp[row].length; col++) {
+      const v = bmp[row][col];
+      if (v === 0) continue;
+      ctx.fillStyle = v === 2 ? accent : body;
+      ctx.fillRect((offX + col) * px, (offY + row) * px, px + 0.5, px + 0.5);
+    }
+  }
+  // Single pixel eye in outline color for character.
+  ctx.fillStyle = outlineCol;
+  ctx.fillRect((offX + 9) * px, (offY + 3) * px, px, px);
+}
+
+function drawCyberPlane(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
   outline(ctx, highContrast);
-  // Main pointed triangle
+  // Sharp, angular sci-fi craft.
+  // Main fuselage — long arrowhead.
   ctx.fillStyle = rgbCss(skin.body);
   ctx.beginPath();
-  ctx.moveTo(-r * 0.9, r * 0.4);
-  ctx.lineTo(r * 1.1, -r * 0.2);
-  ctx.lineTo(-r * 0.75, r * 0.1);
+  ctx.moveTo(r * 1.2, 0);
+  ctx.lineTo(r * 0.2, -r * 0.45);
+  ctx.lineTo(-r * 0.9, -r * 0.25);
+  ctx.lineTo(-r * 1.05, 0);
+  ctx.lineTo(-r * 0.9, r * 0.25);
+  ctx.lineTo(r * 0.2, r * 0.45);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
-  // Accent fold along the underside
+
+  // Bottom wing slash — accent color.
   ctx.fillStyle = rgbCss(skin.accent);
   ctx.beginPath();
-  ctx.moveTo(r * 1.1, -r * 0.2);
-  ctx.lineTo(-r * 0.75, r * 0.1);
-  ctx.lineTo(-r * 0.9, r * 0.4);
-  ctx.lineTo(-r * 0.1, r * 0.1);
+  ctx.moveTo(r * 0.4, r * 0.15);
+  ctx.lineTo(-r * 0.7, r * 0.7);
+  ctx.lineTo(-r * 1.0, r * 0.55);
+  ctx.lineTo(-r * 0.6, r * 0.2);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
-  // Small tail kick
-  ctx.fillStyle = rgbCss(skin.body);
+
+  // Cockpit glow strip — small bright accent slash near nose.
+  ctx.fillStyle = rgbCss(skin.accent);
   ctx.beginPath();
-  ctx.moveTo(-r * 0.9, r * 0.4);
-  ctx.lineTo(-r * 1.05, r * 0.55);
-  ctx.lineTo(-r * 0.7, r * 0.5);
+  ctx.moveTo(r * 0.55, -r * 0.18);
+  ctx.lineTo(r * 0.9, -r * 0.08);
+  ctx.lineTo(r * 0.8, 0);
+  ctx.lineTo(r * 0.45, -r * 0.05);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
+
+  // Twin engine notches at the tail.
+  ctx.fillStyle = highContrast ? "#000000" : "#1a1a1a";
+  ctx.fillRect(-r * 1.05, -r * 0.12, r * 0.18, r * 0.08);
+  ctx.fillRect(-r * 1.05,  r * 0.04, r * 0.18, r * 0.08);
 }
 
 function drawKite(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
@@ -177,49 +231,6 @@ function drawKite(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, hi
   ctx.stroke();
   ctx.lineWidth = 1.5;
   ctx.strokeStyle = highContrast ? "#ffffff" : "#1a1a1a";
-}
-
-function drawPaperCrane(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
-  outline(ctx, highContrast);
-  // Back wing (accent)
-  ctx.fillStyle = rgbCss(skin.accent);
-  ctx.beginPath();
-  ctx.moveTo(-r * 1.1, r * 0.2);
-  ctx.lineTo(-r * 0.1, -r * 0.4);
-  ctx.lineTo(r * 0.3, r * 0.1);
-  ctx.lineTo(-r * 0.2, r * 0.6);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-  // Main body (cream)
-  ctx.fillStyle = rgbCss(skin.body);
-  ctx.beginPath();
-  ctx.moveTo(r * 0.3, r * 0.1);
-  ctx.lineTo(r * 1.1, -r * 0.2);
-  ctx.lineTo(r * 0.9, r * 0.2);
-  ctx.lineTo(r * 1.3, r * 0.4);
-  ctx.lineTo(r * 1, r * 0.6);
-  ctx.lineTo(r * 0.3, r * 0.4);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-  // Front wing
-  ctx.beginPath();
-  ctx.moveTo(-r * 0.1, -r * 0.4);
-  ctx.lineTo(r * 0.7, -r * 0.6);
-  ctx.lineTo(r * 0.3, r * 0.1);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-  // Neck / head
-  ctx.beginPath();
-  ctx.moveTo(r * 1.1, -r * 0.2);
-  ctx.lineTo(r * 1.4, -r * 0.5);
-  ctx.lineTo(r * 1.5, -r * 0.2);
-  ctx.lineTo(r * 1.2, -r * 0.1);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
 }
 
 function drawButterfly(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
@@ -296,34 +307,34 @@ export const SHAPES: ShapeMeta[] = [
     draw: drawPaperPlaneV2,
   },
   {
-    id: "dart",
-    name: "dart",
-    blurb: "sharp, racing feel.",
+    id: "pixel-bird",
+    name: "8-bit bird",
+    blurb: "retro pixel silhouette, beak forward.",
     unlock: ({ bestScore }) => ({
       unlocked: bestScore >= 30,
       hint: "score 30 in a single run",
     }),
-    draw: drawDart,
+    draw: drawPixelBird,
   },
   {
     id: "kite",
     name: "kite",
     blurb: "diamond proportion, with a tail.",
-    unlock: ({ bestScore }) => ({
-      unlocked: bestScore >= 50,
-      hint: "score 50 in a single run",
+    unlock: ({ streakDays }) => ({
+      unlocked: streakDays >= 3,
+      hint: "3-day streak",
     }),
     draw: drawKite,
   },
   {
-    id: "paper-crane",
-    name: "paper crane",
-    blurb: "folded crane silhouette. for the dedicated.",
-    unlock: ({ totalGames }) => ({
-      unlocked: totalGames >= 200,
-      hint: "play 200 games",
+    id: "cyber-plane",
+    name: "cyber drone",
+    blurb: "angular sci-fi craft with engine notches.",
+    unlock: ({ challengeWins, totalGames }) => ({
+      unlocked: (challengeWins ?? 0) >= 3 || totalGames >= 200,
+      hint: "win 3 challenges or play 200 games",
     }),
-    draw: drawPaperCrane,
+    draw: drawCyberPlane,
   },
   {
     id: "butterfly",
@@ -350,6 +361,11 @@ export function listUnlockedShapeIds(stats: {
   totalGames: number;
   bestScore: number;
   streakDays: number;
+  challengeWins?: number;
+  lateNightGames?: number;
+  morningGames?: number;
+  dailyStreakDays?: number;
+  friendCount?: number;
 }): ShapeId[] {
   return SHAPES.filter((s) => s.unlock(stats).unlocked).map((s) => s.id);
 }

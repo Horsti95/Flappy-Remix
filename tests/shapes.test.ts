@@ -36,26 +36,26 @@ describe("shape registry", () => {
     );
   });
 
-  it("dart unlocks at a single-run score of 30", () => {
+  it("pixel-bird unlocks at a single-run score of 30", () => {
     expect(listUnlockedShapeIds({ totalGames: 9999, bestScore: 29, streakDays: 0 })).not.toContain(
-      "dart",
+      "pixel-bird",
     );
-    expect(listUnlockedShapeIds({ totalGames: 0, bestScore: 30, streakDays: 0 })).toContain("dart");
+    expect(listUnlockedShapeIds({ totalGames: 0, bestScore: 30, streakDays: 0 })).toContain("pixel-bird");
   });
 
-  it("kite unlocks at score 50", () => {
-    expect(listUnlockedShapeIds({ totalGames: 0, bestScore: 49, streakDays: 0 })).not.toContain(
+  it("kite unlocks at a 3-day streak", () => {
+    expect(listUnlockedShapeIds({ totalGames: 0, bestScore: 999, streakDays: 2 })).not.toContain(
       "kite",
     );
-    expect(listUnlockedShapeIds({ totalGames: 0, bestScore: 50, streakDays: 0 })).toContain("kite");
+    expect(listUnlockedShapeIds({ totalGames: 0, bestScore: 0, streakDays: 3 })).toContain("kite");
   });
 
-  it("paper-crane unlocks at 200 games", () => {
+  it("cyber-plane unlocks at 200 games", () => {
     expect(listUnlockedShapeIds({ totalGames: 199, bestScore: 999, streakDays: 0 })).not.toContain(
-      "paper-crane",
+      "cyber-plane",
     );
     expect(listUnlockedShapeIds({ totalGames: 200, bestScore: 0, streakDays: 0 })).toContain(
-      "paper-crane",
+      "cyber-plane",
     );
   });
 

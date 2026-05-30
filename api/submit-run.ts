@@ -224,21 +224,24 @@ export default async function handler(req: Request): Promise<Response> {
   if (body.mode === "challenge" && body.challenge_short_id) {
     const ch = await admin
       .from("challenges")
-      .select("id, seed, depth, responder_id")
+      .select("id, seed, depth, responder_id, target_user_id, status")
       .eq("short_id", body.challenge_short_id)
       .maybeSingle();
     if (ch.data && ch.data.seed === body.seed) {
       // Don't overwrite a prior response; only set the responder once.
       if (!ch.data.responder_id) {
-        await admin
-          .from("challenges")
-          .update({
-            responder_id: userId,
-            responder_run_id: run.data.id,
-            responder_score: body.score,
-            responded_at: new Date().toISOString(),
-          })
-          .eq("id", ch.data.id);
+        const patch: Record<string, unknown> = {
+          responder_id: userId,
+          responder_run_id: run.data.id,
+          responder_score: body.score,
+          responded_at: new Date().toISOString(),
+        };
+        // A targeted (inbox) challenge flips from 'pending' to
+        // 'accepted' the moment the addressed friend plays it.
+        if (ch.data.target_user_id === userId && ch.data.status === "pending") {
+          patch.status = "accepted";
+        }
+        await admin.from("challenges").update(patch).eq("id", ch.data.id);
       }
     }
   }

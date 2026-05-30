@@ -32,7 +32,11 @@ export interface CreateChallengeResult {
   error?: string;
 }
 
-export async function createChallenge(runId: string, parentShortId: string | null): Promise<CreateChallengeResult> {
+export async function createChallenge(
+  runId: string,
+  parentShortId: string | null,
+  targetUsername?: string | null,
+): Promise<CreateChallengeResult> {
   const sb = getSupabase();
   const s = authState();
   if (!sb || !s.session) return { ok: false, error: "offline" };
@@ -43,7 +47,11 @@ export async function createChallenge(runId: string, parentShortId: string | nul
         "content-type": "application/json",
         authorization: `Bearer ${s.session.access_token}`,
       },
-      body: JSON.stringify({ source_run_id: runId, parent_short_id: parentShortId }),
+      body: JSON.stringify({
+        source_run_id: runId,
+        parent_short_id: parentShortId,
+        target_username: targetUsername ?? null,
+      }),
     });
     if (!res.ok) {
       const body = (await res.json().catch(() => ({}))) as { error?: string };
@@ -55,6 +63,65 @@ export async function createChallenge(runId: string, parentShortId: string | nul
     console.error("[challenge] create", err);
     return { ok: false, error: "network" };
   }
+}
+
+export interface IncomingChallenge {
+  short_id: string;
+  creator_username: string | null;
+  creator_score: number;
+  created_at: string;
+  seen_at: string | null;
+}
+
+export interface OutgoingChallenge {
+  short_id: string;
+  target_username: string | null;
+  status: string;
+  creator_score: number;
+  responder_score: number | null;
+  created_at: string;
+}
+
+export async function fetchIncomingChallenges(): Promise<IncomingChallenge[]> {
+  const sb = getSupabase();
+  if (!sb || !authState().session) return [];
+  const { data, error } = await sb.rpc("inbox_incoming");
+  if (error) {
+    console.error("[inbox] incoming", error);
+    return [];
+  }
+  return (data ?? []) as IncomingChallenge[];
+}
+
+export async function fetchOutgoingChallenges(): Promise<OutgoingChallenge[]> {
+  const sb = getSupabase();
+  if (!sb || !authState().session) return [];
+  const { data, error } = await sb.rpc("inbox_outgoing");
+  if (error) {
+    console.error("[inbox] outgoing", error);
+    return [];
+  }
+  return (data ?? []) as OutgoingChallenge[];
+}
+
+export async function fetchUnseenChallengeCount(): Promise<number> {
+  const sb = getSupabase();
+  if (!sb || !authState().session) return 0;
+  const { data, error } = await sb.rpc("inbox_unseen_count");
+  if (error) return 0;
+  return (data as number) ?? 0;
+}
+
+export async function markInboxSeen(): Promise<void> {
+  const sb = getSupabase();
+  if (!sb || !authState().session) return;
+  await sb.rpc("inbox_mark_seen");
+}
+
+export async function declineChallenge(shortId: string): Promise<void> {
+  const sb = getSupabase();
+  if (!sb || !authState().session) return;
+  await sb.rpc("decline_challenge", { p_short_id: shortId });
 }
 
 export function ghostSkinFromChallenge(c: FetchedChallenge | null): SkinColors | undefined {

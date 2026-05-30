@@ -17,6 +17,7 @@ export interface MenuCallbacks {
   onOpenLeaderboard(): void;
   onOpenFriends(): void;
   onOpenRanked(): void;
+  onOpenInbox(): void;
 }
 
 export interface MenuMeta {
@@ -39,6 +40,8 @@ export interface MenuMeta {
   equippedTheme?: ThemeId;
   /** User toggle: when false the menu always shows the default paper plane. */
   showEquippedInMenu?: boolean;
+  /** Count of unseen incoming challenges — drives the inbox badge. */
+  inboxUnseen?: number;
 }
 
 export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallbacks, meta: MenuMeta): void {
@@ -102,9 +105,17 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
         </button>
       </div>
 
-      <button data-action="challenge-friend" class="mt-3 w-full rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
-        Challenge friend
-      </button>
+      <div class="mt-3 grid grid-cols-2 gap-2">
+        <button data-action="challenge-friend" class="rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
+          Challenge friend
+        </button>
+        <button data-action="inbox" class="relative rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
+          Challenges
+          ${meta.inboxUnseen && meta.inboxUnseen > 0
+            ? `<span class="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center">${meta.inboxUnseen > 9 ? "9+" : meta.inboxUnseen}</span>`
+            : ""}
+        </button>
+      </div>
 
       <div class="mt-3 grid grid-cols-4 gap-2">
         <button data-action="ranked" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
@@ -147,6 +158,10 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   wrap.querySelector('[data-action="daily"]')?.addEventListener("click", (e) => {
     e.stopPropagation();
     cbs.onPlayDaily();
+  });
+  wrap.querySelector('[data-action="inbox"]')?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    cbs.onOpenInbox();
   });
   wrap.querySelector('[data-action="challenge-friend"]')?.addEventListener("click", (e) => {
     e.stopPropagation();

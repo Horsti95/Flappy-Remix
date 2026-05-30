@@ -43,6 +43,7 @@ import { renderDailyLanding } from "./ui/daily-landing";
 import { renderChallengePickFriend, type ChallengePickResult } from "./ui/challenge-pick-friend";
 import { renderRankedPanel } from "./ui/ranked";
 import { playFlap, setSoundLabMode } from "./game/sfx";
+import { clearParticles, getActiveFlapFx, setFxLabMode, spawnFlapFx } from "./game/flap-fx";
 import { type RankedMatch } from "./social/ranked";
 import { createChallenge, fetchChallenge, ghostSkinFromChallenge, type FetchedChallenge } from "./social/challenges";
 import { listMyBadges } from "./social/badges";
@@ -146,6 +147,13 @@ const input = new InputController(stage, {
     if (mode === "playing") {
       loop?.flap();
       if (settings.sound) playFlap();
+      // Flap-FX spawns a particle burst at the plane's last-rendered
+      // position. The renderer ticks + paints them in subsequent
+      // frames. Visual-only — never feeds back into the sim.
+      const fx = getActiveFlapFx();
+      if (fx !== "off" && loop) {
+        spawnFlapFx(fx, loop.sim.cfg.birdX, loop.sim.birdY);
+      }
     }
   },
   onTogglePause: () => {
@@ -200,13 +208,15 @@ const deepLink = (() => {
       challenge: u.searchParams.get("c"),
       soundsLab: u.searchParams.get("sounds") === "lab",
       themesLab: u.searchParams.get("themes") === "lab",
+      fxLab: u.searchParams.get("fx") === "lab",
     };
   } catch {
-    return { from: null, dailyDate: null, challenge: null, soundsLab: false, themesLab: false };
+    return { from: null, dailyDate: null, challenge: null, soundsLab: false, themesLab: false, fxLab: false };
   }
 })();
 if (deepLink.soundsLab) setSoundLabMode(true);
 if (deepLink.themesLab) setThemesLabMode(true);
+if (deepLink.fxLab) setFxLabMode(true);
 
 void refreshDaily();
 setInterval(refreshDaily, 60_000);
@@ -270,6 +280,7 @@ function showMenu(): void {
   activeChallenge = null;
   pendingChallengeTarget = null;
   renderer.options.ghostSkin = undefined;
+  clearParticles();
   overlays.innerHTML = "";
   renderMenu(
     overlays,

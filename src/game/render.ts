@@ -4,6 +4,7 @@ import { DEFAULT_SKIN, type SkinColors } from "./skin";
 import { type GhostSim } from "./ghost";
 import { DEFAULT_THEME_ID, getTheme, type ThemeId } from "./themes";
 import { DEFAULT_SHAPE_ID, getShape, type ShapeId } from "./shapes";
+import { getParticles, tickParticles } from "./flap-fx";
 
 export interface RenderOptions {
   highContrast: boolean;
@@ -167,6 +168,59 @@ export class Renderer {
     const by = sim.alive ? sim.prevBirdY + (sim.birdY - sim.prevBirdY) * alpha : sim.birdY;
     const tilt = this.options.reducedMotion ? 0 : Math.max(-0.6, Math.min(1.0, sim.birdVY / 600));
     this.drawShape(cfg.birdX, by, tilt, this.options.skin, this.options.shape, sim.cfg.birdRadius);
+
+    // Flap-FX particles. Painted after the bird so they trail behind it
+    // visually. Tick happens on each draw call using a fixed assumed
+    // dt — the sim is 60 Hz, render is whatever the browser gives us,
+    // so we approximate via 1/60. Particles are visual-only and never
+    // feed the sim back, so this is safe.
+    if (!this.options.reducedMotion) {
+      tickParticles(1 / 60);
+      const particles = getParticles();
+      if (particles.length > 0) {
+        ctx.save();
+        for (const p of particles) {
+          const t = p.age / p.life;
+          const alpha = Math.max(0, 1 - t);
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = p.color;
+          ctx.strokeStyle = p.color;
+          const px = p.x + p.dx;
+          const py = p.y + p.dy;
+          switch (p.kind) {
+            case "puff": {
+              const r = 3 + t * 6;
+              ctx.beginPath();
+              ctx.arc(px, py, r, 0, Math.PI * 2);
+              ctx.fill();
+              break;
+            }
+            case "line": {
+              ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              ctx.moveTo(px, py);
+              ctx.lineTo(px - 10 - t * 14, py);
+              ctx.stroke();
+              break;
+            }
+            case "sparkle": {
+              const r = 1.4 + (1 - t) * 1.2;
+              ctx.fillRect(px - r / 2, py - r / 2, r, r);
+              break;
+            }
+            case "ring": {
+              const r = 4 + t * 30;
+              ctx.lineWidth = 2 * (1 - t);
+              ctx.beginPath();
+              ctx.arc(px, py, r, 0, Math.PI * 2);
+              ctx.stroke();
+              break;
+            }
+          }
+        }
+        ctx.restore();
+      }
+    }
 
     if (!this.options.highContrast && theme.colors.fogIntensity) {
       const cx = cfg.birdX;

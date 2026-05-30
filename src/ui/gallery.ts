@@ -18,6 +18,15 @@ import {
 } from "../game/sfx";
 import { THEMES, isThemesLabMode, type Theme, type ThemeId } from "../game/themes";
 import { getGrantedShapesLocal } from "../social/grants";
+import {
+  FLAP_FX_OPTIONS,
+  flapFxUnlock,
+  getActiveFlapFx,
+  isFxLabMode,
+  setActiveFlapFx,
+  spawnFlapFx,
+  type FlapFxId,
+} from "../game/flap-fx";
 
 export interface GalleryCallbacks {
   onEquipSkin(skinId: string | null): void;
@@ -62,12 +71,13 @@ export function renderGallery(
       <button data-tab="skins" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">colors</button>
       <button data-tab="backgrounds" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">backgrounds</button>
       <button data-tab="sounds" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">sounds</button>
+      <button data-tab="fx" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">fx</button>
     </div>
     <div data-body class="mt-3 px-3 flex-1 overflow-y-auto pb-6"></div>
   `;
   host.appendChild(wrap);
 
-  type Tab = "shapes" | "skins" | "backgrounds" | "sounds";
+  type Tab = "shapes" | "skins" | "backgrounds" | "sounds" | "fx";
   let activeTab: Tab = "shapes";
   let currentEquipped = { ...equipped };
   let cancelled = false;
@@ -102,6 +112,24 @@ export function renderGallery(
     else if (activeTab === "skins") void renderSkins();
     else if (activeTab === "backgrounds") renderBackgrounds();
     else if (activeTab === "sounds") renderSounds();
+    else if (activeTab === "fx") renderFx();
+  }
+
+  function renderFx(): void {
+    const body = wrap.querySelector("[data-body]") as HTMLDivElement;
+    const achStats = loadAchievementStats();
+    const active = getActiveFlapFx();
+    body.innerHTML = `
+      <div class="px-2 mb-3 text-[10px] opacity-60">visual burst when you tap. preview the unlocked ones — your pick fires every flap mid-run.</div>
+      <div data-fx-list class="space-y-2 px-2"></div>
+    `;
+    const list = body.querySelector("[data-fx-list]") as HTMLDivElement;
+    for (const opt of FLAP_FX_OPTIONS) {
+      list.appendChild(fxCard(opt.id, opt.label, opt.blurb, achStats, active === opt.id, (id) => {
+        setActiveFlapFx(id);
+        renderFx();
+      }));
+    }
   }
 
   function renderBackgrounds(): void {
@@ -443,6 +471,104 @@ function achievementColorCard(a: AchievementDef, stats: AchievementStats, shapeI
     <div class="text-[9px] uppercase tracking-wider font-bold ${got ? "text-emerald-300" : "opacity-50"}">${got ? "unlocked" : "locked"}</div>
   `;
   return el;
+}
+
+function fxCard(
+  id: FlapFxId,
+  label: string,
+  blurb: string,
+  stats: AchievementStats,
+  active: boolean,
+  onPick: (id: FlapFxId) => void,
+): HTMLElement {
+  const realState = flapFxUnlock(id, stats);
+  const state = isFxLabMode() ? { unlocked: true, hint: realState.hint } : realState;
+  const el = document.createElement("div");
+  el.dataset.noFlap = "true";
+  el.className = `rounded-2xl p-3 border-2 ${active ? "border-paper bg-paper/10" : state.unlocked ? "border-white/10 bg-white/5" : "border-white/5 bg-white/5 opacity-60"}`;
+  el.innerHTML = `
+    <div class="flex items-center justify-between gap-3">
+      <div class="text-left flex-1 min-w-0">
+        <div class="text-sm font-bold truncate">${escapeHtml(label)}</div>
+        <div class="text-[11px] opacity-70 mt-0.5 truncate">${state.unlocked ? escapeHtml(blurb) : escapeHtml(state.hint ?? "locked")}</div>
+      </div>
+      ${state.unlocked
+        ? `<button data-preview class="rounded-full bg-white/15 px-3 py-1.5 text-[11px] font-bold">▶</button>
+           <button data-pick class="rounded-full ${active ? "bg-emerald-400/30 text-emerald-100" : "bg-paper text-ink"} px-3 py-1.5 text-[11px] font-bold">${active ? "active" : "pick"}</button>`
+        : `<div class="text-[10px] uppercase tracking-wider opacity-50 font-bold">locked</div>`
+      }
+    </div>
+  `;
+  if (state.unlocked) {
+    el.querySelector("[data-preview]")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      // Spawn into the live particle system. The renderer is paused
+      // (we're on the menu/gallery), so the particle list will hold
+      // the burst until the player starts a run — that's not ideal
+      // for preview. For now, fire a one-shot visual via a small
+      // throwaway canvas painted into a temporary node.
+      previewFxBurst(id, el);
+    });
+    el.querySelector("[data-pick]")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      onPick(id);
+    });
+  }
+  return el;
+}
+
+function previewFxBurst(id: FlapFxId, anchor: HTMLElement): void {
+  // 80×80 ad-hoc canvas dropped over the preview button. Spawn the
+  // burst into a local particle buffer, animate via rAF, remove on
+  // completion. Keeps preview self-contained vs. polluting the main
+  // particle list while no run is active.
+  const c = document.createElement("canvas");
+  c.width = 160; c.height = 160;
+  c.style.cssText = "position:absolute;pointer-events:none;z-index:50;";
+  const rect = anchor.getBoundingClientRect();
+  c.style.left = `${rect.right - 100}px`;
+  c.style.top = `${rect.top + rect.height / 2 - 40}px`;
+  c.style.width = "80px"; c.style.height = "80px";
+  document.body.appendChild(c);
+  const ctx2 = c.getContext("2d")!;
+  // Local mini-particle buffer for this preview only.
+  type P = { dx: number; dy: number; vx: number; vy: number; age: number; life: number; kind: "puff" | "line" | "sparkle" | "ring"; color: string };
+  const ps: P[] = [];
+  const cx = 80, cy = 80;
+  const seed = (kind: P["kind"], color: string, n: number, factory: (i: number) => Partial<P>) => {
+    for (let i = 0; i < n; i++) ps.push({ dx: 0, dy: 0, vx: 0, vy: 0, age: 0, life: 0.5, kind, color, ...factory(i) });
+  };
+  if (id === "wind_puff") seed("puff", "rgba(244,234,213,0.9)", 6, (i) => ({ vx: (i - 2.5) * 16, vy: 70 + Math.random() * 16, life: 0.55 }));
+  else if (id === "speed_lines") seed("line", "rgba(244,234,213,0.95)", 4, (i) => ({ dx: 8, dy: (i - 1.5) * 5, vx: -220, life: 0.32 }));
+  else if (id === "sparkle") seed("sparkle", "rgba(255,235,150,0.95)", 8, () => { const ang = Math.random() * Math.PI + Math.PI; const sp = 40 + Math.random() * 50; return { vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: 0.5 }; });
+  else if (id === "ring_pulse") seed("ring", "rgba(244,234,213,0.8)", 1, () => ({ life: 0.35 }));
+  let last = performance.now();
+  const tick = (now: number) => {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    ctx2.clearRect(0, 0, 160, 160);
+    for (let i = ps.length - 1; i >= 0; i--) {
+      const p = ps[i];
+      p.age += dt;
+      if (p.age >= p.life) { ps.splice(i, 1); continue; }
+      p.dx += p.vx * dt; p.dy += p.vy * dt;
+      const t = p.age / p.life;
+      ctx2.globalAlpha = Math.max(0, 1 - t);
+      ctx2.fillStyle = p.color;
+      ctx2.strokeStyle = p.color;
+      const px = cx + p.dx, py = cy + p.dy;
+      if (p.kind === "puff") { ctx2.beginPath(); ctx2.arc(px, py, 4 + t * 8, 0, Math.PI * 2); ctx2.fill(); }
+      else if (p.kind === "line") { ctx2.lineWidth = 2; ctx2.beginPath(); ctx2.moveTo(px, py); ctx2.lineTo(px - 20 - t * 28, py); ctx2.stroke(); }
+      else if (p.kind === "sparkle") { const r = 2 + (1 - t) * 2; ctx2.fillRect(px - r / 2, py - r / 2, r, r); }
+      else if (p.kind === "ring") { ctx2.lineWidth = 3 * (1 - t); ctx2.beginPath(); ctx2.arc(px, py, 6 + t * 60, 0, Math.PI * 2); ctx2.stroke(); }
+    }
+    if (ps.length > 0) requestAnimationFrame(tick);
+    else c.remove();
+  };
+  requestAnimationFrame(tick);
+  // Reference the imported spawn so it isn't tree-shaken — keeps the
+  // sim+lab spawn flow alive even if no run has run yet.
+  void spawnFlapFx;
 }
 
 function soundCard(

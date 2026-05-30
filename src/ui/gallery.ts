@@ -16,7 +16,7 @@ import {
   flapSoundUnlock,
   type FlapSoundId,
 } from "../game/sfx";
-import { THEMES, type Theme, type ThemeId } from "../game/themes";
+import { THEMES, isThemesLabMode, type Theme, type ThemeId } from "../game/themes";
 
 export interface GalleryCallbacks {
   onEquipSkin(skinId: string | null): void;
@@ -109,7 +109,7 @@ export function renderGallery(
     for (const theme of THEMES) {
       grid.appendChild(
         themeCard(theme, currentEquipped.themeId === theme.id, stats, () => {
-          if (!theme.unlock(stats).unlocked) return;
+          if (!isThemesLabMode() && !theme.unlock(stats).unlocked) return;
           currentEquipped.themeId = theme.id;
           cbs.onEquipTheme(theme.id);
           renderBackgrounds();
@@ -385,7 +385,8 @@ function headerLabel(text: string): HTMLElement {
 }
 
 function themeCard(theme: Theme, equipped: boolean, stats: GalleryStats, onTap: () => void): HTMLElement {
-  const state = theme.unlock(stats);
+  const realState = theme.unlock(stats);
+  const state = isThemesLabMode() ? { unlocked: true, hint: realState.hint } : realState;
   const el = document.createElement("button");
   el.dataset.noFlap = "true";
   el.className = `relative rounded-2xl p-3 flex flex-col items-center text-[11px] gap-2 border-2 ${

@@ -2,6 +2,10 @@ import { type Settings } from "../game/settings";
 import { RARITY_COLOR, type Rarity } from "../game/rarity";
 import { TIER_COLOR, TIER_LABEL, type Tier } from "../game/daily-twist";
 import { playUnlockSound, triggerUnlockHaptic } from "../game/sfx";
+import { DEFAULT_SHAPE_ID, type ShapeId } from "../game/shapes";
+import { DEFAULT_SKIN, type SkinColors } from "../game/skin";
+import { getTheme, DEFAULT_THEME_ID, type ThemeId } from "../game/themes";
+import { shapeSvgInner } from "./shape-svg";
 
 export interface MenuCallbacks {
   onPlay(): void;
@@ -27,13 +31,30 @@ export interface MenuMeta {
   streakDays: number;
   pendingSubmissions?: number;
   online?: boolean;
+  /** Equipped shape — drives the mascot above the title. */
+  equippedShape?: ShapeId;
+  /** Equipped skin colours — drives mascot paint. Null = default cream/ink. */
+  equippedSkin?: SkinColors;
+  /** Equipped theme — drives the menu sky gradient. */
+  equippedTheme?: ThemeId;
+  /** User toggle: when false the menu always shows the default paper plane. */
+  showEquippedInMenu?: boolean;
 }
 
 export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallbacks, meta: MenuMeta): void {
   host.innerHTML = "";
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
+  // Theme-tinted backdrop: pull the equipped theme's sky gradient
+  // into a CSS variable so the menu reads as the same world the
+  // player is about to fly in.
+  const showEquipped = meta.showEquippedInMenu !== false;
+  const theme = getTheme(showEquipped ? (meta.equippedTheme ?? DEFAULT_THEME_ID) : DEFAULT_THEME_ID);
+  const skyTop = theme.colors.skyTop;
+  const skyBottom = theme.colors.skyBottom;
   wrap.className = "pointer-events-auto absolute inset-0 z-10 flex flex-col items-center justify-center text-center font-display menu-bg-paper backdrop-blur-sm text-paper";
+  wrap.style.setProperty("--menu-sky-top", skyTop);
+  wrap.style.setProperty("--menu-sky-bottom", skyBottom);
   const dailyLine = meta.daily
     ? `${formatPlays(meta.daily.playsCount)} played today`
     : "world plays the same level today";
@@ -58,8 +79,11 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
     <div data-menu-content class="px-6 max-w-sm w-full">
       <div class="relative h-16 mb-2">
         <svg viewBox="-20 -20 40 40" data-menu-mascot class="menu-mascot absolute left-1/2 -translate-x-1/2 w-16 h-16">
-          <polygon points="-14,6 14,-6 1,0 14,-6 -1,11" fill="#f4ead5" stroke="#1a1a1a" stroke-width="0.8"/>
-          <polygon points="1,0 -14,6 -1,11" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="0.8"/>
+          ${shapeSvgInner(
+            showEquipped ? (meta.equippedShape ?? DEFAULT_SHAPE_ID) : DEFAULT_SHAPE_ID,
+            showEquipped && meta.equippedSkin ? meta.equippedSkin.body : DEFAULT_SKIN.body,
+            showEquipped && meta.equippedSkin ? meta.equippedSkin.accent : DEFAULT_SKIN.accent,
+          )}
         </svg>
       </div>
       <h1 class="menu-title text-6xl font-bold tracking-tight">Glide</h1>

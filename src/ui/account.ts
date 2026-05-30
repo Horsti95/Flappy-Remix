@@ -1,5 +1,6 @@
 import { authState, claimUsername, signInWithGoogle, signOut, subscribeAuth } from "../social/auth";
 import { validateUsername } from "../social/profanity";
+import { getShowEquippedInMenu, setShowEquippedInMenu } from "../game/menu-prefs";
 
 export function renderAccountPanel(host: HTMLElement, onClose: () => void): () => void {
   const wrap = document.createElement("div");
@@ -66,6 +67,14 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void): () =
         </div>
 
         <div class="mt-3 rounded-2xl bg-white/5 p-4">
+          <div class="text-[11px] uppercase tracking-wider opacity-60">menu look</div>
+          <label class="mt-2 flex items-center justify-between text-sm cursor-pointer">
+            <span class="opacity-90">show my equipped plane + sky in the menu</span>
+            <input type="checkbox" data-toggle-equipped ${getShowEquippedInMenu() ? "checked" : ""} class="w-5 h-5 accent-paper" />
+          </label>
+        </div>
+
+        <div class="mt-3 rounded-2xl bg-white/5 p-4">
           <div class="text-[11px] uppercase tracking-wider opacity-60">stats</div>
           <div class="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
             <div><div class="opacity-60">games</div><div class="font-bold text-base">${s.profile?.total_games ?? 0}</div></div>
@@ -90,6 +99,10 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void): () =
     wrap.querySelector("[data-signout]")?.addEventListener("click", (e) => {
       e.stopPropagation();
       signOut();
+    });
+    wrap.querySelector("[data-toggle-equipped]")?.addEventListener("change", (e) => {
+      e.stopPropagation();
+      setShowEquippedInMenu((e.target as HTMLInputElement).checked);
     });
     wrap.querySelector("[data-redeem-form]")?.addEventListener("submit", async (e) => {
       e.preventDefault();

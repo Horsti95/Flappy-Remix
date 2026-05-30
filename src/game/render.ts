@@ -86,6 +86,24 @@ export class Renderer {
     ctx.translate(this.offsetX, this.offsetY);
     ctx.scale(this.scale, this.scale);
 
+    // Horizon band (beach / ocean). Painted before skyline so a beach
+    // theme could in principle stack both layers.
+    if (!this.options.highContrast && theme.colors.horizonBand) {
+      const h = theme.colors.horizonBand;
+      const grad = ctx.createLinearGradient(0, h.topY, 0, cfg.worldHeight);
+      grad.addColorStop(0, h.topColor);
+      grad.addColorStop(1, h.bottomColor);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, h.topY, cfg.worldWidth, cfg.worldHeight - h.topY);
+      if (h.second) {
+        const g2 = ctx.createLinearGradient(0, h.second.topY, 0, cfg.worldHeight);
+        g2.addColorStop(0, h.second.topColor);
+        g2.addColorStop(1, h.second.bottomColor);
+        ctx.fillStyle = g2;
+        ctx.fillRect(0, h.second.topY, cfg.worldWidth, cfg.worldHeight - h.second.topY);
+      }
+    }
+
     // Skyline backdrop (cyberpunk themes). Painted before pipes so they
     // sit visually in front. Buildings + neon-window dots are static
     // — the world drifts past via the pipes, not the skyline.

@@ -19,6 +19,7 @@ export type ThemeId =
   | "night"
   | "dawn"
   | "fog"
+  | "beach"
   | "cyber_neon"
   | "cyber_sunset"
   | "cyber_rain"
@@ -42,6 +43,17 @@ export interface CityLayer {
   buildings: CityBuilding[];
 }
 
+export interface HorizonBand {
+  /** Top edge in world-units (world height is 640). */
+  topY: number;
+  /** Top color of the band gradient. */
+  topColor: string;
+  /** Bottom color of the band gradient (gradient runs to worldHeight). */
+  bottomColor: string;
+  /** Optional secondary band — drawn on top of the first (e.g. sand on water). */
+  second?: { topY: number; topColor: string; bottomColor: string };
+}
+
 export interface ThemeColors {
   skyTop: string;
   skyBottom: string;
@@ -53,6 +65,8 @@ export interface ThemeColors {
   fogIntensity?: number;
   /** Optional skyline rendered between sky and pipes. */
   cityLayer?: CityLayer;
+  /** Optional horizon band (ocean/sand/desert) painted under the pipes. */
+  horizonBand?: HorizonBand;
   /** High-contrast accessibility variant — drawn when the player toggles contrast mode. */
   highContrast: {
     skyTop: string;
@@ -67,7 +81,7 @@ export interface Theme {
   name: string;
   blurb: string;
   colors: ThemeColors;
-  unlock(stats: { totalGames: number; bestScore: number; streakDays: number; lateNightGames?: number; dailyStreakDays?: number; challengeWins?: number }): { unlocked: boolean; hint?: string };
+  unlock(stats: { totalGames: number; bestScore: number; streakDays: number; lateNightGames?: number; morningGames?: number; dailyStreakDays?: number; challengeWins?: number }): { unlocked: boolean; hint?: string };
 }
 
 const HC_DEFAULT = {
@@ -198,6 +212,30 @@ export const THEMES: Theme[] = [
       highContrast: HC_DEFAULT,
     },
     unlock: (s) => ({ unlocked: s.bestScore >= 200, hint: "score 200 in a single run" }),
+  },
+  {
+    id: "beach",
+    name: "beach",
+    blurb: "warm horizon over turquoise water and sand.",
+    colors: {
+      skyTop: "#fde2a4",
+      skyBottom: "#ffd3a3",
+      pipeBody: "#86b6c2",
+      pipeCap: "#5a8a96",
+      horizonBand: {
+        topY: 380,
+        topColor: "#5fb8c4",
+        bottomColor: "#2c7a8a",
+        second: {
+          topY: 530,
+          topColor: "#f3d28a",
+          bottomColor: "#d6a861",
+        },
+      },
+      sunSpot: { x: 100, y: 200, r: 110, color: "#fff2c4", opacity: 0.7 },
+      highContrast: HC_DEFAULT,
+    },
+    unlock: (s) => ({ unlocked: (s.morningGames ?? 0) >= 5, hint: "play 5 morning runs (05:00–07:00)" }),
   },
   {
     id: "cyber_neon",

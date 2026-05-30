@@ -1,8 +1,12 @@
 import { DEFAULT_SKIN, type SkinColors } from "../game/skin";
 import { RARITY_COLOR, type Rarity } from "../game/rarity";
 import { TIER_COLOR, TIER_LABEL, type Tier } from "../game/daily-twist";
+import { DEFAULT_SHAPE_ID, getShape, type ShapeId } from "../game/shapes";
+import { DEFAULT_THEME_ID, getTheme, type ThemeId } from "../game/themes";
 
 export interface ShareCardData {
+  shape?: ShapeId;
+  themeId?: ThemeId;
   score: number;
   username: string | null;
   skin: SkinColors;
@@ -32,11 +36,17 @@ export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData): v
   const ctx = canvas.getContext("2d", { alpha: false });
   if (!ctx) throw new Error("2d context unavailable");
 
-  // Background gradient
+  // Background gradient — pulls from the equipped theme so a share
+  // looks like the world the player was actually flying through.
+  // Wrapped in a dark overlay so text + score still read clearly.
+  const theme = getTheme(data.themeId ?? DEFAULT_THEME_ID);
   const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, "#1a1a1a");
-  grad.addColorStop(1, "#3a4d6b");
+  grad.addColorStop(0, theme.colors.skyTop);
+  grad.addColorStop(1, theme.colors.skyBottom);
   ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+  // Dark overlay so text stays legible against any sky.
+  ctx.fillStyle = "rgba(10,10,20,0.55)";
   ctx.fillRect(0, 0, W, H);
 
   // Soft horizon arc
@@ -86,7 +96,7 @@ export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData): v
   }
 
   // Skin preview
-  drawPlane(ctx, W / 2, H * 0.42, 260, data.skin);
+  drawShareShape(ctx, W / 2, H * 0.42, 260, data.skin, data.shape ?? DEFAULT_SHAPE_ID);
 
   // Score
   ctx.fillStyle = "#f4ead5";
@@ -182,40 +192,24 @@ function roundRect(
   ctx.closePath();
 }
 
-function drawPlane(
+function drawShareShape(
   ctx: CanvasRenderingContext2D,
   cx: number,
   cy: number,
   size: number,
   skin: SkinColors,
+  shapeId: ShapeId,
 ): void {
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(-0.18);
-  const s = size / 30;
+  // The shape draw functions are radius-based; size ≈ 2r so we feed
+  // r = size/2 and the existing canvas math takes care of the rest.
+  // Strokes inside scale uniformly with the transform.
+  const s = size / 28;
   ctx.scale(s, s);
-  ctx.lineWidth = 1.5;
-  ctx.strokeStyle = "#1a1a1a";
-  // Top body
-  ctx.fillStyle = `rgb(${skin.body.join(",")})`;
-  ctx.beginPath();
-  ctx.moveTo(-14, 6);
-  ctx.lineTo(14, -6);
-  ctx.lineTo(1, 0);
-  ctx.lineTo(14, -6);
-  ctx.lineTo(-1, 11);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-  // Accent fold
-  ctx.fillStyle = `rgb(${skin.accent.join(",")})`;
-  ctx.beginPath();
-  ctx.moveTo(1, 0);
-  ctx.lineTo(-14, 6);
-  ctx.lineTo(-1, 11);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
+  ctx.lineWidth = 1.5 / s;
+  getShape(shapeId).draw(ctx, 14, skin, false);
   ctx.restore();
 }
 

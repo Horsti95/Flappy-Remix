@@ -36,6 +36,7 @@ import { renderShareSheet } from "./ui/share-sheet";
 import { type ShareCardData } from "./social/share-card";
 import { renderFriendsPanel } from "./ui/friends";
 import { refreshFriendCount } from "./social/friends";
+import { refreshGrantedShapes } from "./social/grants";
 import { loadAchievementStats } from "./game/achievements";
 import { getShowEquippedInMenu } from "./game/menu-prefs";
 import { renderDailyLanding } from "./ui/daily-landing";
@@ -168,6 +169,7 @@ let panelOpen = false;
 subscribeAuth(async () => {
   await loadEquippedSkin();
   void refreshFriendCount();
+  void refreshGrantedShapes();
   // Don't tear down an open panel (account, gallery, leaderboard, …)
   // when supabase fires an auth refresh — that was wiping the gallery
   // mid-browse.
@@ -303,6 +305,7 @@ function showMenu(): void {
             bestScore: bestScoreSeen,
             streakDays: authState().profile?.streak_days ?? 0,
             lateNightGames: loadAchievementStats().lateNightGames,
+            morningGames: loadAchievementStats().morningGames,
             dailyStreakDays: loadAchievementStats().dailyStreakDays,
             challengeWins: loadAchievementStats().challengeWins,
           },
@@ -527,6 +530,8 @@ async function openShare(score: number, result: SubmitResult | null): Promise<vo
     score,
     username: s.profile?.username ?? null,
     skin: renderer.options.skin,
+    shape: equippedShapeId,
+    themeId: equippedThemeId,
     rarity: equippedSkin?.rarity,
     streakDays: result?.streak_days ?? s.profile?.streak_days ?? 0,
     friendCode: s.profile?.friend_code ?? null,
@@ -549,6 +554,8 @@ function shareChallenge(score: number, shortId: string, addressedTo: string | nu
     score,
     username: s.profile?.username ?? null,
     skin: renderer.options.skin,
+    shape: equippedShapeId,
+    themeId: equippedThemeId,
     rarity: equippedSkin?.rarity,
     streakDays: s.profile?.streak_days ?? 0,
     friendCode: s.profile?.friend_code ?? null,

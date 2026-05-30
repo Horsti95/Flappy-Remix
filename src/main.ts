@@ -300,6 +300,8 @@ function showMenu(): void {
             bestScore: bestScoreSeen,
             streakDays: authState().profile?.streak_days ?? 0,
             lateNightGames: loadAchievementStats().lateNightGames,
+            dailyStreakDays: loadAchievementStats().dailyStreakDays,
+            challengeWins: loadAchievementStats().challengeWins,
           },
           {
             onEquipSkin: async (id) => {

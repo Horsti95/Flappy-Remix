@@ -86,6 +86,41 @@ export class Renderer {
     ctx.translate(this.offsetX, this.offsetY);
     ctx.scale(this.scale, this.scale);
 
+    // Skyline backdrop (cyberpunk themes). Painted before pipes so they
+    // sit visually in front. Buildings + neon-window dots are static
+    // — the world drifts past via the pipes, not the skyline.
+    if (!this.options.highContrast && theme.colors.cityLayer) {
+      const city = theme.colors.cityLayer;
+      ctx.fillStyle = city.silhouetteColor;
+      for (const b of city.buildings) {
+        ctx.fillRect(b.x, b.topY, b.w, cfg.worldHeight - b.topY);
+        if (b.top === "antenna") {
+          ctx.fillRect(b.x + b.w / 2 - 0.6, b.topY - 14, 1.2, 14);
+        } else if (b.top === "step") {
+          ctx.fillRect(b.x + 4, b.topY - 8, b.w - 8, 8);
+        }
+      }
+      // Neon windows — a deterministic grid per building so the same
+      // skyline looks the same on every redraw.
+      for (let bi = 0; bi < city.buildings.length; bi++) {
+        const b = city.buildings[bi];
+        const accent = city.neonAccents[bi % city.neonAccents.length];
+        ctx.fillStyle = accent;
+        const cols = Math.max(2, Math.floor(b.w / 7));
+        const rows = Math.max(3, Math.floor((cfg.worldHeight - b.topY) / 14));
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            // Pseudorandom but deterministic mask so only some windows
+            // glow — avoids one giant grid of dots.
+            if (((bi * 13 + r * 7 + c * 5) % 6) >= 3) continue;
+            const x = b.x + 3 + c * (b.w / cols);
+            const y = b.topY + 4 + r * 14;
+            ctx.fillRect(x, y, 2.2, 3.2);
+          }
+        }
+      }
+    }
+
     for (const p of sim.pipes) {
       const prev = sim.prevPipeXs.get(p.id);
       const x = prev !== undefined ? prev + (p.x - prev) * alpha : p.x;

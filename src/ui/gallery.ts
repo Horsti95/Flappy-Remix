@@ -36,6 +36,8 @@ export interface GalleryStats {
   bestScore: number;
   streakDays: number;
   lateNightGames: number;
+  dailyStreakDays: number;
+  challengeWins: number;
 }
 
 export function renderGallery(
@@ -321,10 +323,22 @@ function shapeSvgWithColors(
         `<polygon points="-15,5 -3,2 15,-2 12,1 -10,8" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
          <polygon points="-15,-1 15,-2 -2,2 15,-2 -15,5" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>`,
       );
-    case "dart":
+    case "pixel-bird":
       return svg(
-        `<polygon points="-13,6 15,-3 -10,2" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
-         <polygon points="15,-3 -10,2 -13,6 -1,3" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>`,
+        `<g fill="${b}" stroke="#1a1a1a" stroke-width="0.4">
+           <rect x="-9" y="-7" width="2" height="2"/><rect x="-7" y="-7" width="2" height="2"/><rect x="-5" y="-7" width="2" height="2"/><rect x="-3" y="-7" width="2" height="2"/>
+           <rect x="-11" y="-5" width="14" height="2"/>
+           <rect x="-13" y="-3" width="18" height="2"/>
+           <rect x="-13" y="-1" width="20" height="2"/>
+           <rect x="-13" y="1" width="22" height="2"/>
+           <rect x="-13" y="3" width="20" height="2"/>
+           <rect x="-11" y="5" width="14" height="2"/>
+         </g>
+         <g fill="${a}" stroke="#1a1a1a" stroke-width="0.4">
+           <rect x="3" y="-3" width="4" height="2"/>
+           <rect x="5" y="-1" width="6" height="2"/>
+         </g>
+         <rect x="3" y="-5" width="2" height="2" fill="#1a1a1a"/>`,
       );
     case "kite":
       return svg(
@@ -332,12 +346,13 @@ function shapeSvgWithColors(
          <polygon points="0,-13 0,13 -12,0" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
          <line x1="-12" y1="0" x2="12" y2="0" stroke="#1a1a1a" stroke-width="0.4" opacity="0.5"/>`,
       );
-    case "paper-crane":
+    case "cyber-plane":
       return svg(
-        `<polygon points="-14,3 -1,-5 4,1 -3,8" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
-         <polygon points="4,1 14,-3 12,3 17,5 13,8 4,5" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
-         <polygon points="-1,-5 9,-8 4,1" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
-         <polygon points="14,-3 18,-6 19,-3 15,-2" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>`,
+        `<polygon points="14,0 2,-6 -11,-3 -13,0 -11,3 2,6" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <polygon points="4,2 -9,9 -12,7 -7,3" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <polygon points="7,-2 11,-1 10,0 6,-0.5" fill="${a}" stroke="#1a1a1a" stroke-width="0.6"/>
+         <rect x="-13" y="-2" width="2.5" height="1.2" fill="#1a1a1a"/>
+         <rect x="-13" y="0.6" width="2.5" height="1.2" fill="#1a1a1a"/>`,
       );
     case "butterfly":
       return svg(

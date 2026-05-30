@@ -29,6 +29,7 @@ import {
 } from "./social/skins";
 import { DEFAULT_SHAPE_ID, type ShapeId } from "./game/shapes";
 import { getEquippedThemeLocal, setEquippedThemeLocal, setThemesLabMode, type ThemeId } from "./game/themes";
+import { getEquippedPresetLocal, setEquippedPresetLocal, getPreset, setPresetLabMode } from "./game/preset-skins";
 import { type SubmitResult } from "./social/runs";
 import { installFlushHooks, pendingCount, submitOrEnqueue } from "./social/offline-queue";
 import { fetchDaily, type DailyInfo } from "./social/daily";
@@ -209,14 +210,16 @@ const deepLink = (() => {
       soundsLab: u.searchParams.get("sounds") === "lab",
       themesLab: u.searchParams.get("themes") === "lab",
       fxLab: u.searchParams.get("fx") === "lab",
+      colorsLab: u.searchParams.get("colors") === "lab",
     };
   } catch {
-    return { from: null, dailyDate: null, challenge: null, soundsLab: false, themesLab: false, fxLab: false };
+    return { from: null, dailyDate: null, challenge: null, soundsLab: false, themesLab: false, fxLab: false, colorsLab: false };
   }
 })();
 if (deepLink.soundsLab) setSoundLabMode(true);
 if (deepLink.themesLab) setThemesLabMode(true);
 if (deepLink.fxLab) setFxLabMode(true);
+if (deepLink.colorsLab) setPresetLabMode(true);
 
 void refreshDaily();
 setInterval(refreshDaily, 60_000);
@@ -250,6 +253,17 @@ async function refreshDaily(): Promise<void> {
 }
 
 async function loadEquippedSkin(): Promise<void> {
+  // A locally-equipped preset palette wins over DB skins — it's a
+  // pure client choice with no server row.
+  const presetId = getEquippedPresetLocal();
+  if (presetId) {
+    const p = getPreset(presetId);
+    if (p) {
+      equippedSkin = null;
+      renderer.options.skin = { body: p.body, accent: p.accent };
+      return;
+    }
+  }
   const s = authState();
   if (!s.ready || s.offline) {
     equippedSkin = null;
@@ -314,7 +328,7 @@ function showMenu(): void {
         panelOpen = true;
         renderGallery(
           overlays,
-          { skinId: equippedSkin?.id ?? null, shapeId: equippedShapeId, themeId: equippedThemeId },
+          { skinId: equippedSkin?.id ?? null, shapeId: equippedShapeId, themeId: equippedThemeId, presetId: getEquippedPresetLocal() },
           {
             totalGames: authState().profile?.total_games ?? 0,
             bestScore: bestScoreSeen,
@@ -338,6 +352,15 @@ function showMenu(): void {
               equippedThemeId = id;
               setEquippedThemeLocal(id);
               renderer.options.theme = id;
+            },
+            onEquipColorPreset: (id) => {
+              setEquippedPresetLocal(id);
+              if (id) {
+                const p = getPreset(id);
+                if (p) renderer.options.skin = { body: p.body, accent: p.accent };
+              } else {
+                void loadEquippedSkin();
+              }
             },
             onClose: () => showMenu(),
           },

@@ -18,6 +18,7 @@ import {
 } from "../game/sfx";
 import { THEMES, isThemesLabMode, type Theme, type ThemeId } from "../game/themes";
 import { getGrantedShapesLocal } from "../social/grants";
+import { PRESET_SKINS, presetUnlock, type PresetSkin } from "../game/preset-skins";
 import {
   FLAP_FX_OPTIONS,
   flapFxUnlock,
@@ -32,6 +33,7 @@ export interface GalleryCallbacks {
   onEquipSkin(skinId: string | null): void;
   onEquipShape(shapeId: ShapeId): void;
   onEquipTheme(themeId: ThemeId): void;
+  onEquipColorPreset(presetId: string | null): void;
   onClose(): void;
 }
 
@@ -39,6 +41,7 @@ export interface GalleryEquipped {
   skinId: string | null;
   shapeId: ShapeId;
   themeId: ThemeId;
+  presetId: string | null;
 }
 
 export interface GalleryStats {
@@ -201,6 +204,8 @@ export function renderGallery(
     ownedGrid.appendChild(
       defaultSkinCard(currentEquipped.skinId === null, currentEquipped.shapeId, () => {
         currentEquipped.skinId = null;
+        currentEquipped.presetId = null;
+        cbs.onEquipColorPreset(null);
         cbs.onEquipSkin(null);
         void renderSkins();
       }),
@@ -214,6 +219,8 @@ export function renderGallery(
         skinCard(row, row.id === currentEquipped.skinId, currentEquipped.shapeId, () => {
           const newId = row.id === currentEquipped.skinId ? null : row.id;
           currentEquipped.skinId = newId;
+          currentEquipped.presetId = null;
+          cbs.onEquipColorPreset(null);
           cbs.onEquipSkin(newId);
           void renderSkins();
         }),
@@ -387,6 +394,23 @@ function shapeSvgWithColors(
          <polygon points="7,-2 11,-1 10,0 6,-0.5" fill="${a}" stroke="#1a1a1a" stroke-width="0.6"/>
          <rect x="-13" y="-2" width="2.5" height="1.2" fill="#1a1a1a"/>
          <rect x="-13" y="0.6" width="2.5" height="1.2" fill="#1a1a1a"/>`,
+      );
+    case "rocket":
+      return svg(
+        `<polygon points="14,0 2,-6 -11,-6 -11,6 2,6" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <polygon points="-7,-6 -13,-11 -7,-2" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <polygon points="-7,6 -13,11 -7,2" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <circle cx="4" cy="0" r="2.6" fill="${a}" stroke="#1a1a1a" stroke-width="0.6"/>`,
+      );
+    case "heart":
+      return svg(
+        `<path d="M 11 0 C 2 -11 -13 -6 -2 0.6 C -13 6 2 11 11 0 Z" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <circle cx="-2" cy="0" r="2.6" fill="${a}" stroke="#1a1a1a" stroke-width="0.6"/>`,
+      );
+    case "star":
+      return svg(
+        `<polygon points="0,-13 3,-4 12,-4 5,2 7,11 0,6 -7,11 -5,2 -12,-4 -3,-4" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <circle cx="0" cy="0" r="4" fill="${a}" stroke="#1a1a1a" stroke-width="0.6"/>`,
       );
     case "butterfly":
       return svg(
@@ -606,6 +630,41 @@ function soundCard(
       onPick(id);
     });
   }
+  return el;
+}
+
+function presetCard(
+  p: PresetSkin,
+  equipped: boolean,
+  stats: AchievementStats,
+  shapeId: ShapeId,
+  onTap: () => void,
+): HTMLElement {
+  const state = presetUnlock(p, stats);
+  const el = document.createElement("button");
+  el.dataset.noFlap = "true";
+  el.className = `relative rounded-2xl p-3 flex flex-col items-center text-[10px] gap-2 border-2 ${
+    equipped ? "border-paper" : state.unlocked ? "border-white/10" : "border-white/5"
+  } bg-white/5 ${state.unlocked ? "active:scale-95" : "opacity-50 cursor-not-allowed"} transition`;
+  el.innerHTML = `
+    <div class="w-full aspect-square flex items-center justify-center bg-sky-day/30 rounded-xl">
+      ${shapeSvgWithColors(shapeId, p.body, p.accent)}
+    </div>
+    <div class="font-bold">${escapeHtml(p.name)}</div>
+    <div class="opacity-60 text-[10px] text-center leading-tight">${state.unlocked ? "ready" : escapeHtml(state.hint ?? "locked")}</div>
+    ${
+      equipped
+        ? `<div class="absolute top-1 right-1 text-[9px] bg-paper text-ink rounded-full px-1.5 py-0.5">equipped</div>`
+        : !state.unlocked
+          ? `<div class="absolute top-1 right-1 text-[9px] bg-white/15 rounded-full px-1.5 py-0.5">locked</div>`
+          : ""
+    }
+  `;
+  el.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!state.unlocked) return;
+    onTap();
+  });
   return el;
 }
 

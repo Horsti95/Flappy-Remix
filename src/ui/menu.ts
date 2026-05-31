@@ -270,6 +270,11 @@ export interface GameOverResult {
     canChallengeBack: boolean;
   };
   onChallengeBack?: () => void;
+  challengeCreate?: {
+    friendName: string | null;
+    canSubmit: boolean;
+    onSubmit: () => void;
+  };
 }
 
 export function renderGameOver(

@@ -18,6 +18,7 @@ export interface MenuCallbacks {
   onOpenFriends(): void;
   onOpenRanked(): void;
   onOpenInbox(): void;
+  onOpenQuests(): void;
 }
 
 export interface MenuMeta {
@@ -117,9 +118,12 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
         </button>
       </div>
 
-      <div class="mt-3 grid grid-cols-4 gap-2">
+      <div class="mt-3 grid grid-cols-5 gap-1.5">
         <button data-action="ranked" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
           Ranked
+        </button>
+        <button data-action="quests" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
+          Quests
         </button>
         <button data-action="skins" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
           Gallery
@@ -162,6 +166,10 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   wrap.querySelector('[data-action="inbox"]')?.addEventListener("click", (e) => {
     e.stopPropagation();
     cbs.onOpenInbox();
+  });
+  wrap.querySelector('[data-action="quests"]')?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    cbs.onOpenQuests();
   });
   wrap.querySelector('[data-action="challenge-friend"]')?.addEventListener("click", (e) => {
     e.stopPropagation();

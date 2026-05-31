@@ -1,4 +1,4 @@
-import { fetchLeaderboard, type LeaderboardScope } from "../social/leaderboard";
+import { fetchLeaderboard, type LeaderboardScope, type LeaderboardPeriod } from "../social/leaderboard";
 import { authState } from "../social/auth";
 import { RARITY_COLOR, type Rarity } from "../game/rarity";
 
@@ -11,11 +11,15 @@ export function renderLeaderboard(host: HTMLElement, onClose: () => void): () =>
       <h2 class="text-xl font-bold">leaderboard</h2>
       <button data-close class="text-sm underline opacity-70">close</button>
     </div>
-    <div data-tabs class="px-5 flex gap-2 text-[12px] overflow-x-auto">
-      ${tab("all_time", "all time", true)}
-      ${tab("weekly", "this week")}
-      ${tab("daily", "today")}
-      ${tab("friends", "friends")}
+    <div data-scopes class="px-5 flex gap-2 text-[12px]">
+      ${seg("scope", "global", "global", true)}
+      ${seg("scope", "friends", "friends", false)}
+    </div>
+    <div data-periods class="px-5 mt-2 flex gap-2 text-[12px] overflow-x-auto">
+      ${seg("period", "daily", "today", false)}
+      ${seg("period", "weekly", "this week", true)}
+      ${seg("period", "monthly", "this month", false)}
+      ${seg("period", "total", "total", false)}
     </div>
     <div data-list class="mt-3 px-3 flex-1 overflow-y-auto pb-6">
       <div class="text-center text-xs opacity-60 mt-12">loading…</div>
@@ -23,7 +27,8 @@ export function renderLeaderboard(host: HTMLElement, onClose: () => void): () =>
   `;
   host.appendChild(wrap);
 
-  let scope: LeaderboardScope = "all_time";
+  let scope: LeaderboardScope = "global";
+  let period: LeaderboardPeriod = "weekly";
   let cancelled = false;
 
   const close = () => {
@@ -35,29 +40,45 @@ export function renderLeaderboard(host: HTMLElement, onClose: () => void): () =>
     e.stopPropagation();
     close();
   });
+
+  const setActive = (sel: string, active: HTMLButtonElement): void => {
+    wrap.querySelectorAll<HTMLButtonElement>(sel).forEach((b) => {
+      b.classList.toggle("bg-paper", b === active);
+      b.classList.toggle("text-ink", b === active);
+      b.classList.toggle("opacity-60", b !== active);
+    });
+  };
+
   wrap.querySelectorAll<HTMLButtonElement>("[data-scope]").forEach((btn) =>
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       scope = btn.dataset.scope as LeaderboardScope;
-      wrap.querySelectorAll<HTMLButtonElement>("[data-scope]").forEach((b) => {
-        b.classList.toggle("bg-paper", b === btn);
-        b.classList.toggle("text-ink", b === btn);
-        b.classList.toggle("opacity-60", b !== btn);
-      });
-      load();
+      setActive("[data-scope]", btn);
+      void load();
+    }),
+  );
+  wrap.querySelectorAll<HTMLButtonElement>("[data-period]").forEach((btn) =>
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      period = btn.dataset.period as LeaderboardPeriod;
+      setActive("[data-period]", btn);
+      void load();
     }),
   );
 
-  async function load() {
+  async function load(): Promise<void> {
     const list = wrap.querySelector("[data-list]") as HTMLDivElement;
     list.innerHTML = `<div class="text-center text-xs opacity-60 mt-12">loading…</div>`;
-    const rows = await fetchLeaderboard(scope, 100);
+    const rows = await fetchLeaderboard(scope, period, 100);
     if (cancelled) return;
     if (rows.length === 0) {
+      const hint = scope === "friends"
+        ? "add friends and play to fill this board."
+        : "play a game to put a mark down.";
       list.innerHTML = `
         <div class="text-center text-xs opacity-60 mt-12">
           no runs yet${authState().offline ? " · offline" : ""}.<br/>
-          play a game to put a mark down.
+          ${hint}
         </div>`;
       return;
     }
@@ -84,7 +105,7 @@ export function renderLeaderboard(host: HTMLElement, onClose: () => void): () =>
     });
   }
 
-  load();
+  void load();
 
   return () => {
     cancelled = true;
@@ -92,8 +113,8 @@ export function renderLeaderboard(host: HTMLElement, onClose: () => void): () =>
   };
 }
 
-function tab(id: LeaderboardScope, label: string, active = false): string {
-  return `<button data-scope="${id}" class="rounded-full px-3 py-1 ${
+function seg(attr: "scope" | "period", id: string, label: string, active: boolean): string {
+  return `<button data-${attr}="${id}" class="rounded-full px-3 py-1 whitespace-nowrap ${
     active ? "bg-paper text-ink" : "bg-white/5 opacity-60"
   }">${label}</button>`;
 }

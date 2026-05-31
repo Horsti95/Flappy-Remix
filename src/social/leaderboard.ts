@@ -1,6 +1,8 @@
 import { getSupabase } from "../lib/supabase";
 
-export type LeaderboardScope = "all_time" | "weekly" | "daily" | "friends";
+// Two independent axes: who (scope) × when/how (period).
+export type LeaderboardScope = "global" | "friends";
+export type LeaderboardPeriod = "daily" | "weekly" | "monthly" | "total";
 
 export interface LeaderboardRow {
   run_id: string;
@@ -14,28 +16,33 @@ export interface LeaderboardRow {
   skin_rarity: string | null;
 }
 
-export async function fetchLeaderboard(scope: LeaderboardScope, limit = 100): Promise<LeaderboardRow[]> {
+const PERIOD_VIEW: Record<LeaderboardPeriod, string> = {
+  daily: "leaderboard_daily",
+  weekly: "leaderboard_weekly",
+  monthly: "leaderboard_monthly",
+  total: "leaderboard_total",
+};
+
+export async function fetchLeaderboard(
+  scope: LeaderboardScope,
+  period: LeaderboardPeriod,
+  limit = 100,
+): Promise<LeaderboardRow[]> {
   const sb = getSupabase();
   if (!sb) return [];
   let data: unknown[] | null = null;
   let error: unknown = null;
   if (scope === "friends") {
-    const r = await sb.rpc("friends_leaderboard");
+    const r = await sb.rpc("friends_leaderboard", { p_period: period });
     data = r.data as unknown[] | null;
     error = r.error;
   } else {
-    const view =
-      scope === "weekly"
-        ? "leaderboard_weekly"
-        : scope === "daily"
-          ? "leaderboard_daily"
-          : "leaderboard_all_time";
-    const r = await sb.from(view).select("*").limit(limit);
+    const r = await sb.from(PERIOD_VIEW[period]).select("*").limit(limit);
     data = r.data as unknown[] | null;
     error = r.error;
   }
   if (error) {
-    console.error("[leaderboard]", scope, error);
+    console.error("[leaderboard]", scope, period, error);
     return [];
   }
   return (data ?? []).map((row) => {

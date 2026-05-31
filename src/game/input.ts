@@ -21,6 +21,8 @@ export class InputController {
     };
     this.onKey = (e) => {
       if (e.repeat) return;
+      const active = document.activeElement;
+      if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || (active as HTMLElement).isContentEditable)) return;
       if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW") {
         e.preventDefault();
         this.cbs.onFlap();

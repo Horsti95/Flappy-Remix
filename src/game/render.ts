@@ -14,6 +14,7 @@ export interface RenderOptions {
   ghostSkin?: SkinColors;
   ghostShape?: ShapeId;
   reducedMotion: boolean;
+  mirror?: boolean;
 }
 
 export class Renderer {
@@ -86,6 +87,12 @@ export class Renderer {
 
     ctx.translate(this.offsetX, this.offsetY);
     ctx.scale(this.scale, this.scale);
+
+    if (this.options.mirror) {
+      ctx.translate(this.cfg.worldWidth / 2, 0);
+      ctx.scale(-1, 1);
+      ctx.translate(-this.cfg.worldWidth / 2, 0);
+    }
 
     // Horizon band (beach / ocean). Painted before skyline so a beach
     // theme could in principle stack both layers.

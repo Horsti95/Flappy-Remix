@@ -91,11 +91,27 @@ const NEUTRAL: DailyModifier[] = [
     name: "mirror day",
     kind: "geometry",
     difficulty: "neutral",
-    // Mirror is implemented client-side in the renderer; sim is
-    // unchanged. We mark it neutral but it'll feel hard the first
-    // time you play it.
+    // Mirror is applied in the renderer (RenderOptions.mirror); sim is
+    // unchanged. Main.ts sets renderer.options.mirror when this modifier
+    // is active.
     configOverride: (c) => c,
     blurb: "world flipped",
+  },
+  {
+    id: "flip_gravity",
+    name: "upside down day",
+    kind: "physics",
+    difficulty: "neutral",
+    configOverride: (c) => ({
+      ...c,
+      gravity: -Math.abs(c.gravity),
+      // Sim applies flap as birdVY = -flapImpulse (negative = upward).
+      // With gravity inverted (pulling up), we need flap to push DOWN
+      // (+birdVY), so negate flapImpulse: -(-420) = +420.
+      flapImpulse: -Math.abs(c.flapImpulse),
+      birdStartY: c.worldHeight * 0.25,
+    }),
+    blurb: "gravity inverted — fall up, tap to go down",
   },
 ];
 

@@ -8,6 +8,101 @@ shape so future-you remembers what you meant.
 > When you ship something on this list, move it to the bottom under
 > **Shipped** with the date.
 
+## Session 2026-05-31 — decisions + idea inflow
+
+Captured so nothing drifts. Decisions are locked; the build items are
+sequenced into their own branches.
+
+### Decisions locked this session
+- **Achievement/unlock unification** — deep (incl. server skins),
+  "achievement" stays the single unlock primitive. *(Not started.)*
+- **Dead `minimalist` achievement** — now tracked (25+ under 80 taps,
+  latches). **Shipped** (PR #32).
+- **`challengeWins` tracking** — was never incremented; now synced from
+  resolved duels. **Shipped** (PR #32).
+- **Challenge share-link bug** — `?c=` carried friend_code, app reads it
+  as challenge short_id → 404. Fixed. **Shipped** (branch
+  `challenge-ranked-fixes-ph2`).
+- **Ranked per-round reveal** — opponent's round score hidden until you
+  take your own shot, then revealed (was hidden until match end).
+  **Shipped** (branch `challenge-ranked-fixes-ph2`).
+- **Leaderboard dedupe** — best-run-per-player per period (was every
+  run). **Shipped** (PR #33, needs `db push`).
+- **Challenge model** — casual duel: sender score hidden, BOTH players
+  unlimited tries, receiver can give-up or win-and-brag. PLUS a
+  friend-directed **ranked** best-of-3 (one shot/round, affects Elo).
+  Random ranked stays as is.
+- **Ranked margin bonus** — flat, capped (+1 / +2 / +3 for win-margin
+  5 / 25 / 50), winner-only, added *after* Elo so the ladder math stays
+  self-correcting.
+- **Leaderboard 3-axis matrix** — scope {global, friends} × mode {all,
+  casual, daily} × period {today, week, month, total}.
+- **Public profiles** — build it. One `public_profile(username)` RPC
+  (aggregates only, never raw runs/email). average = total / total_games.
+  Opened from Friends + tappable leaderboard/duel names. + Badges tab.
+- **Local-time ambient sky + alt-shape color variants** — skipped; keep
+  the play-at-night/morning unlocks instead.
+- **Monetisation** — non-tracking banner only (no ad SDK, kid-friendly
+  audience), + Buy Me a Coffee tip button + cosmetic supporter chip.
+  No pay-to-win, no pay-for-playtime. `ETHICS.md` to be amended *before*
+  the code lands.
+- **Quest-chains-in-Gallery** — prototype on a separate branch to
+  compare against keeping the quests panel (avoid re-crowding the
+  gallery).
+
+### Build queue (each its own branch)
+1. **Challenge overhaul** (`m`–`l`) — real sender cosmetics (store
+   `creator_shape` + `creator_theme` on the challenge; render the ghost
+   as the real sender shape + paint their theme/sky/pillars so they
+   flex); hide sender score until you finish; new game-over layout
+   (improve · submit · brag · back) + receiver give-up / win-and-brag;
+   friend-picker shows the friend's recent score.
+2. **Daily best-of-3** (`m`) — 3 attempts/day, best counts, then blocked
+   (unblocked by the leaderboard dedupe).
+3. **Public profiles + Badges tab** (`m`).
+4. **Visual daily modifiers** (`m`) — blinding sun / light source, night,
+   sunset, rain, on top of the existing fog.
+5. **Leaderboard 3-axis matrix** (`s`–`m`).
+6. **Monetisation foundation** (`s`) — ETHICS.md amend + BMC tip button
+   + non-tracking banner slot + cosmetic supporter chip.
+7. **Quest-chains-in-Gallery** (`s`, separate compare branch).
+
+### New idea inflow (not yet scheduled)
+- **Pipes letterboxing** (`xs`, bug) — world is fixed 360×640; when the
+  canvas box isn't exactly 9:16 the world is letterboxed and pillars
+  stop short of the screen edge (sky bands top/bottom). Fix: extend the
+  pillar/ground fills past the world bounds, or cover-fit, or lock the
+  stage to 9:16. Gameplay is correct; cosmetic only.
+- **Sprite/art pipeline** (`m`–`l`) — the renderer draws everything with
+  canvas primitives; there's no image/sprite loader, so AI-generated art
+  (the `design/prompts.md` templates) is reference-only and can't drop
+  in. To make a realistic art-style refresh possible we'd add a sprite +
+  tiling layer (load PNGs for plane / tiling pillar / background, matched
+  to the collision box `pipeWidth 56` / cap `14`). Prereq for any new
+  art style.
+- **Score counter glow-up** (`s`) — the per-run number counter is plain;
+  punch it up (animated tick, scale-pop on increment). Probably bundle
+  with a broader design refresh.
+- **Social / flex**: shareable profile *card* image (badges + best +
+  rank, not just score); head-to-head record on a friend's profile
+  ("you 7–3 vs @lennart"); spectate/replay a friend's top run as a ghost.
+- **Progression**: seasonal cosmetic track (ranked season grants an
+  exclusive skin/shape, not just a badge); per-shape **mastery** (fly X
+  games with the butterfly → a tinted variant); daily-login / streak
+  cosmetic milestones (respect the no-nag ETHICS rule).
+- **Modes** (place carefully — don't overcrowd the menu): endless **zen**
+  mode (no death, no leaderboard, practice); weekly rotating modifier
+  **playlist** (featured daily-twist combo); a weekly global **nightmare**
+  seed for bragging.
+- **Onboarding / clarity** (want to preview button placement on a
+  branch/Vercel): first-run tutorial ghost showing the tap rhythm;
+  in-game rules/help screen; first-time tooltips explaining ranked vs
+  duel vs daily.
+- **Feedback button** (`s`) — opens a small form that emails the input
+  to the maintainer. Needs a delivery decision: `mailto:` (zero backend
+  but exposes the address) vs a tiny serverless endpoint using an email
+  API (Resend/SendGrid) so the address stays private.
+
 ## Next — concrete, deciding what to start
 
 ### Daily twist — pre-game warning + remaining modifiers (`s` to `m` each)

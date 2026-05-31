@@ -355,6 +355,33 @@ function renderGameOverInner(
     : ctx
       ? `<div class="mt-3 text-[10px] opacity-50">chain capped at 2 — share to start a new one</div>`
       : "";
+
+  // Three game-over flavours: creating a challenge (cc), answering one
+  // (ctx), or a normal run. Labels + hero action adapt to each.
+  const cc = extra?.challengeCreate;
+  const beatTarget = !!ctx && score > ctx.creatorScore;
+
+  // Primary action button. When creating a challenge it's "Send"; when you've
+  // just beaten a duel it's a "Brag" hero; otherwise it's "Play again".
+  let heroBtn: string;
+  if (cc?.canSubmit) {
+    heroBtn = `<button data-submit-challenge class="mt-4 w-full rounded-2xl bg-emerald-400 text-ink font-bold py-5 text-lg shadow-lg active:scale-95 transition">Send challenge${cc.friendName ? ` to @${escapeHtml(cc.friendName)}` : ""}</button>`;
+  } else if (beatTarget) {
+    heroBtn = `<button data-brag class="mt-4 w-full rounded-2xl bg-emerald-400 text-ink font-bold py-5 text-lg shadow-lg active:scale-95 transition">Brag — you won 🎉</button>`;
+  } else {
+    heroBtn = `<button data-restart class="mt-4 w-full rounded-2xl bg-paper text-ink font-bold py-5 text-lg shadow-lg active:scale-95 transition">Play again</button>`;
+  }
+
+  // Secondary retry. After a hero "Send"/"Brag" we still offer a retry; for a
+  // challenge it reads "Improve score" (creating) / "Try again" (answering).
+  const retryLabel = cc ? "Improve score" : ctx ? "Try again" : "Play again";
+  const retryBtn = (cc?.canSubmit || beatTarget)
+    ? `<button data-restart class="mt-3 w-full rounded-2xl border border-paper/40 text-paper font-bold py-3">${retryLabel}</button>`
+    : "";
+
+  // "Give up" wording when answering a challenge, else "Back to menu".
+  const menuLabel = ctx ? "Give up" : "Back to menu";
+
   wrap.innerHTML = `
     <div class="max-w-sm mx-auto text-center">
       <div class="text-xs opacity-70 uppercase tracking-wider">your run</div>
@@ -362,10 +389,11 @@ function renderGameOverInner(
       ${acceptStatus}
       ${versus}
       ${unlocksHtml}
-      <button data-restart class="mt-4 w-full rounded-2xl bg-paper text-ink font-bold py-5 text-lg shadow-lg active:scale-95 transition">Play again</button>
-      ${ctx ? "" : `<button data-share class="mt-3 w-full rounded-2xl border border-paper/40 text-paper font-bold py-3">Share run</button>`}
+      ${heroBtn}
+      ${retryBtn}
+      ${!ctx && !cc ? `<button data-share class="mt-3 w-full rounded-2xl border border-paper/40 text-paper font-bold py-3">Share run</button>` : ""}
       ${cbButton}
-      <button data-menu class="mt-3 w-full text-xs underline opacity-60 py-1">Back to menu</button>
+      <button data-menu class="mt-3 w-full text-xs underline opacity-60 py-1">${menuLabel}</button>
     </div>
   `;
   host.appendChild(wrap);
@@ -381,10 +409,12 @@ function renderGameOverInner(
     e.stopPropagation();
     extra?.onShare?.();
   });
-  wrap.querySelector("[data-brag]")?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    extra?.onShare?.();
-  });
+  wrap.querySelectorAll("[data-brag]").forEach((b) =>
+    b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      extra?.onShare?.();
+    }),
+  );
   wrap.querySelector("[data-challenge-back]")?.addEventListener("click", (e) => {
     e.stopPropagation();
     extra?.onChallengeBack?.();

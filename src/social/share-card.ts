@@ -24,6 +24,10 @@ export interface ShareCardData {
    *  'Challenge a friend' flow), include their handle so the copy
    *  can say "for @lennart". Null for open challenges. */
   addressedTo?: string | null;
+  /** Challenge short id for the 'Challenge a friend' flow. When set, the
+   *  share link routes the recipient straight into the ghost run; without
+   *  it the link can't find the challenge. */
+  challengeShortId?: string | null;
   brand?: string;
 }
 

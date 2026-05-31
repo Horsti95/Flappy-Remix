@@ -172,11 +172,16 @@ function matchCard(m: RankedMatch, onPlayRound: (m: RankedMatch, round: number) 
     .map((i) => {
       const a = mine[i];
       const b = them[i];
-      const bShown = revealOpp ? (b == null ? "—" : String(b)) : (b == null ? "—" : "?");
+      // Per-round blind reveal: the opponent's score for a round stays
+      // hidden ("?") until you've taken your own shot at it. Once your
+      // score is locked you can't gain an edge from seeing theirs, so we
+      // reveal it then (or at match end) rather than only on completion.
+      const revealThis = revealOpp || a != null;
+      const bShown = revealThis ? (b == null ? "—" : String(b)) : (b == null ? "—" : "?");
       if (a == null && b == null) return roundChip(i, "—", "—", false);
       if (a == null) return roundChip(i, "—", bShown, false);
       if (b == null) return roundChip(i, String(a), "·", a !== undefined);
-      return roundChip(i, String(a), bShown, revealOpp ? a > b : false);
+      return roundChip(i, String(a), bShown, revealThis ? a > b : false);
     })
     .join("");
 

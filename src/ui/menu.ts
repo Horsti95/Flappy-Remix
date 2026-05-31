@@ -72,9 +72,9 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
     ? `<span class="ml-2 inline-flex items-center gap-1 text-[11px] font-bold bg-orange-500/20 text-orange-300 rounded-full px-2.5 py-0.5">🔥 ${meta.streakDays}</span>`
     : "";
   const offlineBadge = meta.online === false
-    ? `<div class="absolute top-3 left-3 text-[10px] rounded-full px-2 py-0.5 bg-orange-400/30 text-paper">offline${meta.pendingSubmissions ? ` · ${meta.pendingSubmissions} queued` : ""}</div>`
+    ? `<div class="absolute top-3 left-1/2 -translate-x-1/2 text-[10px] rounded-full px-2 py-0.5 bg-orange-400/30 text-paper">offline${meta.pendingSubmissions ? ` · ${meta.pendingSubmissions} queued` : ""}</div>`
     : meta.pendingSubmissions
-      ? `<div class="absolute top-3 left-3 text-[10px] rounded-full px-2 py-0.5 bg-paper/15">${meta.pendingSubmissions} queued</div>`
+      ? `<div class="absolute top-3 left-1/2 -translate-x-1/2 text-[10px] rounded-full px-2 py-0.5 bg-paper/15">${meta.pendingSubmissions} queued</div>`
       : "";
 
   wrap.innerHTML = `
@@ -133,10 +133,16 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
           Friends
         </button>
       </div>
-      <div class="mt-4 grid grid-cols-3 gap-2 text-[11px]">
-        ${toggle("sound", "Sound", settings.sound)}
-        ${toggle("highContrast", "Contrast", settings.highContrast)}
-        ${toggle("reducedMotion", "Motion", settings.reducedMotion)}
+    </div>
+    <div data-settings-panel class="hidden absolute inset-0 z-20 flex flex-col justify-end pointer-events-auto">
+      <div class="bg-black/40 absolute inset-0" data-settings-backdrop></div>
+      <div class="relative bg-gradient-to-t from-black/95 to-black/80 rounded-t-3xl px-5 py-6 pb-10">
+        <div class="text-[11px] uppercase tracking-wider opacity-60 mb-4">Settings</div>
+        <div class="grid grid-cols-3 gap-2 text-[11px]">
+          ${toggle("sound", "Sound", settings.sound)}
+          ${toggle("highContrast", "Contrast", settings.highContrast)}
+          ${toggle("reducedMotion", "Motion", settings.reducedMotion)}
+        </div>
       </div>
     </div>
   `;
@@ -188,6 +194,14 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   wrap.querySelector("[data-account]")?.addEventListener("click", (e) => {
     e.stopPropagation();
     cbs.onOpenAccount();
+  });
+  wrap.querySelector("[data-settings]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    wrap.querySelector("[data-settings-panel]")?.classList.remove("hidden");
+  });
+  wrap.querySelector("[data-settings-backdrop]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    wrap.querySelector("[data-settings-panel]")?.classList.add("hidden");
   });
   wrap.querySelectorAll<HTMLButtonElement>("[data-toggle]").forEach((btn) => {
     btn.addEventListener("click", (e) => {

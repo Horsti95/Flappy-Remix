@@ -311,6 +311,10 @@ function showMenu(): void {
   activeChallenge = null;
   pendingChallengeTarget = null;
   renderer.options.ghostSkin = undefined;
+  renderer.options.ghostShape = undefined;
+  // Restore the player's own theme after a challenge painted the scene
+  // with the sender's world.
+  renderer.options.theme = equippedThemeId;
   clearParticles();
   overlays.innerHTML = "";
   renderMenu(
@@ -528,18 +532,30 @@ function startRun(runMode: RunMode = "casual"): void {
     currentSeed = activeChallenge.seed >>> 0;
     ghost = new GhostSim(currentSeed, activeChallenge.inputs, runCfg);
     renderer.options.ghostSkin = ghostSkinFromChallenge(activeChallenge);
+    // Flex: the ghost flies as the real sender's shape, and the whole
+    // scene (sky + pillars) paints with the sender's theme. The player's
+    // own plane keeps their shape/skin. Falls back to defaults on legacy
+    // challenges that predate stored cosmetics.
+    renderer.options.ghostShape = activeChallenge.creator_shape ?? undefined;
+    renderer.options.theme = activeChallenge.creator_theme ?? equippedThemeId;
     renderer.options.mirror = false;
   } else if (runMode === "ranked" && activeRanked) {
     currentSeed = activeRanked.match.seeds[activeRanked.round] >>> 0;
     renderer.options.ghostSkin = undefined;
+    renderer.options.ghostShape = undefined;
+    renderer.options.theme = equippedThemeId;
     renderer.options.mirror = false;
   } else if (runMode === "daily" && dailyInfo) {
     currentSeed = dailyInfo.seed >>> 0;
     renderer.options.ghostSkin = undefined;
+    renderer.options.ghostShape = undefined;
+    renderer.options.theme = equippedThemeId;
     renderer.options.mirror = (dailyInfo?.pick.modifiers ?? []).some(m => m.id === "mirror");
   } else {
     currentSeed = (Math.random() * 0xffffffff) >>> 0;
     renderer.options.ghostSkin = undefined;
+    renderer.options.ghostShape = undefined;
+    renderer.options.theme = equippedThemeId;
     renderer.options.mirror = false;
   }
   loop = new GameLoop(
@@ -613,6 +629,7 @@ function startRun(runMode: RunMode = "casual"): void {
                     result.run_id,
                     null,
                     challengeTarget.friend?.username ?? null,
+                    { shape: equippedShapeId, theme: equippedThemeId },
                   );
                   if (created.ok && created.short_id) {
                     pendingChallengeTarget = null;
@@ -641,7 +658,7 @@ function startRun(runMode: RunMode = "casual"): void {
           onChallengeBack: result?.run_id
             ? async () => {
                 if (!result?.run_id) return;
-                const r = await createChallenge(result.run_id, activeChallenge?.short_id ?? null);
+                const r = await createChallenge(result.run_id, activeChallenge?.short_id ?? null, null, { shape: equippedShapeId, theme: equippedThemeId });
                 if (r.ok) {
                   const toast = document.createElement("div");
                   toast.className = "pointer-events-none fixed top-6 left-1/2 -translate-x-1/2 rounded-2xl bg-paper text-ink px-5 py-3 font-bold text-sm shadow-xl z-50";
@@ -673,7 +690,7 @@ async function openShare(score: number, result: SubmitResult | null): Promise<vo
   // can't create one (offline, ranked, etc.).
   let challengeShortId: string | null = null;
   if (result?.run_id && currentRunMode !== "ranked") {
-    const created = await createChallenge(result.run_id, activeChallenge?.short_id ?? null);
+    const created = await createChallenge(result.run_id, activeChallenge?.short_id ?? null, null, { shape: equippedShapeId, theme: equippedThemeId });
     if (created.ok && created.short_id) {
       challengeShortId = created.short_id;
       const params = new URLSearchParams();

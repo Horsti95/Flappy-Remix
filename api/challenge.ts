@@ -10,7 +10,7 @@ export default async function handler(req: Request): Promise<Response> {
   const admin = getAdminClient();
   const ch = await admin
     .from("challenges")
-    .select("id, short_id, seed, inputs, creator_score, depth, expires_at, creator_id")
+    .select("id, short_id, seed, inputs, creator_score, depth, expires_at, creator_id, creator_shape, creator_theme")
     .eq("short_id", shortId)
     .maybeSingle();
   if (ch.error || !ch.data) return json({ error: "not_found" }, 404);
@@ -54,6 +54,8 @@ export default async function handler(req: Request): Promise<Response> {
     creator_username: (profile.data?.username as string | null | undefined) ?? null,
     creator_friend_code: (profile.data?.friend_code as string | null | undefined) ?? null,
     creator_skin: skin,
+    creator_shape: (ch.data.creator_shape as string | null | undefined) ?? null,
+    creator_theme: (ch.data.creator_theme as string | null | undefined) ?? null,
     depth: ch.data.depth,
     can_respond_again: (ch.data.depth as number) < 2,
   }, 200, 30);

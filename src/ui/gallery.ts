@@ -440,6 +440,41 @@ function shapeSvgWithColors(
          <path d="M 1 0 C 8 3 9 8 6 9 C 3 9 1 5 1 3 Z" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
          <ellipse cx="0" cy="-1" rx="0.8" ry="7" fill="#3a3a3a" stroke="#1a1a1a" stroke-width="0.4"/>`,
       );
+    case "flower":
+      return svg(
+        `<ellipse cx="0" cy="-7" rx="3.5" ry="6.5" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <ellipse cx="0" cy="-7" rx="3.5" ry="6.5" transform="rotate(60)" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <ellipse cx="0" cy="-7" rx="3.5" ry="6.5" transform="rotate(120)" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <ellipse cx="0" cy="-7" rx="3.5" ry="6.5" transform="rotate(180)" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <ellipse cx="0" cy="-7" rx="3.5" ry="6.5" transform="rotate(240)" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <ellipse cx="0" cy="-7" rx="3.5" ry="6.5" transform="rotate(300)" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <circle cx="0" cy="0" r="4" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>`,
+      );
+    case "vector-bird":
+      return svg(
+        `<ellipse cx="0" cy="0" rx="13" ry="7" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <path d="M -2 -5 Q -8 -11 -12 -6" stroke="${a}" stroke-width="2" fill="none" stroke-linecap="round"/>
+         <polygon points="13,0 18,-1.5 18,1.5" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <circle cx="7" cy="-2" r="1.2" fill="#1a1a1a"/>`,
+      );
+    case "leaf":
+      return svg(
+        `<path d="M -12 0 C -12 -9 8 -9 12 0 C 8 9 -12 9 -12 0 Z" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <line x1="-11" y1="0" x2="11" y2="0" stroke="${a}" stroke-width="1.2"/>
+         <line x1="-2" y1="0" x2="1" y2="-5" stroke="${a}" stroke-width="0.8"/>
+         <line x1="4" y1="0" x2="7" y2="-5" stroke="${a}" stroke-width="0.8"/>`,
+      );
+    case "lightning":
+      return svg(
+        `<polygon points="5,-14 -6,1 1,1 -5,14 7,-1 0,-1" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <polyline points="3,-11 -3,0 1,0 -3,11" stroke="${a}" stroke-width="1" fill="none"/>`,
+      );
+    case "ghost":
+      return svg(
+        `<path d="M -10 4 A 10 10 0 0 1 10 4 L 10 10 A 3.3 3 0 0 1 3.4 10 A 3.3 3 0 0 1 -3.4 10 A 3.3 3 0 0 1 -10 10 Z" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <ellipse cx="-3.5" cy="-1" rx="2" ry="3" fill="${a}"/>
+         <ellipse cx="3.5" cy="-1" rx="2" ry="3" fill="${a}"/>`,
+      );
   }
 }
 

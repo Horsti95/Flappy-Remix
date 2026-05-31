@@ -720,6 +720,7 @@ function shareChallenge(score: number, shortId: string, addressedTo: string | nu
     dailyRank: null,
     totalPlayed: null,
     addressedTo,
+    challengeShortId: shortId,
   };
   // Inject the challenge short-id into the share URL so opening the
   // link kicks the recipient into the ghost run.

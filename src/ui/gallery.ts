@@ -175,23 +175,6 @@ export function renderGallery(
     for (const v of views) questsBody.appendChild(chainCard(v.chain, v.activeIndex, v.complete));
   }
 
-  function renderFx(): void {
-    const body = wrap.querySelector("[data-body]") as HTMLDivElement;
-    const achStats = loadAchievementStats();
-    const active = getActiveFlapFx();
-    body.innerHTML = `
-      <div class="px-2 mb-3 text-[10px] opacity-60">visual burst when you tap. preview the unlocked ones — your pick fires every flap mid-run.</div>
-      <div data-fx-list class="space-y-2 px-2"></div>
-    `;
-    const list = body.querySelector("[data-fx-list]") as HTMLDivElement;
-    for (const opt of FLAP_FX_OPTIONS) {
-      list.appendChild(fxCard(opt.id, opt.label, opt.blurb, achStats, active === opt.id, (id) => {
-        setActiveFlapFx(id);
-        renderFx();
-      }));
-    }
-  }
-
   function renderBackgrounds(): void {
     const body = wrap.querySelector("[data-body]") as HTMLDivElement;
     body.innerHTML = `<div class="grid grid-cols-2 gap-3 px-2"></div>`;
@@ -205,23 +188,6 @@ export function renderGallery(
           renderBackgrounds();
         }),
       );
-    }
-  }
-
-  function renderSounds(): void {
-    const body = wrap.querySelector("[data-body]") as HTMLDivElement;
-    const achStats = loadAchievementStats();
-    const active = getActiveFlapSound();
-    body.innerHTML = `
-      <div class="px-2 mb-3 text-[10px] opacity-60">your tap sound. tap any unlocked row to preview; pick to set it for runs.</div>
-      <div data-sounds-list class="space-y-2 px-2"></div>
-    `;
-    const list = body.querySelector("[data-sounds-list]") as HTMLDivElement;
-    for (const opt of FLAP_SOUND_OPTIONS) {
-      list.appendChild(soundCard(opt.id, opt.label, opt.blurb, achStats, active === opt.id, (id) => {
-        setActiveFlapSound(id);
-        renderSounds();
-      }));
     }
   }
 

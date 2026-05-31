@@ -67,5 +67,29 @@ export function shapeSvgInner(
               <path d="M -1 0 C -8 3 -9 8 -6 9 C -3 9 -1 5 -1 3 Z" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
               <path d="M 1 0 C 8 3 9 8 6 9 C 3 9 1 5 1 3 Z" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
               <ellipse cx="0" cy="-1" rx="0.8" ry="7" fill="#3a3a3a" stroke="#1a1a1a" stroke-width="0.4"/>`;
+    case "flower":
+      return `<g fill="${b}" stroke="#1a1a1a" stroke-width="0.6">
+                <ellipse cx="0" cy="-9" rx="3.5" ry="6"/>
+                <ellipse cx="0" cy="9" rx="3.5" ry="6"/>
+                <ellipse cx="-9" cy="0" rx="6" ry="3.5"/>
+                <ellipse cx="9" cy="0" rx="6" ry="3.5"/>
+                <ellipse cx="-6.4" cy="-6.4" rx="3.5" ry="6" transform="rotate(45 -6.4 -6.4)"/>
+                <ellipse cx="6.4" cy="6.4" rx="3.5" ry="6" transform="rotate(45 6.4 6.4)"/>
+              </g>
+              <circle cx="0" cy="0" r="4" fill="${a}" stroke="#1a1a1a" stroke-width="0.6"/>`;
+    case "vector-bird":
+      return `<ellipse cx="-1" cy="0" rx="11" ry="7" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+              <polygon points="10,-1 16,0 10,2" fill="${a}" stroke="#1a1a1a" stroke-width="0.6"/>
+              <path d="M -2 -5 C -6 -12 -12 -10 -10 -3 Z" fill="${a}" stroke="#1a1a1a" stroke-width="0.6"/>
+              <circle cx="5" cy="-2" r="1.4" fill="#1a1a1a"/>`;
+    case "leaf":
+      return `<path d="M -12 0 C -8 -8 8 -8 14 0 C 8 8 -8 8 -12 0 Z" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+              <line x1="-11" y1="0" x2="14" y2="0" stroke="${a}" stroke-width="1"/>`;
+    case "lightning":
+      return `<polygon points="6,-13 -7,3 0,3 -4,13 9,-3 2,-3" fill="${b}" stroke="${a}" stroke-width="0.8" stroke-linejoin="round"/>`;
+    case "ghost":
+      return `<path d="M -10 12 L -10 -2 A 10 10 0 0 1 10 -2 L 10 12 L 6 8 L 2 12 L -2 8 L -6 12 Z" fill="${b}" stroke="#1a1a1a" stroke-width="0.8" stroke-linejoin="round"/>
+              <ellipse cx="-4" cy="-2" rx="1.8" ry="2.4" fill="${a}"/>
+              <ellipse cx="4" cy="-2" rx="1.8" ry="2.4" fill="${a}"/>`;
   }
 }

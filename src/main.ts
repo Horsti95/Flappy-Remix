@@ -48,6 +48,9 @@ import { clearParticles, getActiveFlapFx, setFxLabMode, spawnFlapFx } from "./ga
 import { type RankedMatch } from "./social/ranked";
 import { createChallenge, fetchChallenge, ghostSkinFromChallenge, fetchUnseenChallengeCount, type FetchedChallenge } from "./social/challenges";
 import { renderInbox } from "./ui/inbox";
+import { renderQuests } from "./ui/quests";
+import { evaluateRun, type QuestCompletion } from "./game/quests";
+import { getGrantedShapesLocal } from "./social/grants";
 import { listMyBadges } from "./social/badges";
 
 setupPWA();
@@ -389,6 +392,11 @@ function showMenu(): void {
           onClose: () => showMenu(),
         });
       },
+      onOpenQuests: () => {
+        pushSubView();
+        panelOpen = true;
+        renderQuests(overlays, { onClose: () => showMenu() });
+      },
       onOpenInbox: () => {
         pushSubView();
         panelOpen = true;
@@ -472,6 +480,44 @@ function recordDailyBest(date: string, score: number): void {
   }
 }
 
+function applyQuestReward(c: QuestCompletion): void {
+  // Quest rewards write the same local stores the gallery equip-paths
+  // use, so the unlock surfaces immediately on next gallery open.
+  switch (c.step.reward.kind) {
+    case "shape": {
+      // Append to the granted-shapes local cache (mirrors what
+      // refreshGrantedShapes would write from supabase). The next
+      // gallery render reads it.
+      const ids = getGrantedShapesLocal();
+      if (!ids.includes(c.step.reward.shape)) {
+        try {
+          localStorage.setItem(
+            "pflug.grantedShapes.v1",
+            JSON.stringify([...ids, c.step.reward.shape]),
+          );
+        } catch {
+          /* localStorage blocked */
+        }
+      }
+      break;
+    }
+    case "theme": {
+      // Equip the theme so the player sees their reward on next run.
+      equippedThemeId = c.step.reward.theme;
+      setEquippedThemeLocal(c.step.reward.theme);
+      renderer.options.theme = c.step.reward.theme;
+      break;
+    }
+    case "preset": {
+      // Equip the preset palette directly.
+      setEquippedPresetLocal(c.step.reward.preset);
+      const p = getPreset(c.step.reward.preset);
+      if (p) renderer.options.skin = { body: p.body, accent: p.accent };
+      break;
+    }
+  }
+}
+
 function onToggleSetting(key: keyof Settings): void {
   settings[key] = !settings[key];
   saveSettings(settings);
@@ -546,6 +592,19 @@ function startRun(runMode: RunMode = "casual"): void {
             shareChallenge(score, created.short_id, target.friend?.username ?? null);
             return;
           }
+        }
+        // Evaluate quest chains against this run's context. Any newly
+        // completed steps apply their reward immediately (shape grant
+        // / theme equip / preset equip) so the next run can use it.
+        const questCompletions = evaluateRun({
+          score,
+          shapeId: equippedShapeId,
+          themeId: equippedThemeId,
+          totalGames: authState().profile?.total_games ?? 0,
+          streakDays: result?.streak_days ?? authState().profile?.streak_days ?? 0,
+        });
+        for (const c of questCompletions) {
+          applyQuestReward(c);
         }
         const share = (): void => {
           void openShare(score, result);

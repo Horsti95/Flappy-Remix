@@ -38,7 +38,7 @@ import { type ShareCardData } from "./social/share-card";
 import { renderFriendsPanel } from "./ui/friends";
 import { refreshFriendCount } from "./social/friends";
 import { refreshGrantedShapes } from "./social/grants";
-import { loadAchievementStats } from "./game/achievements";
+import { loadAchievementStats, updateStatsAfterRun, saveAchievementStats } from "./game/achievements";
 import { getShowEquippedInMenu } from "./game/menu-prefs";
 import { renderDailyLanding } from "./ui/daily-landing";
 import { renderChallengePickFriend, type ChallengePickResult } from "./ui/challenge-pick-friend";
@@ -542,15 +542,19 @@ function startRun(runMode: RunMode = "casual"): void {
     currentSeed = activeChallenge.seed >>> 0;
     ghost = new GhostSim(currentSeed, activeChallenge.inputs, runCfg);
     renderer.options.ghostSkin = ghostSkinFromChallenge(activeChallenge);
+    renderer.options.mirror = false;
   } else if (runMode === "ranked" && activeRanked) {
     currentSeed = activeRanked.match.seeds[activeRanked.round] >>> 0;
     renderer.options.ghostSkin = undefined;
+    renderer.options.mirror = false;
   } else if (runMode === "daily" && dailyInfo) {
     currentSeed = dailyInfo.seed >>> 0;
     renderer.options.ghostSkin = undefined;
+    renderer.options.mirror = (dailyInfo?.pick.modifiers ?? []).some(m => m.id === "mirror");
   } else {
     currentSeed = (Math.random() * 0xffffffff) >>> 0;
     renderer.options.ghostSkin = undefined;
+    renderer.options.mirror = false;
   }
   loop = new GameLoop(
     currentSeed,
@@ -575,6 +579,11 @@ function startRun(runMode: RunMode = "casual"): void {
         }
         announce(`Run ended. Score ${score}. Press R to play again.`);
         const result = await trySubmit(sim);
+        {
+          const currentStats = loadAchievementStats();
+          const updatedStats = updateStatsAfterRun(currentStats, { score, mode: currentRunMode });
+          saveAchievementStats(updatedStats);
+        }
         // If this run was queued from the 'Challenge a friend' menu
         // entry, auto-spin up a challenge and surface the share sheet.
         if (pendingChallengeTarget && result?.run_id) {
@@ -624,8 +633,12 @@ function startRun(runMode: RunMode = "casual"): void {
             ? async () => {
                 if (!result?.run_id) return;
                 const r = await createChallenge(result.run_id, activeChallenge?.short_id ?? null);
-                if (r.ok && r.short_id) {
-                  shareChallenge(score, r.short_id);
+                if (r.ok) {
+                  const toast = document.createElement("div");
+                  toast.className = "pointer-events-none fixed top-6 left-1/2 -translate-x-1/2 rounded-2xl bg-paper text-ink px-5 py-3 font-bold text-sm shadow-xl z-50";
+                  toast.textContent = "Rematch sent!";
+                  document.body.appendChild(toast);
+                  setTimeout(() => toast.remove(), 2500);
                 }
               }
             : undefined,

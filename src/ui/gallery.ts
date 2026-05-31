@@ -28,6 +28,7 @@ import {
   spawnFlapFx,
   type FlapFxId,
 } from "../game/flap-fx";
+import { getChainViews, type QuestChain, type QuestStep } from "../game/quests";
 
 export interface GalleryCallbacks {
   onEquipSkin(skinId: string | null): void;
@@ -70,17 +71,17 @@ export function renderGallery(
       <button data-close class="text-sm underline opacity-70">close</button>
     </div>
     <div data-tabs class="px-5 flex gap-2 text-[12px] overflow-x-auto">
-      <button data-tab="shapes" class="rounded-full px-3 py-1 bg-paper text-ink whitespace-nowrap">shapes</button>
+      <button data-tab="shapes" class="rounded-full px-3 py-1 bg-paper text-ink whitespace-nowrap">Icons</button>
       <button data-tab="skins" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">colors</button>
       <button data-tab="backgrounds" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">backgrounds</button>
-      <button data-tab="sounds" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">sounds</button>
-      <button data-tab="fx" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">fx</button>
+      <button data-tab="effects" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">effects</button>
+      <button data-tab="quests" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">quests</button>
     </div>
     <div data-body class="mt-3 px-3 flex-1 overflow-y-auto pb-6"></div>
   `;
   host.appendChild(wrap);
 
-  type Tab = "shapes" | "skins" | "backgrounds" | "sounds" | "fx";
+  type Tab = "shapes" | "skins" | "backgrounds" | "effects" | "quests";
   let activeTab: Tab = "shapes";
   let currentEquipped = { ...equipped };
   let cancelled = false;
@@ -114,8 +115,64 @@ export function renderGallery(
     if (activeTab === "shapes") renderShapes();
     else if (activeTab === "skins") void renderSkins();
     else if (activeTab === "backgrounds") renderBackgrounds();
-    else if (activeTab === "sounds") renderSounds();
-    else if (activeTab === "fx") renderFx();
+    else if (activeTab === "effects") renderEffects();
+    else if (activeTab === "quests") renderQuestsTab();
+  }
+
+  function renderEffects(): void {
+    const body = wrap.querySelector("[data-body]") as HTMLDivElement;
+    body.innerHTML = "";
+    // Sounds section
+    const soundsHeader = document.createElement("div");
+    soundsHeader.className = "px-3 mt-1 mb-2 text-[10px] uppercase tracking-wider opacity-60 font-bold";
+    soundsHeader.textContent = "sounds";
+    body.appendChild(soundsHeader);
+    const soundsDesc = document.createElement("div");
+    soundsDesc.className = "px-2 mb-3 text-[10px] opacity-60";
+    soundsDesc.textContent = "your tap sound. tap any unlocked row to preview; pick to set it for runs.";
+    body.appendChild(soundsDesc);
+    const soundsList = document.createElement("div");
+    soundsList.className = "space-y-2 px-2";
+    const achStats = loadAchievementStats();
+    const activeSound = getActiveFlapSound();
+    for (const opt of FLAP_SOUND_OPTIONS) {
+      soundsList.appendChild(soundCard(opt.id, opt.label, opt.blurb, achStats, activeSound === opt.id, (id) => {
+        setActiveFlapSound(id);
+        renderEffects();
+      }));
+    }
+    body.appendChild(soundsList);
+    // Separator
+    const sep = document.createElement("div");
+    sep.className = "my-4 border-t border-white/10";
+    body.appendChild(sep);
+    // FX section
+    const fxHeader = document.createElement("div");
+    fxHeader.className = "px-3 mt-1 mb-2 text-[10px] uppercase tracking-wider opacity-60 font-bold";
+    fxHeader.textContent = "effects";
+    body.appendChild(fxHeader);
+    const fxDesc = document.createElement("div");
+    fxDesc.className = "px-2 mb-3 text-[10px] opacity-60";
+    fxDesc.textContent = "visual burst when you tap. preview the unlocked ones — your pick fires every flap mid-run.";
+    body.appendChild(fxDesc);
+    const fxList = document.createElement("div");
+    fxList.className = "space-y-2 px-2";
+    const activeFx = getActiveFlapFx();
+    for (const opt of FLAP_FX_OPTIONS) {
+      fxList.appendChild(fxCard(opt.id, opt.label, opt.blurb, achStats, activeFx === opt.id, (id) => {
+        setActiveFlapFx(id);
+        renderEffects();
+      }));
+    }
+    body.appendChild(fxList);
+  }
+
+  function renderQuestsTab(): void {
+    const body = wrap.querySelector("[data-body]") as HTMLDivElement;
+    body.innerHTML = `<div class="text-[11px] opacity-70 px-2 mb-3">multi-step chains that unlock content as you play.</div><div data-quests-body class="space-y-3 px-2"></div>`;
+    const questsBody = body.querySelector("[data-quests-body]") as HTMLDivElement;
+    const views = getChainViews();
+    for (const v of views) questsBody.appendChild(chainCard(v.chain, v.activeIndex, v.complete));
   }
 
   function renderFx(): void {

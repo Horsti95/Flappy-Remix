@@ -69,7 +69,7 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
     ? `<div class="mt-1 text-[11px] opacity-70 truncate">${meta.daily.modifierNames.map(escapeHtml).join(" + ")}</div>`
     : "";
   const streakBadge = meta.streakDays > 0
-    ? `<span class="ml-2 inline-flex items-center gap-1 text-[10px] bg-white/10 rounded-full px-2 py-0.5">streak ${meta.streakDays}</span>`
+    ? `<span class="ml-2 inline-flex items-center gap-1 text-[11px] font-bold bg-orange-500/20 text-orange-300 rounded-full px-2.5 py-0.5">🔥 ${meta.streakDays}</span>`
     : "";
   const offlineBadge = meta.online === false
     ? `<div class="absolute top-3 left-3 text-[10px] rounded-full px-2 py-0.5 bg-orange-400/30 text-paper">offline${meta.pendingSubmissions ? ` · ${meta.pendingSubmissions} queued` : ""}</div>`
@@ -79,6 +79,7 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
 
   wrap.innerHTML = `
     ${offlineBadge}
+    <button data-settings class="absolute top-3 left-3 text-[18px] opacity-50 hover:opacity-100 transition-opacity" aria-label="Settings">⚙</button>
     <button data-account class="absolute top-3 right-3 text-[11px] rounded-full px-3 py-1 bg-white/15">${escapeHtml(meta.accountLabel)}${streakBadge}</button>
     <div data-menu-content class="px-6 max-w-sm w-full">
       <div class="relative h-16 mb-2">
@@ -118,12 +119,9 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
         </button>
       </div>
 
-      <div class="mt-3 grid grid-cols-5 gap-1.5">
+      <div class="mt-3 grid grid-cols-4 gap-1.5">
         <button data-action="ranked" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
           Ranked
-        </button>
-        <button data-action="quests" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
-          Quests
         </button>
         <button data-action="skins" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
           Gallery
@@ -166,10 +164,6 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   wrap.querySelector('[data-action="inbox"]')?.addEventListener("click", (e) => {
     e.stopPropagation();
     cbs.onOpenInbox();
-  });
-  wrap.querySelector('[data-action="quests"]')?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    cbs.onOpenQuests();
   });
   wrap.querySelector('[data-action="challenge-friend"]')?.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -296,9 +290,10 @@ function renderGameOverInner(
   onMenu: () => void,
   extra?: GameOverResult,
 ): void {
+  const ctx = extra?.challengeContext;
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
-  wrap.className = "pointer-events-auto absolute inset-x-0 bottom-0 z-10 px-4 pb-6 pt-6 bg-gradient-to-t from-black/80 to-transparent text-paper font-display";
+  wrap.className = `pointer-events-auto absolute inset-x-0 bottom-0 z-10 px-4 pb-6 pt-6 bg-gradient-to-t ${ctx ? "from-black/95" : "from-black/80"} to-transparent text-paper font-display`;
   const unlocks = extra?.result?.unlocked ?? [];
   const unlocksHtml = unlocks.length > 0 ? renderUnlocks(unlocks) : "";
   const acceptStatus = extra?.result
@@ -306,7 +301,6 @@ function renderGameOverInner(
       ? `<div class="text-[10px] opacity-60">submitted · ${extra.result.total_games ?? "?"} games total</div>`
       : `<div class="text-[10px] opacity-40">offline / not accepted</div>`
     : "";
-  const ctx = extra?.challengeContext;
   const versus = ctx
     ? `<div class="mt-2 rounded-2xl bg-white/10 px-4 py-3 text-left">
          <div class="text-[10px] uppercase tracking-wider opacity-60">vs @${escapeHtml(ctx.creator)}</div>
@@ -314,13 +308,14 @@ function renderGameOverInner(
            <div><span class="text-2xl font-bold">${score}</span> <span class="opacity-50">you</span></div>
            <div class="opacity-70">${ctx.creatorScore} <span class="opacity-50">them</span></div>
          </div>
-         <div class="mt-1 text-[11px] ${score > ctx.creatorScore ? "text-green-300" : score < ctx.creatorScore ? "text-orange-300" : "opacity-70"}">${
-           score > ctx.creatorScore ? "you win" : score < ctx.creatorScore ? "they win" : "tie"
+         <div class="text-2xl font-bold mt-2 ${score > ctx.creatorScore ? "text-green-300" : score < ctx.creatorScore ? "text-orange-300" : "opacity-70"}">${
+           score > ctx.creatorScore ? "YOU WIN 🏆" : score < ctx.creatorScore ? "YOU LOST" : "TIE"
          }</div>
+         <button data-brag class="mt-2 text-[11px] underline opacity-60">share result</button>
        </div>`
     : "";
   const cbButton = ctx && ctx.canChallengeBack && extra?.onChallengeBack
-    ? `<button data-challenge-back class="mt-3 w-full rounded-2xl bg-paper text-ink font-bold py-3">Challenge back</button>`
+    ? `<button data-challenge-back class="mt-3 w-full rounded-2xl bg-paper text-ink font-bold py-3">Rematch</button>`
     : ctx
       ? `<div class="mt-3 text-[10px] opacity-50">chain capped at 2 — share to start a new one</div>`
       : "";
@@ -332,7 +327,7 @@ function renderGameOverInner(
       ${versus}
       ${unlocksHtml}
       <button data-restart class="mt-4 w-full rounded-2xl bg-paper text-ink font-bold py-5 text-lg shadow-lg active:scale-95 transition">Play again</button>
-      <button data-share class="mt-3 w-full rounded-2xl border border-paper/40 text-paper font-bold py-3">${ctx ? "Share result" : "Share run"}</button>
+      ${ctx ? "" : `<button data-share class="mt-3 w-full rounded-2xl border border-paper/40 text-paper font-bold py-3">Share run</button>`}
       ${cbButton}
       <button data-menu class="mt-3 w-full text-xs underline opacity-60 py-1">Back to menu</button>
     </div>
@@ -347,6 +342,10 @@ function renderGameOverInner(
     onMenu();
   });
   wrap.querySelector("[data-share]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    extra?.onShare?.();
+  });
+  wrap.querySelector("[data-brag]")?.addEventListener("click", (e) => {
     e.stopPropagation();
     extra?.onShare?.();
   });

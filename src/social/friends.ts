@@ -109,6 +109,51 @@ export async function refreshFriendCount(): Promise<void> {
   saveAchievementStats({ ...stats, friendCount: count });
 }
 
+/**
+ * Count resolved challenge wins across every duel the player took part in
+ * (both as creator and as responder) and mirror the total into the local
+ * achievement stats. A duel only counts once both scores are known
+ * (responded_at is not null), matching getRecordVsFriend's semantics.
+ */
+export async function getChallengeWinCount(): Promise<number> {
+  const sb = getSupabase();
+  const s = authState();
+  if (!sb || !s.user) return 0;
+  const me = s.user.id;
+  const [iCreated, iResponded] = await Promise.all([
+    sb
+      .from("challenges")
+      .select("creator_score, responder_score")
+      .eq("creator_id", me)
+      .not("responded_at", "is", null),
+    sb
+      .from("challenges")
+      .select("creator_score, responder_score")
+      .eq("responder_id", me)
+      .not("responded_at", "is", null),
+  ]);
+  if (iCreated.error || iResponded.error) {
+    if (iCreated.error) console.error("[challenge-wins] mine", iCreated.error);
+    if (iResponded.error) console.error("[challenge-wins] theirs", iResponded.error);
+    return loadAchievementStats().challengeWins;
+  }
+  let wins = 0;
+  for (const row of (iCreated.data ?? []) as Array<{ creator_score: number; responder_score: number | null }>) {
+    if (row.responder_score != null && row.creator_score > row.responder_score) wins++;
+  }
+  for (const row of (iResponded.data ?? []) as Array<{ creator_score: number; responder_score: number | null }>) {
+    if (row.responder_score != null && row.responder_score > row.creator_score) wins++;
+  }
+  return wins;
+}
+
+export async function refreshChallengeWins(): Promise<void> {
+  const wins = await getChallengeWinCount();
+  const stats = loadAchievementStats();
+  if (stats.challengeWins === wins) return;
+  saveAchievementStats({ ...stats, challengeWins: wins });
+}
+
 export async function listFriends(): Promise<Friend[]> {
   const sb = getSupabase();
   const s = authState();

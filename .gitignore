@@ -11,3 +11,6 @@ coverage
 .vscode
 .idea
 .claude
+
+# Database backups (scripts/backup.mjs) — may contain user data, never commit.
+backups

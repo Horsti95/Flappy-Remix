@@ -36,7 +36,7 @@ import { fetchDaily, type DailyInfo } from "./social/daily";
 import { renderShareSheet } from "./ui/share-sheet";
 import { type ShareCardData } from "./social/share-card";
 import { renderFriendsPanel } from "./ui/friends";
-import { refreshFriendCount, type Friend } from "./social/friends";
+import { refreshChallengeWins, refreshFriendCount, type Friend } from "./social/friends";
 import { refreshGrantedShapes } from "./social/grants";
 import { loadAchievementStats, updateStatsAfterRun, saveAchievementStats } from "./game/achievements";
 import { getShowEquippedInMenu } from "./game/menu-prefs";
@@ -182,6 +182,7 @@ let panelOpen = false;
 subscribeAuth(async () => {
   await loadEquippedSkin();
   void refreshFriendCount();
+  void refreshChallengeWins();
   void refreshGrantedShapes();
   void refreshInboxBadge();
   // Don't tear down an open panel (account, gallery, leaderboard, …)
@@ -364,17 +365,7 @@ function showMenu(): void {
         );
       },
       onOpenLeaderboard: () => { pushSubView(); panelOpen = true; renderLeaderboard(overlays, () => showMenu()); },
-      onOpenFriends: () => {
-        pushSubView();
-        panelOpen = true;
-        renderFriendsPanel(overlays, () => showMenu(), {
-          onChallenge: (friend) => {
-            panelOpen = false;
-            pendingChallengeTarget = { friend };
-            startRun("challenge-create");
-          },
-        });
-      },
+      onOpenFriends: () => openFriendsPanel(),
       onOpenRanked: () => {
         pushSubView();
         panelOpen = true;
@@ -407,6 +398,7 @@ function showMenu(): void {
               showMenu();
             }
           },
+          onNewChallenge: () => openFriendsPanel(),
           onClose: () => showMenu(),
         });
       },
@@ -575,9 +567,16 @@ function startRun(runMode: RunMode = "casual"): void {
         const result = await trySubmit(sim);
         {
           const currentStats = loadAchievementStats();
-          const updatedStats = updateStatsAfterRun(currentStats, { score, mode: currentRunMode });
+          const updatedStats = updateStatsAfterRun(currentStats, {
+            score,
+            mode: currentRunMode,
+            inputCount: loop?.getRecordedInputs().length,
+          });
           saveAchievementStats(updatedStats);
         }
+        // Responding to a challenge resolves the duel server-side, so the
+        // win tally may have changed — re-sync it for the achievement check.
+        if (currentRunMode === "challenge") void refreshChallengeWins();
         // Challenge-create run (started from a friend row). Capture the
         // target so the game-over screen can offer Play again / Submit.
         // The challenge is only created + sent on Submit — never auto-sent,
@@ -731,6 +730,18 @@ function shareChallenge(score: number, shortId: string, addressedTo: string | nu
   history.replaceState(null, "", `${baseUrl}/?${params}`);
   renderShareSheet(overlays, data, () => {
     overlays.querySelector('[data-no-flap][class*="z-40"]')?.remove();
+  });
+}
+
+function openFriendsPanel(): void {
+  pushSubView();
+  panelOpen = true;
+  renderFriendsPanel(overlays, () => showMenu(), {
+    onChallenge: (friend) => {
+      panelOpen = false;
+      pendingChallengeTarget = { friend };
+      startRun("challenge-create");
+    },
   });
 }
 

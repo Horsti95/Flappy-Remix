@@ -2,6 +2,8 @@ import { getSupabase } from "../lib/supabase";
 import { authState } from "./auth";
 import { type InputEvent } from "../game/sim";
 import { type SkinColors } from "../game/skin";
+import { type ShapeId } from "../game/shapes";
+import { type ThemeId } from "../game/themes";
 
 export interface FetchedChallenge {
   short_id: string;
@@ -11,6 +13,10 @@ export interface FetchedChallenge {
   creator_username: string | null;
   creator_friend_code: string | null;
   creator_skin: { body: [number, number, number]; accent: [number, number, number]; rarity: string | null } | null;
+  /** Creator's equipped cosmetics so the responder sees the sender's
+   *  world. Null on legacy challenges — render falls back to defaults. */
+  creator_shape: ShapeId | null;
+  creator_theme: ThemeId | null;
   depth: number;
   can_respond_again: boolean;
 }
@@ -36,6 +42,7 @@ export async function createChallenge(
   runId: string,
   parentShortId: string | null,
   targetUsername?: string | null,
+  cosmetics?: { shape?: ShapeId; theme?: ThemeId },
 ): Promise<CreateChallengeResult> {
   const sb = getSupabase();
   const s = authState();
@@ -51,6 +58,8 @@ export async function createChallenge(
         source_run_id: runId,
         parent_short_id: parentShortId,
         target_username: targetUsername ?? null,
+        creator_shape: cosmetics?.shape ?? null,
+        creator_theme: cosmetics?.theme ?? null,
       }),
     });
     if (!res.ok) {

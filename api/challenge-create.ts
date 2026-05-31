@@ -8,6 +8,10 @@ interface Body {
   /** Optional: address this challenge to a friend by username. When
    *  set, the challenge lands in their inbox as 'pending'. */
   target_username?: string | null;
+  /** Creator's equipped cosmetics, so the responder sees the real
+   *  sender's world (shape + theme). Cosmetic only. */
+  creator_shape?: string | null;
+  creator_theme?: string | null;
 }
 
 function json(body: unknown, status: number): Response {
@@ -95,6 +99,8 @@ export default async function handler(req: Request): Promise<Response> {
       depth,
       target_user_id: targetUserId,
       status,
+      creator_shape: typeof body.creator_shape === "string" ? body.creator_shape : null,
+      creator_theme: typeof body.creator_theme === "string" ? body.creator_theme : null,
     })
     .select("id, short_id")
     .single();

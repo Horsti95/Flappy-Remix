@@ -224,21 +224,26 @@ export default async function handler(req: Request): Promise<Response> {
   if (body.mode === "challenge" && body.challenge_short_id) {
     const ch = await admin
       .from("challenges")
-      .select("id, seed, depth, responder_id, target_user_id, status")
+      .select("id, seed, responder_id, responder_score, target_user_id, status")
       .eq("short_id", body.challenge_short_id)
       .maybeSingle();
     if (ch.data && ch.data.seed === body.seed) {
-      // Don't overwrite a prior response; only set the responder once.
-      if (!ch.data.responder_id) {
+      // Unlimited tries, best counts: the first valid response claims the
+      // slot, and the same responder may keep playing — we keep their best
+      // score. A different user can't overwrite a claimed challenge.
+      const unclaimed = !ch.data.responder_id;
+      const claimedByMe = ch.data.responder_id === userId;
+      const prevBest = (ch.data.responder_score as number | null) ?? -1;
+      if (unclaimed || (claimedByMe && body.score > prevBest)) {
         const patch: Record<string, unknown> = {
           responder_id: userId,
           responder_run_id: run.data.id,
           responder_score: body.score,
           responded_at: new Date().toISOString(),
         };
-        // A targeted (inbox) challenge flips from 'pending' to
-        // 'accepted' the moment the addressed friend plays it.
-        if (ch.data.target_user_id === userId && ch.data.status === "pending") {
+        // A targeted (inbox) challenge flips from 'pending' to 'accepted'
+        // the moment the addressed friend first plays it.
+        if (unclaimed && ch.data.target_user_id === userId && ch.data.status === "pending") {
           patch.status = "accepted";
         }
         await admin.from("challenges").update(patch).eq("id", ch.data.id);

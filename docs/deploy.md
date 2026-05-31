@@ -19,6 +19,19 @@ Supabase + Vercel before.
    supabase db push                     # applies 0001 .. 0004
    ```
 
+   > **Back up before every `db push`.** Our migrations are additive
+   > (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN`), so existing
+   > rows survive and new columns start empty. Still, take a restore point
+   > first — it's a guaranteed undo if a change goes wrong:
+   >
+   > ```sh
+   > SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run backup
+   > ```
+   >
+   > This dumps every table to `backups/pflug-backup-<timestamp>.json`
+   > (gitignored). Supabase's own automatic daily backups / PITR are the
+   > second layer — confirm they're enabled for your plan.
+
 5. (Optional, for monthly season rotation) **Database → Extensions** →
    enable `pg_cron`, then run:
 

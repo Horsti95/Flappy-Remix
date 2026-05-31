@@ -20,6 +20,7 @@ const EMPTY: AchievementStats = {
   dailyStreakDays: 0,
   friendCount: 0,
   lateNightGames: 0,
+  minimalistDone: false,
 };
 
 describe("achievements", () => {
@@ -89,6 +90,24 @@ describe("achievements", () => {
     expect(s.dailyStreakDays).toBe(5);
     expect(s.bestScoreDaily).toBe(25);
     expect(getUnlockedAchievements(s).map((a) => a.id)).toContain("on_fire");
+  });
+
+  it("minimalist unlocks on a 25+ run with under 80 taps and latches", () => {
+    const lean = updateStatsAfterRun(EMPTY, { score: 25, mode: "casual", inputCount: 79 });
+    expect(getUnlockedAchievements(lean).map((a) => a.id)).toContain("minimalist");
+    // A later tap-heavy run must not revoke it.
+    const after = updateStatsAfterRun(lean, { score: 30, mode: "casual", inputCount: 200 });
+    expect(getUnlockedAchievements(after).map((a) => a.id)).toContain("minimalist");
+  });
+
+  it("minimalist stays locked when taps >= 80 or score < 25", () => {
+    const tappy = updateStatsAfterRun(EMPTY, { score: 40, mode: "casual", inputCount: 120 });
+    expect(getUnlockedAchievements(tappy).map((a) => a.id)).not.toContain("minimalist");
+    const lowScore = updateStatsAfterRun(EMPTY, { score: 10, mode: "casual", inputCount: 5 });
+    expect(getUnlockedAchievements(lowScore).map((a) => a.id)).not.toContain("minimalist");
+    // No tap data available → can't earn it.
+    const noData = updateStatsAfterRun(EMPTY, { score: 99, mode: "casual" });
+    expect(getUnlockedAchievements(noData).map((a) => a.id)).not.toContain("minimalist");
   });
 
   it("every achievement has a valid reward color", () => {

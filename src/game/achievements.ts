@@ -24,6 +24,8 @@ export interface AchievementStats {
   friendCount: number;
   /** Plays where the local hour was in [23, 0, 1, 2, 3]. */
   lateNightGames: number;
+  /** Set once a run scores 25+ using fewer than 80 taps (the "minimalist" goal). */
+  minimalistDone: boolean;
 }
 
 export const ACHIEVEMENTS: AchievementDef[] = [
@@ -84,7 +86,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     blurb: "score 25+ with fewer than 80 taps",
     category: "efficiency",
     reward: { type: "color", body: [180, 180, 180], accent: [100, 100, 100] },
-    check: () => false, // requires per-run tap count tracking
+    check: (s) => s.minimalistDone === true,
   },
 
   // --- Streak-based ---
@@ -167,7 +169,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: "challenger",
     name: "challenger",
-    blurb: "win 5 challenges",
+    blurb: "win 5 challenges — beat a friend's ghost on their seed",
     category: "social",
     reward: { type: "color", body: [255, 80, 0], accent: [255, 140, 0] },
     check: (s) => s.challengeWins >= 5,
@@ -175,7 +177,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: "rival",
     name: "rival",
-    blurb: "win 10 challenges",
+    blurb: "win 10 challenges — outscore a friend's duel ghost",
     category: "social",
     reward: { type: "color", body: [200, 0, 0], accent: [255, 100, 50] },
     check: (s) => s.challengeWins >= 10,
@@ -234,6 +236,7 @@ export function loadAchievementStats(): AchievementStats {
     dailyStreakDays: 0,
     friendCount: 0,
     lateNightGames: 0,
+    minimalistDone: false,
   };
   try {
     const raw = localStorage.getItem(STATS_KEY);
@@ -259,6 +262,12 @@ export function updateStatsAfterRun(
   const s = { ...stats };
   s.totalGames++;
   if (run.score > s.bestScore) s.bestScore = run.score;
+
+  // "minimalist": a clean run of 25+ with fewer than 80 taps. Latches once
+  // earned so a later tap-heavy run can't revoke it.
+  if (run.score >= 25 && run.inputCount != null && run.inputCount < 80) {
+    s.minimalistDone = true;
+  }
 
   if (run.mode === "daily") {
     if (run.score > s.bestScoreDaily) s.bestScoreDaily = run.score;

@@ -11,6 +11,8 @@ import { authState } from "../social/auth";
 export interface InboxCallbacks {
   /** Play an incoming challenge (drops into a ghost run). */
   onAccept(shortId: string): void;
+  /** Start a new challenge — closes the inbox and opens the friends picker. */
+  onNewChallenge(): void;
   onClose(): void;
 }
 
@@ -116,11 +118,24 @@ export function renderInbox(host: HTMLElement, cbs: InboxCallbacks): () => void 
   }
 
   function renderOutgoing(body: HTMLDivElement, rows: OutgoingChallenge[]): void {
+    body.innerHTML = "";
+    const newBtn = document.createElement("button");
+    newBtn.className =
+      "w-full rounded-2xl border border-dashed border-paper/40 py-3 mb-3 text-sm font-bold opacity-90 active:opacity-60";
+    newBtn.textContent = "+ new challenge";
+    newBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      close();
+      cbs.onNewChallenge();
+    });
+    body.appendChild(newBtn);
     if (rows.length === 0) {
-      body.innerHTML = `<div class="text-center text-xs opacity-60 mt-12">you haven't sent any direct challenges yet.</div>`;
+      const empty = document.createElement("div");
+      empty.className = "text-center text-xs opacity-60 mt-10";
+      empty.textContent = "no sent challenges yet — pick a friend to duel.";
+      body.appendChild(empty);
       return;
     }
-    body.innerHTML = "";
     for (const r of rows) {
       const el = document.createElement("div");
       el.className = "rounded-2xl bg-white/5 p-4 mb-2";

@@ -1,6 +1,7 @@
 import {
   getChainViews,
   type QuestChain,
+  type QuestReward,
   type QuestStep,
 } from "../game/quests";
 
@@ -79,12 +80,24 @@ function stepRow(step: QuestStep, done: boolean, active: boolean): string {
       ? `<span class="text-paper">●</span>`
       : `<span class="opacity-40">○</span>`;
   const titleCls = done ? "opacity-50 line-through" : active ? "font-bold" : "opacity-60";
+  const r = step.reward;
+  const kindMeta: Record<QuestReward["kind"], { icon: string; noun: string }> = {
+    shape: { icon: "✈", noun: "shape" },
+    theme: { icon: "🌅", noun: "theme" },
+    preset: { icon: "🎨", noun: "palette" },
+  };
+  const meta = kindMeta[r.kind];
+  const rewardCls = done ? "opacity-40" : "opacity-70";
   return `
     <div class="flex items-start gap-2 text-[12px]">
       <div class="w-4 text-center mt-0.5">${icon}</div>
       <div class="flex-1">
         <div class="${titleCls}">${escapeHtml(step.title)}</div>
-        <div class="text-[10px] opacity-50">reward: ${escapeHtml(step.reward.label)}</div>
+        <div class="text-[10px] ${rewardCls} mt-0.5">
+          <span aria-hidden="true">${meta.icon}</span>
+          reward: ${escapeHtml(r.label)}
+          <span class="opacity-60">· ${meta.noun}</span>
+        </div>
       </div>
     </div>
   `;

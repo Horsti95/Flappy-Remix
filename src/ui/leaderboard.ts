@@ -85,21 +85,29 @@ export function renderLeaderboard(host: HTMLElement, onClose: () => void): () =>
     list.innerHTML = "";
     const me = authState().user?.id;
     rows.forEach((row, idx) => {
+      const rank = idx + 1;
       const r = document.createElement("div");
       const isMe = row.user_id === me;
-      r.className = `flex items-center gap-3 px-3 py-2 rounded-xl ${isMe ? "bg-paper/15" : "bg-white/5"}`;
+      const podium = rank <= 3;
+      r.className = [
+        "flex items-center gap-3 px-3 py-2.5 rounded-2xl mb-1.5 transition-colors",
+        isMe ? "bg-paper/15 ring-1 ring-paper/50" : podium ? "bg-white/[0.07]" : "bg-white/5",
+      ].join(" ");
       const rarityColor = row.skin_rarity ? RARITY_COLOR[row.skin_rarity as Rarity] : "#9ca3af";
       const plane = row.body && row.accent
-        ? `<svg viewBox="-20 -20 40 40" class="w-7 h-7"><polygon points="-14,6 14,-6 1,0 14,-6 -1,11" fill="rgb(${row.body.join(",")})" stroke="#1a1a1a" stroke-width="0.8"/><polygon points="1,0 -14,6 -1,11" fill="rgb(${row.accent.join(",")})" stroke="#1a1a1a" stroke-width="0.8"/></svg>`
-        : `<div class="w-7 h-7 rounded-full bg-white/10"></div>`;
+        ? `<svg viewBox="-20 -20 40 40" class="w-7 h-7 shrink-0"><polygon points="-14,6 14,-6 1,0 14,-6 -1,11" fill="rgb(${row.body.join(",")})" stroke="#1a1a1a" stroke-width="0.8"/><polygon points="1,0 -14,6 -1,11" fill="rgb(${row.accent.join(",")})" stroke="#1a1a1a" stroke-width="0.8"/></svg>`
+        : `<div class="w-7 h-7 rounded-full bg-white/10 shrink-0"></div>`;
+      const meChip = isMe
+        ? `<span class="text-[9px] uppercase tracking-wider bg-paper text-ink rounded px-1 py-0.5 font-bold">you</span>`
+        : "";
       r.innerHTML = `
-        <div class="w-6 text-right text-[11px] opacity-60">${idx + 1}</div>
+        <div class="w-7 flex items-center justify-center shrink-0">${rankBadge(rank)}</div>
         ${plane}
         <div class="flex-1 min-w-0">
-          <div class="text-sm truncate">${row.username ? escapeHtml(row.username) : "anon"}</div>
+          <div class="text-sm truncate flex items-center gap-1.5">${row.username ? escapeHtml(row.username) : "anon"} ${meChip}</div>
           <div class="text-[10px] opacity-50" style="color:${rarityColor}">${row.skin_rarity ?? ""}</div>
         </div>
-        <div class="font-bold text-lg">${row.score}</div>
+        <div class="font-bold ${podium ? "text-xl" : "text-lg"} tabular-nums">${row.score}</div>
       `;
       list.appendChild(r);
     });
@@ -111,6 +119,20 @@ export function renderLeaderboard(host: HTMLElement, onClose: () => void): () =>
     cancelled = true;
     wrap.remove();
   };
+}
+
+/** Gold/silver/bronze medal disc for the podium, plain number otherwise. */
+function rankBadge(rank: number): string {
+  const medals: Record<number, { bg: string; fg: string }> = {
+    1: { bg: "#f5c542", fg: "#3a2c00" },
+    2: { bg: "#cdd3da", fg: "#2b2f33" },
+    3: { bg: "#cd8a52", fg: "#2e1a09" },
+  };
+  const m = medals[rank];
+  if (m) {
+    return `<span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold" style="background:${m.bg};color:${m.fg}">${rank}</span>`;
+  }
+  return `<span class="text-[11px] opacity-60 tabular-nums">${rank}</span>`;
 }
 
 function seg(attr: "scope" | "period", id: string, label: string, active: boolean): string {

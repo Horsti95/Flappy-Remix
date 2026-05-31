@@ -5,11 +5,18 @@ build, written down so they don't drift.
 
 ## What we don't do
 
-- **No ads.** No banners, no interstitials, no rewarded video.
-- **No microtransactions.** The skin economy is the entire reward
-  loop and it's earned by playing.
+- **No tracking ads.** No ad networks, no behavioral or personalized
+  ads, no third-party ad SDKs, no interstitials, no rewarded video, and
+  nothing that profiles or targets children. The *only* thing we allow
+  is a single **static, non-tracking** banner slot we control — a house
+  message or one sponsor, served as plain markup with no scripts or
+  cookies. See "Making it sustainable".
+- **No pay-to-win, no pay-for-playtime.** You can never buy a gameplay
+  advantage, skip a wall, or unlock playtime with money. Anything
+  purchasable is purely cosmetic, and tips are voluntary.
 - **No gacha or loot boxes.** Skin rarity is a function of the colors
-  the server happens to roll. There is nothing to spend money on.
+  the server happens to roll. There is nothing randomized to spend
+  money on.
 - **No push notifications in v1.** Web push is great for utility apps
   and miserable for arcade games. We didn't ship it.
 - **No fake notifications.** No "your friend just beat your score!"
@@ -51,6 +58,29 @@ build, written down so they don't drift.
 - **Open formats for export.** The GDPR export is a JSON file you can
   read in any text editor.
 
+## Making it sustainable
+
+We'd like the game to cover its own hosting and, ideally, buy the
+maintainer a coffee — without becoming the kind of thing this file
+exists to prevent. The line we hold:
+
+- **Tips, not tolls.** A "buy me a coffee" link (a platform alias, never
+  a personal email) lets people say thanks. It unlocks nothing. The game
+  is identical whether you tip or not.
+- **Cosmetic supporter perks only.** If supporting ever grants anything
+  in-game, it is purely visual (a chip, a name color) — never a score,
+  a life, a continue, or a faster unlock.
+- **One non-tracking banner, fully under our control.** If we run a
+  banner it is a single static slot — our own message or one sponsor —
+  rendered as plain markup. No ad network, no SDK, no cookies, no
+  behavioral targeting, and never anything aimed at kids. It is
+  dismissible and never covers gameplay.
+- **The audience skews young.** That's exactly why we refuse tracking
+  ads and kid-targeted anything: COPPA / GDPR-K are not hoops to
+  minimize, they're the whole reason we keep this lane narrow.
+
+If a future change can't live inside these four bullets, it doesn't ship.
+
 ## Why we built ranked the way we did
 
 - **24-hour round timer.** Long enough that you can play after work and
@@ -86,7 +116,10 @@ out of milestone in v1 and chose to ship the rest.
 
 ## When we change our minds
 
-If we decide to add ads, ranked microtransactions, push notifications,
-or any analytics that aren't self-hosted privacy-respecting, this file
-gets updated *before* the code lands. If you're reading this and the
-behavior doesn't match, that's a bug — open an issue.
+If we decide to add tracking ads, any pay-to-win or pay-for-playtime
+mechanic, ranked microtransactions, push notifications, or any analytics
+that aren't self-hosted privacy-respecting, this file gets updated
+*before* the code lands. The tip link, cosmetic supporter perks, and the
+single non-tracking banner described in "Making it sustainable" are the
+agreed exceptions. If you're reading this and the behavior doesn't
+match, that's a bug — open an issue.

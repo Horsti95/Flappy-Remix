@@ -1,7 +1,11 @@
 import { addFriendByUsername, getRecordVsFriend, listFriends, refreshFriendCount, removeFriend, type Friend, type VsRecord } from "../social/friends";
 import { authState } from "../social/auth";
 
-export function renderFriendsPanel(host: HTMLElement, onClose: () => void): () => void {
+export interface FriendsPanelCallbacks {
+  onChallenge?: (friend: Friend) => void;
+}
+
+export function renderFriendsPanel(host: HTMLElement, onClose: () => void, cbs?: FriendsPanelCallbacks): () => void {
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
   wrap.className = "pointer-events-auto absolute inset-0 z-30 bg-black/80 backdrop-blur-sm font-display text-paper flex flex-col";
@@ -79,7 +83,7 @@ export function renderFriendsPanel(host: HTMLElement, onClose: () => void): () =
       await removeFriend(f.user_id);
       await load();
       void refreshFriendCount();
-    })));
+    }, cbs?.onChallenge ? () => cbs.onChallenge!(f) : undefined)));
     // Backfill the vs-record badges asynchronously so the list paints fast.
     void Promise.all(
       rows.map(async (f) => {
@@ -99,20 +103,30 @@ export function renderFriendsPanel(host: HTMLElement, onClose: () => void): () =
   };
 }
 
-function row(f: Friend, onRemove: () => void): HTMLElement {
+function row(f: Friend, onRemove: () => void, onChallenge?: () => void): HTMLElement {
   const el = document.createElement("div");
   el.dataset.friendId = f.user_id;
   el.className = "flex items-center justify-between gap-3 px-3 py-3 rounded-xl bg-white/5";
+  const challengeBtn = onChallenge
+    ? `<button data-challenge class="rounded-lg bg-paper text-ink text-[11px] font-bold px-3 py-1.5">challenge</button>`
+    : "";
   el.innerHTML = `
     <div class="flex-1 min-w-0">
       <div class="text-sm truncate">${f.username ? escapeHtml("@" + f.username) : "(no handle)"}</div>
       <div data-record class="text-[10px] opacity-50 mt-0.5">vs: …</div>
     </div>
-    <button data-remove class="text-[11px] underline opacity-60">remove</button>
+    <div class="flex items-center gap-3 shrink-0">
+      ${challengeBtn}
+      <button data-remove class="text-[11px] underline opacity-60">remove</button>
+    </div>
   `;
   el.querySelector("[data-remove]")?.addEventListener("click", (e) => {
     e.stopPropagation();
     onRemove();
+  });
+  el.querySelector("[data-challenge]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onChallenge?.();
   });
   return el;
 }

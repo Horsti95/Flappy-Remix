@@ -36,12 +36,11 @@ import { fetchDaily, type DailyInfo } from "./social/daily";
 import { renderShareSheet } from "./ui/share-sheet";
 import { type ShareCardData } from "./social/share-card";
 import { renderFriendsPanel } from "./ui/friends";
-import { refreshFriendCount } from "./social/friends";
+import { refreshFriendCount, type Friend } from "./social/friends";
 import { refreshGrantedShapes } from "./social/grants";
 import { loadAchievementStats, updateStatsAfterRun, saveAchievementStats } from "./game/achievements";
 import { getShowEquippedInMenu } from "./game/menu-prefs";
 import { renderDailyLanding } from "./ui/daily-landing";
-import { renderChallengePickFriend, type ChallengePickResult } from "./ui/challenge-pick-friend";
 import { renderRankedPanel } from "./ui/ranked";
 import { playFlap, setSoundLabMode } from "./game/sfx";
 import { clearParticles, getActiveFlapFx, setFxLabMode, spawnFlapFx } from "./game/flap-fx";
@@ -86,7 +85,7 @@ function pushSubView(): void {
 }
 
 type Mode = "menu" | "playing" | "paused" | "dead";
-type RunMode = "casual" | "daily" | "challenge" | "ranked";
+type RunMode = "casual" | "daily" | "challenge" | "challenge-create" | "ranked";
 
 const app = document.getElementById("app");
 if (!app) throw new Error("missing #app");
@@ -103,7 +102,7 @@ let bestScoreSeen = 0;
 let dailyInfo: DailyInfo | null = null;
 let activeChallenge: FetchedChallenge | null = null;
 let activeRanked: { match: RankedMatch; round: number } | null = null;
-let pendingChallengeTarget: ChallengePickResult | null = null;
+let pendingChallengeTarget: { friend: Friend | null } | null = null;
 let inboxUnseen = 0;
 
 app.innerHTML = `
@@ -319,21 +318,6 @@ function showMenu(): void {
     {
       onPlay: () => { pushSubView(); startRun("casual"); },
       onPlayDaily: () => { pushSubView(); openDailyLanding(); },
-      onChallengeFriend: () => {
-        pushSubView();
-        panelOpen = true;
-        renderChallengePickFriend(overlays, {
-          onPick: (result) => {
-            pendingChallengeTarget = result;
-            if (result.seedSource === "daily" && dailyInfo) {
-              startRun("daily");
-            } else {
-              startRun("casual");
-            }
-          },
-          onClose: () => showMenu(),
-        });
-      },
       onToggleSetting,
       onOpenAccount: () => { pushSubView(); panelOpen = true; renderAccountPanel(overlays, () => showMenu()); },
       onOpenSkins: () => {
@@ -380,7 +364,17 @@ function showMenu(): void {
         );
       },
       onOpenLeaderboard: () => { pushSubView(); panelOpen = true; renderLeaderboard(overlays, () => showMenu()); },
-      onOpenFriends: () => { pushSubView(); panelOpen = true; renderFriendsPanel(overlays, () => showMenu()); },
+      onOpenFriends: () => {
+        pushSubView();
+        panelOpen = true;
+        renderFriendsPanel(overlays, () => showMenu(), {
+          onChallenge: (friend) => {
+            panelOpen = false;
+            pendingChallengeTarget = { friend };
+            startRun("challenge-create");
+          },
+        });
+      },
       onOpenRanked: () => {
         pushSubView();
         panelOpen = true;
@@ -584,24 +578,12 @@ function startRun(runMode: RunMode = "casual"): void {
           const updatedStats = updateStatsAfterRun(currentStats, { score, mode: currentRunMode });
           saveAchievementStats(updatedStats);
         }
-        // If this run was queued from the 'Challenge a friend' menu
-        // entry, auto-spin up a challenge and surface the share sheet.
-        if (pendingChallengeTarget && result?.run_id) {
-          const target = pendingChallengeTarget;
-          pendingChallengeTarget = null;
-          // When a specific friend was picked, address the challenge to
-          // them so it lands in their inbox as 'pending' (not just a
-          // shareable link).
-          const created = await createChallenge(
-            result.run_id,
-            null,
-            target.friend?.username ?? null,
-          );
-          if (created.ok && created.short_id) {
-            shareChallenge(score, created.short_id, target.friend?.username ?? null);
-            return;
-          }
-        }
+        // Challenge-create run (started from a friend row). Capture the
+        // target so the game-over screen can offer Play again / Submit.
+        // The challenge is only created + sent on Submit — never auto-sent,
+        // so the player can retry for a better score first.
+        const challengeTarget =
+          currentRunMode === "challenge-create" ? pendingChallengeTarget : null;
         // Evaluate quest chains against this run's context. Any newly
         // completed steps apply their reward immediately (shape grant
         // / theme equip / preset equip) so the next run can use it.
@@ -622,6 +604,34 @@ function startRun(runMode: RunMode = "casual"): void {
           result,
           ticks,
           onShare: share,
+          challengeCreate: challengeTarget
+            ? {
+                friendName: challengeTarget.friend?.username ?? null,
+                canSubmit: !!result?.run_id,
+                onSubmit: async () => {
+                  if (!result?.run_id) return;
+                  const created = await createChallenge(
+                    result.run_id,
+                    null,
+                    challengeTarget.friend?.username ?? null,
+                  );
+                  if (created.ok && created.short_id) {
+                    pendingChallengeTarget = null;
+                    const toast = document.createElement("div");
+                    toast.className =
+                      "pointer-events-none fixed top-6 left-1/2 -translate-x-1/2 rounded-2xl bg-paper text-ink px-5 py-3 font-bold text-sm shadow-xl z-50";
+                    toast.textContent = challengeTarget.friend?.username
+                      ? `Challenge sent to @${challengeTarget.friend.username}!`
+                      : "Challenge sent!";
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 2500);
+                    // Optional share — the friend already has the challenge
+                    // in their inbox; this just lets the player also post it.
+                    shareChallenge(score, created.short_id, challengeTarget.friend?.username ?? null);
+                  }
+                },
+              }
+            : undefined,
           challengeContext: activeChallenge
             ? {
                 creator: activeChallenge.creator_username ?? "anon",

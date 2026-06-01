@@ -29,6 +29,7 @@ import {
   type FlapFxId,
 } from "../game/flap-fx";
 import { getChainViews, type QuestChain, type QuestStep } from "../game/quests";
+import { listMyBadges, type SeasonBadge } from "../social/badges";
 
 export interface GalleryCallbacks {
   onEquipSkin(skinId: string | null): void;
@@ -76,12 +77,13 @@ export function renderGallery(
       <button data-tab="backgrounds" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">backgrounds</button>
       <button data-tab="effects" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">effects</button>
       <button data-tab="quests" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">quests</button>
+      <button data-tab="badges" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">badges</button>
     </div>
     <div data-body class="mt-3 px-3 flex-1 overflow-y-auto pb-6"></div>
   `;
   host.appendChild(wrap);
 
-  type Tab = "shapes" | "skins" | "backgrounds" | "effects" | "quests";
+  type Tab = "shapes" | "skins" | "backgrounds" | "effects" | "quests" | "badges";
   let activeTab: Tab = "shapes";
   let currentEquipped = { ...equipped };
   let cancelled = false;
@@ -117,6 +119,35 @@ export function renderGallery(
     else if (activeTab === "backgrounds") renderBackgrounds();
     else if (activeTab === "effects") renderEffects();
     else if (activeTab === "quests") renderQuestsTab();
+    else if (activeTab === "badges") void renderBadges();
+  }
+
+  async function renderBadges(): Promise<void> {
+    const body = wrap.querySelector("[data-body]") as HTMLDivElement;
+    body.innerHTML = `<div class="text-center text-xs opacity-60 mt-8">loading…</div>`;
+    const badges = await listMyBadges();
+    if (cancelled || activeTab !== "badges") return;
+    body.innerHTML = "";
+    if (badges.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "px-4 mt-8 text-center text-[12px] opacity-60 leading-relaxed";
+      empty.textContent =
+        "No season placements yet — finish top-100 in a ranked season to earn a badge.";
+      body.appendChild(empty);
+      return;
+    }
+    const desc = document.createElement("div");
+    desc.className = "text-[11px] opacity-70 px-2 mb-3";
+    desc.textContent = "your ranked season placements — top-100 finishes.";
+    body.appendChild(desc);
+    const sorted = [...badges].sort((a, b) => b.season_id - a.season_id);
+    const bestRank = Math.min(...sorted.map((b) => b.rank));
+    const grid = document.createElement("div");
+    grid.className = "grid grid-cols-2 gap-3 px-2";
+    body.appendChild(grid);
+    for (const badge of sorted) {
+      grid.appendChild(badgeCard(badge, badge.rank === bestRank));
+    }
   }
 
   function renderEffects(): void {
@@ -790,6 +821,23 @@ function stepRow(step: QuestStep, done: boolean, active: boolean): string {
       </div>
     </div>
   `;
+}
+
+function badgeCard(badge: SeasonBadge, isBest: boolean): HTMLElement {
+  const medal = badge.rank === 1 ? "🥇" : badge.rank <= 3 ? "🥈" : "🏅";
+  const el = document.createElement("div");
+  el.dataset.noFlap = "true";
+  el.className = `relative rounded-2xl p-3 flex flex-col items-center text-[11px] gap-2 border-2 ${
+    isBest ? "border-amber-300/60 bg-amber-300/10" : "border-white/10 bg-white/5"
+  }`;
+  el.innerHTML = `
+    <div class="w-full aspect-square flex items-center justify-center bg-sky-day/30 rounded-xl text-4xl">${medal}</div>
+    <div class="font-bold">Season ${badge.season_id}</div>
+    <div class="opacity-70 text-[12px]">Rank #${badge.rank}</div>
+    <div class="opacity-50 text-[10px]">Rating ${badge.rating}</div>
+    ${isBest ? `<div class="absolute top-1 right-1 text-[9px] bg-amber-300 text-ink rounded-full px-1.5 py-0.5">best</div>` : ""}
+  `;
+  return el;
 }
 
 function escapeHtml(s: string): string {

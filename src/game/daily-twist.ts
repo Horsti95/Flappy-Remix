@@ -45,6 +45,12 @@ export interface DailyModifier {
   configOverride: (cfg: SimConfig) => SimConfig;
   /** Short one-line copy for the pre-game screen. */
   blurb: string;
+  /**
+   * Difficulty multiplier for the day's overall "intensity". Modifiers
+   * compound multiplicatively (1.2 × 1.2 = 1.44), >1 harder, <1 easier.
+   * Defaults to 1 (neutral, e.g. cosmetic visuals) when omitted.
+   */
+  intensity?: number;
   /** For kind:"visual" — the overlay the renderer should paint. */
   visual?: VisualEffect;
 }
@@ -64,6 +70,7 @@ const FRIENDLY: DailyModifier[] = [
       pipeGapMin: c.pipeGapMin + 10,
     }),
     blurb: "gap +20px",
+    intensity: 0.85,
   },
   {
     id: "floaty",
@@ -72,6 +79,7 @@ const FRIENDLY: DailyModifier[] = [
     difficulty: "friendly",
     configOverride: (c) => ({ ...c, gravity: Math.round(c.gravity * 0.85) }),
     blurb: "gravity -15%",
+    intensity: 1.1,
   },
   {
     id: "big_flap",
@@ -80,6 +88,7 @@ const FRIENDLY: DailyModifier[] = [
     difficulty: "friendly",
     configOverride: (c) => ({ ...c, flapImpulse: Math.round(c.flapImpulse * 1.2) }),
     blurb: "flap +20%",
+    intensity: 0.9,
   },
   {
     id: "small_hitbox",
@@ -88,6 +97,7 @@ const FRIENDLY: DailyModifier[] = [
     difficulty: "friendly",
     configOverride: (c) => ({ ...c, birdRadius: Math.round(c.birdRadius * 0.7) }),
     blurb: "size -30%",
+    intensity: 0.85,
   },
 ];
 
@@ -107,6 +117,7 @@ const NEUTRAL: DailyModifier[] = [
     // is active.
     configOverride: (c) => c,
     blurb: "world flipped",
+    intensity: 1.1,
   },
   {
     id: "flip_gravity",
@@ -123,6 +134,7 @@ const NEUTRAL: DailyModifier[] = [
       birdStartY: c.worldHeight * 0.25,
     }),
     blurb: "gravity inverted — fall up, tap to go down",
+    intensity: 1.25,
   },
 ];
 
@@ -142,6 +154,7 @@ const HOSTILE: DailyModifier[] = [
       pipeGapMin: Math.max(80, c.pipeGapMin - 10),
     }),
     blurb: "gap -15px",
+    intensity: 1.3,
   },
   {
     id: "faster",
@@ -150,6 +163,7 @@ const HOSTILE: DailyModifier[] = [
     difficulty: "hostile",
     configOverride: (c) => ({ ...c, scrollSpeed: Math.round(c.scrollSpeed * 1.25) }),
     blurb: "speed +25%",
+    intensity: 1.3,
   },
   {
     id: "heavy",
@@ -158,6 +172,7 @@ const HOSTILE: DailyModifier[] = [
     difficulty: "hostile",
     configOverride: (c) => ({ ...c, gravity: Math.round(c.gravity * 1.15) }),
     blurb: "gravity +15%",
+    intensity: 1.15,
   },
   {
     id: "big_hitbox",
@@ -166,6 +181,7 @@ const HOSTILE: DailyModifier[] = [
     difficulty: "hostile",
     configOverride: (c) => ({ ...c, birdRadius: Math.round(c.birdRadius * 1.25) }),
     blurb: "size +25%",
+    intensity: 1.2,
   },
 ];
 
@@ -297,6 +313,40 @@ export function pickDaily(dateUtc: string): DailyPick {
 
 export function applyModifiers(cfg: SimConfig, modifiers: readonly DailyModifier[]): SimConfig {
   return modifiers.reduce((c, m) => m.configOverride(c), cfg);
+}
+
+/**
+ * Overall difficulty "intensity" of a set of modifiers — multiplied so
+ * stacking compounds (two +20% mods → 1.44, not 1.40). `extra` lets callers
+ * fold in non-daily handicaps (e.g. equipped glass pillars). 1.0 = baseline.
+ */
+export function computeIntensity(modifiers: readonly DailyModifier[], extra = 1): number {
+  return modifiers.reduce((acc, m) => acc * (m.intensity ?? 1), extra);
+}
+
+export type IntensityBand = "easy" | "normal" | "hard" | "super hard" | "extreme";
+
+/** Map a multiplicative intensity to a named band for display. */
+export function intensityBand(value: number): IntensityBand {
+  if (value < 0.95) return "easy";
+  if (value < 1.2) return "normal";
+  if (value < 1.5) return "hard";
+  if (value < 1.9) return "super hard";
+  return "extreme";
+}
+
+export const INTENSITY_BAND_COLOR: Record<IntensityBand, string> = {
+  easy: "#34d399",
+  normal: "#60a5fa",
+  hard: "#f59e0b",
+  "super hard": "#ef4444",
+  extreme: "#a855f7",
+};
+
+/** "+44%" / "−15%" style label for an intensity multiplier. */
+export function intensityPercentLabel(value: number): string {
+  const pct = Math.round((value - 1) * 100);
+  return pct >= 0 ? `+${pct}%` : `${pct}%`;
 }
 
 export const TIER_LABEL: Record<Tier, string> = {

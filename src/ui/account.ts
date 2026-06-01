@@ -75,7 +75,6 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void): () =
           </div>
         </div>
 
-        <button data-signout class="mt-4 w-full text-xs underline opacity-50">sign out and start fresh</button>
         <div class="mt-6 grid grid-cols-2 gap-2 text-[11px]">
           <button data-export class="rounded-xl bg-white/5 py-2">export my data</button>
           <button data-delete class="rounded-xl bg-red-900/40 text-red-100 py-2">delete account</button>
@@ -87,18 +86,6 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void): () =
     wrap.querySelector("[data-google]")?.addEventListener("click", (e) => {
       e.stopPropagation();
       signInWithGoogle();
-    });
-    wrap.querySelector("[data-signout]")?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      // Anonymous accounts have no way back in — signing out abandons all
-      // progress permanently. Warn first (Google accounts can re-sign-in).
-      if (!isGoogle) {
-        const ok = window.confirm(
-          "You're playing anonymously — there's no way to sign back into this account. Signing out PERMANENTLY abandons your runs, skins, streak and friends. Continue?",
-        );
-        if (!ok) return;
-      }
-      signOut();
     });
     wrap.querySelector("[data-redeem-form]")?.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -205,14 +192,14 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void): () =
       deleteBtn.textContent = "delete account";
       deleteBtn.classList.remove("bg-red-600", "text-white");
       deleteBtn.classList.add("bg-red-900/40", "text-red-100");
-      if (!window.confirm("Delete your account? This cannot be undone — profile, runs, skins, friends, challenges and ranked matches are all wiped.")) {
+      if (!window.confirm("Delete your account? This cannot be undone. Stats, purchases, unlocks, runs, friends, challenges and ranked matches will be removed.")) {
         status.textContent = "cancelled";
         return;
       }
       const phrase = window.prompt(
-        "Final step — type 'delete me forever' to confirm.",
+        "Final step: type DELETE to permanently delete this account.",
       );
-      if (phrase !== "delete me forever") {
+      if (phrase !== "DELETE") {
         status.textContent = "cancelled";
         return;
       }

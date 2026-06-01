@@ -28,7 +28,6 @@ export type ShapeId =
   | "leaf"
   | "lightning"
   | "ghost"
-  | "toucan"
   | "crane";
 
 export interface ShapeUnlock {
@@ -686,19 +685,9 @@ export const SHAPES: ShapeMeta[] = [
     }),
     draw: drawGhost,
   },
-  {
-    id: "toucan",
-    name: "origami toucan",
-    blurb: "folded-paper toucan — a real sprite, tinted to your color.",
-    unlock: ({ bestScore }) => ({
-      unlocked: bestScore >= 40,
-      hint: "score 40 in a single run",
-    }),
-    // Sprite-backed shape: the renderer draws the tinted PNG when loaded and
-    // only falls back to this polygon (a simple beaked silhouette) offline /
-    // before load, so it always renders something.
-    draw: drawToucanFallback,
-  },
+  // NOTE: "toucan" shape removed for now — its source art has a baked
+  // light-blue background (not transparent), so the tint filled the whole
+  // square. On hold until we have a clean grayscale/transparent toucan.
   {
     id: "crane",
     name: "origami crane",

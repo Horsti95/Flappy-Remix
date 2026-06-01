@@ -17,18 +17,18 @@ export function renderLeaderboard(
       <h2 class="text-xl font-bold">leaderboard</h2>
       <button data-close class="text-sm underline opacity-70">close</button>
     </div>
-    <div data-scopes class="px-5 flex gap-2 text-[12px]">
+    <div data-scopes class="px-5 flex gap-2 text-[12px] justify-center">
       ${seg("scope", "global", "global", true)}
       ${seg("scope", "friends", "friends", false)}
     </div>
-    <div data-periods class="px-5 mt-2 flex gap-2 text-[12px] overflow-x-auto">
+    <div data-periods class="px-5 mt-2 flex gap-2 text-[12px] overflow-x-auto justify-center">
       ${seg("period", "daily", "today", false)}
-      ${seg("period", "weekly", "this week", true)}
-      ${seg("period", "monthly", "this month", false)}
-      ${seg("period", "total", "total", false)}
+      ${seg("period", "weekly", "week", true)}
+      ${seg("period", "monthly", "month", false)}
+      ${seg("period", "total", "all-time", false)}
     </div>
-    <div data-modes class="px-5 mt-2 flex gap-2 text-[12px] overflow-x-auto">
-      ${seg("mode", "all", "all", true)}
+    <div data-modes class="px-5 mt-2 flex gap-2 text-[12px] overflow-x-auto justify-center">
+      ${seg("mode", "all", "both", true)}
       ${seg("mode", "casual", "casual", false)}
       ${seg("mode", "daily", "daily", false)}
     </div>
@@ -55,9 +55,15 @@ export function renderLeaderboard(
 
   const setActive = (sel: string, active: HTMLButtonElement): void => {
     wrap.querySelectorAll<HTMLButtonElement>(sel).forEach((b) => {
-      b.classList.toggle("bg-paper", b === active);
-      b.classList.toggle("text-ink", b === active);
-      b.classList.toggle("opacity-60", b !== active);
+      const on = b === active;
+      // Active: cream pill + dark text. Inactive: faint pill + light text.
+      // (Previously inactive buttons lost text-ink but kept dark text on the
+      // dark backdrop → unreadable.)
+      b.classList.toggle("bg-paper", on);
+      b.classList.toggle("text-ink", on);
+      b.classList.toggle("bg-white/5", !on);
+      b.classList.toggle("text-paper", !on);
+      b.classList.toggle("opacity-60", !on);
     });
   };
 
@@ -164,7 +170,7 @@ function rankBadge(rank: number): string {
 
 function seg(attr: "scope" | "period" | "mode", id: string, label: string, active: boolean): string {
   return `<button data-${attr}="${id}" class="rounded-full px-3 py-1 whitespace-nowrap ${
-    active ? "bg-paper text-ink" : "bg-white/5 opacity-60"
+    active ? "bg-paper text-ink" : "bg-white/5 text-paper opacity-60"
   }">${label}</button>`;
 }
 

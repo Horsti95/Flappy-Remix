@@ -807,6 +807,7 @@ function startRun(runMode: RunMode = "casual"): void {
       },
     },
     ghost,
+    runMode === "training",
   );
   loop.start();
 }

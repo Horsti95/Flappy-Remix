@@ -37,13 +37,17 @@ export class Sim {
   score = 0;
   alive = true;
   dieTick = -1;
+  /** Practice/training: never die. Bird clamps inside the world and passes
+   *  through pipes. Off for all scored modes, so determinism is untouched. */
+  noFail = false;
   startGrace = true;
   prevBirdY: number;
   prevPipeXs = new Map<number, number>();
 
-  constructor(seed: number, cfg: SimConfig) {
+  constructor(seed: number, cfg: SimConfig, noFail = false) {
     this.seed = seed >>> 0;
     this.cfg = cfg;
+    this.noFail = noFail;
     this.rng = new Rng(this.seed);
     this.birdY = cfg.birdStartY;
     this.prevBirdY = cfg.birdStartY;
@@ -141,6 +145,17 @@ export class Sim {
 
   private checkCollisions(): void {
     const r = this.cfg.birdRadius;
+    // No-fail (practice): clamp inside the world, ignore pipes, never die.
+    if (this.noFail) {
+      if (this.birdY - r < 0) {
+        this.birdY = r;
+        if (this.birdVY < 0) this.birdVY = 0;
+      } else if (this.birdY + r > this.cfg.worldHeight) {
+        this.birdY = this.cfg.worldHeight - r;
+        if (this.birdVY > 0) this.birdVY = 0;
+      }
+      return;
+    }
     if (this.birdY - r < 0 || this.birdY + r > this.cfg.worldHeight) {
       this.kill();
       return;

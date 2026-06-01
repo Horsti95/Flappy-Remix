@@ -309,13 +309,20 @@ export class Renderer {
       }
     }
 
-    if (!this.options.highContrast && theme.colors.fogIntensity) {
+    // Fog: a radial reveal around the bird. Driven by the fog THEME
+    // (fogIntensity) or the fog daily VISUAL modifier (thicker).
+    const fogAmount = this.options.highContrast
+      ? 0
+      : fx === "fog"
+        ? 0.92
+        : (theme.colors.fogIntensity ?? 0);
+    if (fogAmount > 0) {
       const cx = cfg.birdX;
       const cy = by;
       const radius = cfg.worldWidth * 0.45;
       const grad = ctx.createRadialGradient(cx, cy, radius * 0.45, cx, cy, radius);
       grad.addColorStop(0, `rgba(205, 214, 221, 0)`);
-      grad.addColorStop(1, `rgba(205, 214, 221, ${theme.colors.fogIntensity})`);
+      grad.addColorStop(1, `rgba(205, 214, 221, ${fogAmount})`);
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, cfg.worldWidth, cfg.worldHeight);
     }

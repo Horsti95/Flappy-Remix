@@ -28,7 +28,8 @@ export type ShapeId =
   | "leaf"
   | "lightning"
   | "ghost"
-  | "toucan";
+  | "toucan"
+  | "crane";
 
 export interface ShapeUnlock {
   // Computed unlock state for the current player.
@@ -696,6 +697,16 @@ export const SHAPES: ShapeMeta[] = [
     // Sprite-backed shape: the renderer draws the tinted PNG when loaded and
     // only falls back to this polygon (a simple beaked silhouette) offline /
     // before load, so it always renders something.
+    draw: drawToucanFallback,
+  },
+  {
+    id: "crane",
+    name: "origami crane",
+    blurb: "folded-paper crane — a real sprite, tinted to your color.",
+    unlock: ({ streakDays }) => ({
+      unlocked: streakDays >= 5,
+      hint: "5-day streak",
+    }),
     draw: drawToucanFallback,
   },
 ];

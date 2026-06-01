@@ -84,9 +84,16 @@ export function shapeSvgInner(
               <ellipse cx="-4" cy="-2" rx="1.8" ry="2.4" fill="${a}"/>
               <ellipse cx="4" cy="-2" rx="1.8" ry="2.4" fill="${a}"/>`;
     case "toucan":
-      // Sprite-backed: preview shows the PNG, tinted to the body color via an
-      // SVG color-matrix so the gallery swatch matches the in-game tint.
-      return `<defs><filter id="toucan-tint"><feColorMatrix type="matrix" values="0 0 0 0 ${(body[0] / 255).toFixed(3)}  0 0 0 0 ${(body[1] / 255).toFixed(3)}  0 0 0 0 ${(body[2] / 255).toFixed(3)}  0 0 0 1 0"/></filter></defs>
-              <image href="/sprites/toucan.png" x="-19" y="-19" width="38" height="38" filter="url(#toucan-tint)"/>`;
+      return spritePreview("toucan", body);
+    case "crane":
+      return spritePreview("crane", body);
   }
+}
+
+// Sprite-backed preview: the PNG flat-tinted to the body color via an SVG
+// color-matrix (unique filter id per sprite so multiple can coexist).
+function spritePreview(id: string, body: [number, number, number]): string {
+  const fid = `tint-${id}`;
+  return `<defs><filter id="${fid}"><feColorMatrix type="matrix" values="0 0 0 0 ${(body[0] / 255).toFixed(3)}  0 0 0 0 ${(body[1] / 255).toFixed(3)}  0 0 0 0 ${(body[2] / 255).toFixed(3)}  0 0 0 1 0"/></filter></defs>
+          <image href="/sprites/${id}.png" x="-19" y="-19" width="38" height="38" filter="url(#${fid})"/>`;
 }

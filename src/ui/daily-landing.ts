@@ -2,6 +2,7 @@ import {
   TIER_COLOR,
   TIER_LABEL,
   computeIntensity,
+  visualEffectIntensity,
   intensityBand,
   intensityPercentLabel,
   INTENSITY_BAND_COLOR,
@@ -47,7 +48,10 @@ export function renderDailyLanding(
 
   // Overall intensity: modifiers compound, plus the glass-pillar handicap if
   // the player equipped it. Shown as a named band + percent.
-  const intensity = computeIntensity(meta.pick.modifiers, meta.glassHandicap ? 1.15 : 1);
+  const intensity = computeIntensity(
+    meta.pick.modifiers,
+    (meta.glassHandicap ? 1.15 : 1) * visualEffectIntensity(meta.pick.visualEffect),
+  );
   const band = intensityBand(intensity);
   const bandColor = INTENSITY_BAND_COLOR[band];
   const intensityRow = `
@@ -158,6 +162,7 @@ function visualChip(fx: NonNullable<DailyLandingMeta["pick"]["visualEffect"]>): 
     sunset: "🌅 sunset glow",
     blinding_sun: "🔆 blinding sun — glare on the right",
     rain: "🌧️ light rain",
+    fog: "🌫️ thick fog — limited visibility",
   };
   return labels[fx] ?? "";
 }

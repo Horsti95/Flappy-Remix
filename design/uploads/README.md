@@ -1,39 +1,39 @@
 # Uploaded design references
 
-Concept art dropped in for the look-and-feel exploration. **None of these
-are wired into the running game yet** — see the reasoning below.
+Drop concept art here (sprites, backgrounds, pillars). We review each and,
+if usable, process + wire it into the game. **Nothing here is automatically
+in the game** — see the pipeline notes below.
 
-| File | Type | Notes |
-|------|------|-------|
-| `sprite-toucan-paper.jpg` | sprite | Yellow/green origami toucan, paper-fold style. Gemini-generated (watermark bottom-right). |
-| `bg-cyberpunk-comic.jpg` | background | Neon ramen-alley, comic/pixel. Left/right buildings, clear center lane. |
-| `bg-cyberpunk-pixel.png` | background | Pixel-art neon city, V-shaped lane, sky center. |
-| `bg-pink-fairy.png` | background | Pink fairy-tale spires, V-shaped lane, sky center. |
+## How to contribute (for friends / collaborators)
 
-## Why they're not in the game yet (the blocker)
+1. AI-generate or draw your asset (Gemini, Midjourney, etc.).
+2. Drop the file in this folder (`design/uploads/`) via a PR or share link.
+3. Use these specs so it can actually drop in:
+   - **Sprites (plane/bird/character):** grayscale, **transparent background**,
+     square (≥512², ideally 1024²). Grayscale because the game **tints** it to
+     the player's color — a pre-colored sprite can't recolor. PNG with real
+     alpha. (A JPG with a baked checkerboard works too — we knock the
+     background out with `scripts/knockout-bg.mjs`, but PNG+alpha is cleaner.)
+   - **Backgrounds:** 9:16 portrait (e.g. 1080×1920 or ~941×1672). Keep the
+     **center vertical lane clear** (designs in the left/right thirds) — the
+     background is static and pillars scroll through the middle.
+   - **Pillars:** describe the style; pillar art isn't image-driven yet.
+   - **No baked watermark** in the final (crop the Gemini ✦ etc.).
 
-The renderer draws **everything** with canvas primitives (`fillRect`,
-gradients, polygons). There is **no image/sprite loader** — `grep` for
-`drawImage`/`new Image` in `src/` returns nothing. So a PNG/JPG cannot be
-shown in-game until we build a small **sprite/background image pipeline**:
+## Pipeline status
 
-1. An async image loader (preload + cache `HTMLImageElement` / `ImageBitmap`).
-2. A `RenderOptions.backgroundImage` path: draw the image stretched/letterboxed
-   behind the world, *under* the pillars, with the center lane kept readable.
-3. (For the sprite) a `RenderOptions.spriteImage` path that draws a bitmap at
-   the bird position + rotation instead of the polygon `drawShape`, sized to
-   the collision radius so fairness is unchanged.
-4. Watermark: the Gemini logo (bottom-right ✦) must be cropped/removed before
-   any asset ships.
+- **Sprites:** ✅ live. `src/game/sprites.ts` loads + tints grayscale PNGs.
+  Add a source there + a shape in `shapes.ts`. (toucan #63, crane this PR.)
+- **Backgrounds:** ✅ live. `src/game/backgrounds.ts` + `Theme.backgroundImage`
+  (#73). neo_city + fairy_spires themes use the uploaded art.
+- **Pillars:** styles are code-drawn (`src/game/pillars.ts`), not image-driven.
 
-These backgrounds are **static** (designs in the left/right margins, empty
-center) — which fits our existing "background doesn't scroll, pillars do"
-model. Good. The pink-fairy and pixel-city both keep a clear vertical lane.
+## Inventory
 
-## Recolor-by-country idea
-
-The toucan sprite could be re-tinted to a player's country colors (the
-"Germany package" idea). That needs the sprite as **separable layers** (body
-vs accent) or a tintable silhouette — a flat JPG can't be recolored cleanly.
-Plan: trace it to a 2-color vector/sprite-sheet, then the existing skin
-{body, accent} system can recolor it for free.
+| File | Type | Status |
+|------|------|--------|
+| `sprite-toucan-paper.jpg` | sprite ref | shipped → `public/sprites/toucan.png` (#63) |
+| `982993c6-…crane.jpg` | sprite ref | shipped → `public/sprites/crane.png` (bg knocked out via sharp) |
+| `bg-cyberpunk-pixel.png` | background | shipped → `public/backgrounds/neo-city.png` (#73) |
+| `bg-pink-fairy.png` | background | shipped → `public/backgrounds/fairy-spires.png` (#73) |
+| `bg-cyberpunk-comic.jpg` | background | pending — busier center lane, lower priority |

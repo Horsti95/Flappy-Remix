@@ -8,7 +8,7 @@
  * Bump APP_VERSION + prepend an entry when shipping notable changes.
  */
 
-export const APP_VERSION = "0.2.0";
+export const APP_VERSION = "0.3.0";
 
 export interface ChangeEntry {
   version: string;
@@ -19,6 +19,17 @@ export interface ChangeEntry {
 
 // Newest first.
 export const CHANGELOG: ChangeEntry[] = [
+  {
+    version: "0.3.0",
+    date: "2026-06-01",
+    title: "Style update",
+    notes: [
+      "Pick your pillar style — solid, stone, neon, or glass. Glass is see-through (and a harder daily!).",
+      "Legendary skins now glow.",
+      "Friend requests: add someone and they accept — no more instant friends.",
+      "Patch notes (you're reading them) so you never miss what's new.",
+    ],
+  },
   {
     version: "0.2.0",
     date: "2026-06-01",

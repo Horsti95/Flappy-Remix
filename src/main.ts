@@ -453,9 +453,12 @@ function openDailyLanding(): void {
       playsCount: dailyInfo.plays_count,
       bestScore,
       streakDays: authState().profile?.streak_days ?? 0,
+      attemptsUsed: dailyAttemptsUsed(dailyInfo.date),
+      maxAttempts: DAILY_MAX_ATTEMPTS,
     },
     {
       onPlay: () => startRun("daily"),
+      onPlayCasual: () => startRun("casual"),
       onClose: () => showMenu(),
     },
   );
@@ -468,6 +471,28 @@ function recordDailyBest(date: string, score: number): void {
     if (score > prev) localStorage.setItem(key, String(score));
   } catch {
     /* localStorage blocked — silent fall back */
+  }
+}
+
+// Daily best-of-3: 3 attempts per UTC day, best counts. The cap is enforced
+// here for UX and re-checked server-side (extra daily runs are downgraded to
+// casual so they get no daily-leaderboard credit).
+const DAILY_MAX_ATTEMPTS = 3;
+
+function dailyAttemptsUsed(date: string): number {
+  try {
+    return Number(localStorage.getItem(`pflug.dailyAttempts.${date}`) ?? "0") || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function bumpDailyAttempt(date: string): void {
+  try {
+    const key = `pflug.dailyAttempts.${date}`;
+    localStorage.setItem(key, String(dailyAttemptsUsed(date) + 1));
+  } catch {
+    /* localStorage blocked — server still backstops the cap */
   }
 }
 

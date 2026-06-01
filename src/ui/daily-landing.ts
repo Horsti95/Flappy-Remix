@@ -6,10 +6,16 @@ export interface DailyLandingMeta {
   playsCount: number;
   bestScore: number | null;
   streakDays: number;
+  /** Attempts already used today (best-of-3). */
+  attemptsUsed: number;
+  /** Max attempts per UTC day. */
+  maxAttempts: number;
 }
 
 export interface DailyLandingCallbacks {
   onPlay(): void;
+  /** Play a casual (non-daily) run instead — offered once attempts run out. */
+  onPlayCasual?(): void;
   onClose(): void;
 }
 
@@ -36,6 +42,10 @@ export function renderDailyLanding(
       : meta.pick.tier === "medium"
         ? "feels different today."
         : "go gentle today.";
+
+  const remaining = Math.max(0, meta.maxAttempts - meta.attemptsUsed);
+  const exhausted = remaining <= 0;
+  const attemptRow = `<div class="text-[11px] opacity-70">attempt <span class="font-bold">${Math.min(meta.attemptsUsed + 1, meta.maxAttempts)}</span> of ${meta.maxAttempts} · best counts</div>`;
 
   const bestRow =
     meta.bestScore != null
@@ -71,14 +81,20 @@ export function renderDailyLanding(
           <div class="text-base font-bold">${meta.streakDays}</div>
         </div>
       </div>
+      ${attemptRow}
       ${bestRow}
       ${streakRow}
     </div>
     <div class="px-5 pb-6">
-      <button data-play class="w-full rounded-2xl bg-paper text-ink font-bold py-4 text-lg active:scale-95 transition"
-              style="${isSuperHard ? `box-shadow: inset 0 0 0 2px ${tierColor}` : ""}">
-        ${isSuperHard ? "play anyway" : "play"}
-      </button>
+      ${
+        exhausted
+          ? `<div class="w-full rounded-2xl bg-white/10 py-4 text-center text-sm opacity-80">${meta.maxAttempts} attempts used — come back tomorrow</div>
+             <button data-casual class="mt-2 w-full text-[12px] underline opacity-60">play a casual run instead</button>`
+          : `<button data-play class="w-full rounded-2xl bg-paper text-ink font-bold py-4 text-lg active:scale-95 transition"
+                  style="${isSuperHard ? `box-shadow: inset 0 0 0 2px ${tierColor}` : ""}">
+            ${isSuperHard ? "play anyway" : "play"} <span class="opacity-60 text-sm">(${remaining} left)</span>
+          </button>`
+      }
       <div class="mt-2 text-[10px] opacity-50 text-center">same seed for the world today</div>
     </div>
   `;
@@ -96,6 +112,11 @@ export function renderDailyLanding(
     e.stopPropagation();
     wrap.remove();
     cbs.onPlay();
+  });
+  wrap.querySelector("[data-casual]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    wrap.remove();
+    cbs.onPlayCasual?.();
   });
 
   return () => wrap.remove();

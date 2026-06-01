@@ -70,6 +70,9 @@ export default async function handler(req: Request): Promise<Response> {
   // For daily mode: the seed must match the server's notion of today's
   // daily seed. Reject mismatches so players can't farm yesterday's
   // easier seed under the daily badge.
+  let effectiveMode = body.mode;
+  let effectiveDailyDate: string | null = body.mode === "daily" ? body.daily_date ?? null : null;
+  let dailyOverCap = false;
   if (body.mode === "daily") {
     const expectedDate = body.daily_date ?? dailyDateString();
     if (body.daily_date && body.daily_date !== dailyDateString()) {
@@ -77,6 +80,21 @@ export default async function handler(req: Request): Promise<Response> {
     }
     if (body.seed >>> 0 !== dailySeed(expectedDate) >>> 0) {
       return json({ accepted: false, reason: "wrong_daily_seed" }, 200);
+    }
+    // Daily best-of-3: only the first 3 daily runs per UTC day get daily
+    // credit. Extra runs are accepted but stored as casual so they don't
+    // appear on the daily board (the client also caps this for UX).
+    const DAILY_MAX_ATTEMPTS = 3;
+    const prior = await admin
+      .from("runs")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("mode", "daily")
+      .eq("daily_date", expectedDate);
+    if ((prior.count ?? 0) >= DAILY_MAX_ATTEMPTS) {
+      dailyOverCap = true;
+      effectiveMode = "casual";
+      effectiveDailyDate = null;
     }
   }
 
@@ -90,8 +108,8 @@ export default async function handler(req: Request): Promise<Response> {
       inputs: body.inputs,
       inputs_count: body.inputs.length,
       equipped_skin_id: body.equipped_skin_id ?? null,
-      mode: body.mode,
-      daily_date: body.mode === "daily" ? body.daily_date ?? null : null,
+      mode: effectiveMode,
+      daily_date: effectiveDailyDate,
     })
     .select("id")
     .single();
@@ -255,7 +273,9 @@ export default async function handler(req: Request): Promise<Response> {
     prevStreak: (profile.data?.streak_days as number | undefined) ?? 0,
     lastPlayAt: (profile.data?.last_play_at as string | null | undefined) ?? null,
     lastDailyPlayAt: (profile.data?.last_daily_play_at as string | null | undefined) ?? null,
-    mode: body.mode,
+    // Over-cap daily runs count as casual for streak — daily credit was
+    // already granted on the first attempt of the day.
+    mode: effectiveMode,
   });
 
   await admin.from("profiles").update({
@@ -265,9 +285,9 @@ export default async function handler(req: Request): Promise<Response> {
     last_daily_play_at: streak.lastDailyPlayAt,
   }).eq("user_id", userId);
 
-  if (body.mode === "daily") {
+  if (effectiveMode === "daily") {
     await admin.rpc("upsert_daily_seed", {
-      d: body.daily_date ?? dailyDateString(),
+      d: effectiveDailyDate ?? dailyDateString(),
       s: body.seed,
     });
   }
@@ -300,6 +320,7 @@ export default async function handler(req: Request): Promise<Response> {
     run_id: run.data.id,
     total_games: next,
     streak_days: streak.streakDays,
+    daily_over_cap: dailyOverCap,
     unlocked: granted.map((g) => ({
       threshold: g.threshold,
       rarity: g.rarity,

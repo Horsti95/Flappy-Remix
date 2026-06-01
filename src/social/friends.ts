@@ -10,7 +10,7 @@ export interface Friend {
 }
 
 export async function addFriendByUsername(rawUsername: string): Promise<
-  { ok: true; friendId: string } | { ok: false; reason: string }
+  { ok: true; friendId: string; state: "accepted" | "requested" } | { ok: false; reason: string }
 > {
   const sb = getSupabase();
   const s = authState();
@@ -22,13 +22,52 @@ export async function addFriendByUsername(rawUsername: string): Promise<
     console.error("[friends] rpc", error);
     return { ok: false, reason: "server error" };
   }
-  const payload = data as { ok?: true; friend_id?: string; error?: string } | null;
+  const payload = data as { ok?: true; friend_id?: string; state?: "accepted" | "requested"; error?: string } | null;
   if (!payload) return { ok: false, reason: "unknown" };
   if (payload.error === "not_found") return { ok: false, reason: "no user with that handle" };
   if (payload.error === "self") return { ok: false, reason: "that's you" };
   if (payload.error) return { ok: false, reason: payload.error };
-  if (payload.friend_id) return { ok: true, friendId: payload.friend_id };
+  if (payload.friend_id) return { ok: true, friendId: payload.friend_id, state: payload.state ?? "requested" };
   return { ok: false, reason: "unknown" };
+}
+
+export interface FriendRequest {
+  user_id: string;
+  username: string | null;
+  created_at: string;
+}
+
+export async function listIncomingRequests(): Promise<FriendRequest[]> {
+  const sb = getSupabase();
+  const s = authState();
+  if (!sb || !s.user) return [];
+  const { data, error } = await sb.rpc("incoming_friend_requests");
+  if (error) {
+    console.error("[friends] incoming", error);
+    return [];
+  }
+  return (data ?? []).map((r: { user_id: string; username: string | null; created_at: string }) => ({
+    user_id: r.user_id,
+    username: r.username ?? null,
+    created_at: r.created_at,
+  }));
+}
+
+export async function acceptFriendRequest(requesterId: string): Promise<boolean> {
+  const sb = getSupabase();
+  if (!sb || !authState().user) return false;
+  const { data, error } = await sb.rpc("accept_friend_request", { requester_id: requesterId });
+  if (error) {
+    console.error("[friends] accept", error);
+    return false;
+  }
+  return (data as { ok?: boolean } | null)?.ok === true;
+}
+
+export async function declineFriendRequest(requesterId: string): Promise<void> {
+  const sb = getSupabase();
+  if (!sb || !authState().user) return;
+  await sb.rpc("decline_friend_request", { requester_id: requesterId });
 }
 
 export interface VsRecord {
@@ -94,7 +133,8 @@ export async function getFriendCount(): Promise<number> {
   const { count, error } = await sb
     .from("friendships")
     .select("friend_id", { count: "exact", head: true })
-    .eq("user_id", s.user.id);
+    .eq("user_id", s.user.id)
+    .eq("status", "accepted");
   if (error) {
     console.error("[friends] count", error);
     return 0;
@@ -161,7 +201,8 @@ export async function listFriends(): Promise<Friend[]> {
   const { data, error } = await sb
     .from("friendships")
     .select("friend_id, profiles:friend_id(username)")
-    .eq("user_id", s.user.id);
+    .eq("user_id", s.user.id)
+    .eq("status", "accepted");
   if (error) {
     console.error("[friends] list", error);
     return [];

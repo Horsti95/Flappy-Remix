@@ -59,6 +59,7 @@ export function renderDailyLanding(
            style="background:${tierColor}22; color:${tierColor}">${tierLabel}</div>
       <div class="text-2xl font-bold leading-tight">${escapeHtml(modifierList)}</div>
       <div class="text-[12px] opacity-70 leading-tight">${escapeHtml(modifierBlurbs)}</div>
+      ${meta.pick.visualEffect ? `<div class="text-[12px] opacity-80">${visualChip(meta.pick.visualEffect)}</div>` : ""}
       <div class="text-[12px] opacity-60 mt-2">${escapeHtml(warningCopy)}</div>
       <div class="mt-4 grid grid-cols-2 gap-3 text-center min-w-[200px]">
         <div class="rounded-xl bg-white/5 px-3 py-2">
@@ -103,6 +104,16 @@ export function renderDailyLanding(
 function formatPlays(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
   return String(n);
+}
+
+function visualChip(fx: NonNullable<DailyLandingMeta["pick"]["visualEffect"]>): string {
+  const labels: Record<string, string> = {
+    night: "🌙 night sky",
+    sunset: "🌅 sunset glow",
+    blinding_sun: "🔆 blinding sun — glare on the right",
+    rain: "🌧️ light rain",
+  };
+  return labels[fx] ?? "";
 }
 
 function escapeHtml(s: string): string {

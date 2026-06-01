@@ -5,6 +5,7 @@ import { type GhostSim } from "./ghost";
 import { DEFAULT_THEME_ID, getTheme, type ThemeId } from "./themes";
 import { DEFAULT_SHAPE_ID, getShape, type ShapeId } from "./shapes";
 import { getParticles, tickParticles } from "./flap-fx";
+import { type VisualEffect } from "./daily-twist";
 
 export interface RenderOptions {
   highContrast: boolean;
@@ -15,6 +16,8 @@ export interface RenderOptions {
   ghostShape?: ShapeId;
   reducedMotion: boolean;
   mirror?: boolean;
+  /** Cosmetic daily overlay (night / sunset / blinding sun / rain). */
+  visualEffect?: VisualEffect | null;
 }
 
 export class Renderer {
@@ -83,6 +86,37 @@ export class Renderer {
       ctx.globalAlpha = s.opacity;
       ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
       ctx.globalAlpha = 1;
+    }
+
+    // Daily visual overlays — sky-tint pass, in screen space so it covers
+    // the whole canvas (incl. letterbox bands). Cosmetic only.
+    const fx = this.options.highContrast ? null : this.options.visualEffect;
+    if (fx === "night" || fx === "sunset") {
+      const tint = ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+      if (fx === "night") {
+        tint.addColorStop(0, "rgba(8,12,40,0.62)");
+        tint.addColorStop(1, "rgba(2,4,18,0.72)");
+      } else {
+        tint.addColorStop(0, "rgba(120,40,110,0.42)");
+        tint.addColorStop(0.55, "rgba(240,120,50,0.30)");
+        tint.addColorStop(1, "rgba(255,190,90,0.30)");
+      }
+      ctx.fillStyle = tint;
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    } else if (fx === "blinding_sun") {
+      // Bright bloom on the right where new pipes enter, making them hard
+      // to read until close. A warm wash first so the glare reads as sun.
+      ctx.fillStyle = "rgba(255,238,180,0.18)";
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      const gx = this.offsetX + this.cfg.worldWidth * 0.92 * this.scale;
+      const gy = this.offsetY + this.cfg.worldHeight * 0.3 * this.scale;
+      const gr = this.cfg.worldWidth * 0.7 * this.scale;
+      const glare = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
+      glare.addColorStop(0, "rgba(255,250,225,0.92)");
+      glare.addColorStop(0.4, "rgba(255,245,205,0.45)");
+      glare.addColorStop(1, "rgba(255,245,205,0)");
+      ctx.fillStyle = glare;
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
     ctx.translate(this.offsetX, this.offsetY);
@@ -238,6 +272,35 @@ export class Renderer {
       grad.addColorStop(1, `rgba(205, 214, 221, ${theme.colors.fogIntensity})`);
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, cfg.worldWidth, cfg.worldHeight);
+    }
+
+    // Rain overlay — animated streaks in world space. Purely visual; a
+    // fixed lattice scrolled by wall-clock time so it never feeds the sim.
+    // Skipped under reduced motion (static dampening tint instead).
+    if (fx === "rain") {
+      if (this.options.reducedMotion) {
+        ctx.fillStyle = "rgba(140,160,190,0.10)";
+        ctx.fillRect(0, 0, cfg.worldWidth, cfg.worldHeight);
+      } else {
+        const W = cfg.worldWidth;
+        const H = cfg.worldHeight;
+        const t = (performance.now() % 1000) / 1000;
+        ctx.save();
+        ctx.strokeStyle = "rgba(190,205,225,0.35)";
+        ctx.lineWidth = 1.2;
+        const cols = 26;
+        for (let i = 0; i < cols; i++) {
+          // Deterministic-ish per-column offset so streaks don't align.
+          const phase = (i * 0.61803) % 1;
+          const x = ((i / cols) * W + phase * 14) % W;
+          const yBase = ((t + phase) % 1) * (H + 40) - 40;
+          ctx.beginPath();
+          ctx.moveTo(x, yBase);
+          ctx.lineTo(x - 3, yBase + 14);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
     }
 
     ctx.fillStyle = this.options.highContrast ? "#fff" : "#1a1a1a";

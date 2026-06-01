@@ -8,6 +8,7 @@ interface ImportMetaEnv {
   readonly VITE_BANNER_ENABLED?: string;
   readonly VITE_BANNER_LABEL?: string;
   readonly VITE_BANNER_HREF?: string;
+  readonly VITE_FEEDBACK_EMAIL?: string;
 }
 
 interface ImportMeta {

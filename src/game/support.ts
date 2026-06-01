@@ -41,3 +41,11 @@ export const BANNER: BannerConfig = {
   label: env.VITE_BANNER_LABEL ?? "✦ your message here — one non-tracking slot ✦",
   href: env.VITE_BANNER_HREF,
 };
+
+/**
+ * Feedback destination email. Empty by default so no personal address is
+ * committed — the feedback button only shows when VITE_FEEDBACK_EMAIL is set
+ * at build time. Uses a plain `mailto:` (zero backend, no tracking); we can
+ * swap to a private serverless endpoint later without changing the button.
+ */
+export const FEEDBACK_EMAIL: string = env.VITE_FEEDBACK_EMAIL ?? "";

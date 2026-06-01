@@ -30,6 +30,15 @@ export function setEquippedShapeLocal(shapeId: string | null): void {
   }
 }
 
+/** Persist the equipped shape on the profile so other players (leaderboard,
+ *  profile card) can render it. Best-effort; local equip still works offline. */
+export async function syncEquippedShape(shapeId: string): Promise<void> {
+  const sb = getSupabase();
+  const s = authState();
+  if (!sb || !s.user) return;
+  await sb.from("profiles").update({ equipped_shape: shapeId }).eq("user_id", s.user.id);
+}
+
 export async function listOwnedSkins(): Promise<SkinRow[]> {
   const sb = getSupabase();
   const s = authState();

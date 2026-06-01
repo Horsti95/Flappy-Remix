@@ -1,4 +1,12 @@
-import { TIER_COLOR, TIER_LABEL, type DailyPick } from "../game/daily-twist";
+import {
+  TIER_COLOR,
+  TIER_LABEL,
+  computeIntensity,
+  intensityBand,
+  intensityPercentLabel,
+  INTENSITY_BAND_COLOR,
+  type DailyPick,
+} from "../game/daily-twist";
 
 export interface DailyLandingMeta {
   date: string;
@@ -36,6 +44,18 @@ export function renderDailyLanding(
   const tierLabel = TIER_LABEL[meta.pick.tier];
   const isSuperHard = meta.pick.tier === "super_hard";
   const modifierList = meta.pick.modifiers.map((m) => m.name).join(" + ");
+
+  // Overall intensity: modifiers compound, plus the glass-pillar handicap if
+  // the player equipped it. Shown as a named band + percent.
+  const intensity = computeIntensity(meta.pick.modifiers, meta.glassHandicap ? 1.15 : 1);
+  const band = intensityBand(intensity);
+  const bandColor = INTENSITY_BAND_COLOR[band];
+  const intensityRow = `
+    <div class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-bold"
+         style="background:${bandColor}22; color:${bandColor}">
+      <span class="uppercase tracking-wider">${band}</span>
+      <span class="opacity-70">${intensityPercentLabel(intensity)} intensity</span>
+    </div>`;
   const modifierBlurbs = meta.pick.modifiers.map((m) => m.blurb).join(" + ");
 
   const warningCopy = isSuperHard
@@ -70,6 +90,7 @@ export function renderDailyLanding(
       <div class="text-[10px] uppercase tracking-wider opacity-60">${escapeHtml(meta.date)}</div>
       <div class="inline-block rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider"
            style="background:${tierColor}22; color:${tierColor}">${tierLabel}</div>
+      <div>${intensityRow}</div>
       <div class="text-2xl font-bold leading-tight">${escapeHtml(modifierList)}</div>
       <div class="text-[12px] opacity-70 leading-tight">${escapeHtml(modifierBlurbs)}</div>
       ${meta.pick.visualEffect ? `<div class="text-[12px] opacity-80">${visualChip(meta.pick.visualEffect)}</div>` : ""}

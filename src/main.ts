@@ -24,6 +24,7 @@ import {
   getEquippedSkinIdLocal,
   getEquippedShapeLocal,
   setEquippedShapeLocal,
+  syncEquippedShape,
   type SkinRow,
   rowToColors,
 } from "./social/skins";
@@ -186,6 +187,9 @@ subscribeAuth(async () => {
   void refreshChallengeWins();
   void refreshGrantedShapes();
   void refreshInboxBadge();
+  // Backfill the equipped shape to the profile so existing players (who set
+  // it before it was server-synced) show their real shape on boards/profiles.
+  void syncEquippedShape(equippedShapeId);
   // Don't tear down an open panel (account, gallery, leaderboard, …)
   // when supabase fires an auth refresh — that was wiping the gallery
   // mid-browse.
@@ -349,6 +353,7 @@ function showMenu(): void {
             onEquipShape: (id) => {
               equippedShapeId = id;
               setEquippedShapeLocal(id);
+              void syncEquippedShape(id);
               renderer.options.shape = id;
             },
             onEquipTheme: (id) => {

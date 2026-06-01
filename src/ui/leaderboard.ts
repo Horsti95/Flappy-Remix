@@ -1,6 +1,8 @@
 import { fetchLeaderboard, type LeaderboardScope, type LeaderboardPeriod } from "../social/leaderboard";
 import { authState } from "../social/auth";
 import { RARITY_COLOR, type Rarity } from "../game/rarity";
+import { shapeSvgInner } from "./shape-svg";
+import { DEFAULT_SHAPE_ID, type ShapeId } from "../game/shapes";
 
 export function renderLeaderboard(
   host: HTMLElement,
@@ -99,7 +101,7 @@ export function renderLeaderboard(
       ].join(" ");
       const rarityColor = row.skin_rarity ? RARITY_COLOR[row.skin_rarity as Rarity] : "#9ca3af";
       const plane = row.body && row.accent
-        ? `<svg viewBox="-20 -20 40 40" class="w-7 h-7 shrink-0"><polygon points="-14,6 14,-6 1,0 14,-6 -1,11" fill="rgb(${row.body.join(",")})" stroke="#1a1a1a" stroke-width="0.8"/><polygon points="1,0 -14,6 -1,11" fill="rgb(${row.accent.join(",")})" stroke="#1a1a1a" stroke-width="0.8"/></svg>`
+        ? `<svg viewBox="-20 -20 40 40" class="w-7 h-7 shrink-0">${shapeSvgInner((row.shape ?? DEFAULT_SHAPE_ID) as ShapeId, row.body, row.accent)}</svg>`
         : `<div class="w-7 h-7 rounded-full bg-white/10 shrink-0"></div>`;
       const meChip = isMe
         ? `<span class="text-[9px] uppercase tracking-wider bg-paper text-ink rounded px-1 py-0.5 font-bold">you</span>`

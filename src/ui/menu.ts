@@ -6,7 +6,7 @@ import { DEFAULT_SHAPE_ID, type ShapeId } from "../game/shapes";
 import { DEFAULT_SKIN, type SkinColors } from "../game/skin";
 import { getTheme, DEFAULT_THEME_ID, type ThemeId } from "../game/themes";
 import { shapeSvgInner } from "./shape-svg";
-import { BANNER, SUPPORT_ENABLED, SUPPORT_URL } from "../game/support";
+import { SUPPORT_ENABLED, SUPPORT_URL } from "../game/support";
 
 export interface MenuCallbacks {
   onPlay(): void;
@@ -77,24 +77,10 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
       ? `<div class="absolute top-3 left-1/2 -translate-x-1/2 text-[10px] rounded-full px-2 py-0.5 bg-paper/15">${meta.pendingSubmissions} queued</div>`
       : "";
 
-  // Non-tracking banner slot (a single static message you control — no ad
-  // network, no SDK). When shown, the gear/account chips shift down to clear it.
-  const banner = BANNER.enabled
-    ? `<div data-banner class="absolute top-0 inset-x-0 z-10 h-9 flex items-center justify-center bg-black/45 backdrop-blur-sm border-b border-white/10 text-[11px] text-paper/80 px-8">
-         ${
-           BANNER.href
-             ? `<a href="${escapeHtml(BANNER.href)}" target="_blank" rel="noopener noreferrer" class="truncate hover:underline">${escapeHtml(BANNER.label)}</a>`
-             : `<span class="truncate">${escapeHtml(BANNER.label)}</span>`
-         }
-         <button data-banner-dismiss class="absolute right-2 opacity-50 hover:opacity-100 px-1" aria-label="Dismiss banner">✕</button>
-       </div>`
-    : "";
-  const chipTop = BANNER.enabled ? "top-12" : "top-3";
   wrap.innerHTML = `
     ${offlineBadge}
-    ${banner}
-    <button data-settings class="absolute ${chipTop} left-3 text-[18px] opacity-50 hover:opacity-100 transition-opacity" aria-label="Settings">⚙</button>
-    <button data-account class="absolute ${chipTop} right-3 text-[11px] rounded-full px-3 py-1 bg-white/15">${escapeHtml(meta.accountLabel)}${streakBadge}</button>
+    <button data-settings class="absolute top-3 left-3 text-[18px] opacity-50 hover:opacity-100 transition-opacity" aria-label="Settings">⚙</button>
+    <button data-account class="absolute top-3 right-3 text-[11px] rounded-full px-3 py-1 bg-white/15">${escapeHtml(meta.accountLabel)}${streakBadge}</button>
     <div data-menu-content class="px-6 max-w-sm w-full">
       <div class="relative h-16 mb-2">
         <svg viewBox="-20 -20 40 40" data-menu-mascot class="menu-mascot absolute left-1/2 -translate-x-1/2 w-16 h-16">
@@ -206,11 +192,6 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   wrap.querySelector("[data-account]")?.addEventListener("click", (e) => {
     e.stopPropagation();
     cbs.onOpenAccount();
-  });
-  wrap.querySelector("[data-banner-dismiss]")?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    e.preventDefault();
-    wrap.querySelector("[data-banner]")?.remove();
   });
   wrap.querySelector("[data-settings]")?.addEventListener("click", (e) => {
     e.stopPropagation();

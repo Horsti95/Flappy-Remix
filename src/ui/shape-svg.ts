@@ -83,5 +83,10 @@ export function shapeSvgInner(
       return `<path d="M -10 12 L -10 -2 A 10 10 0 0 1 10 -2 L 10 12 L 6 8 L 2 12 L -2 8 L -6 12 Z" fill="${b}" stroke="#1a1a1a" stroke-width="0.8" stroke-linejoin="round"/>
               <ellipse cx="-4" cy="-2" rx="1.8" ry="2.4" fill="${a}"/>
               <ellipse cx="4" cy="-2" rx="1.8" ry="2.4" fill="${a}"/>`;
+    case "toucan":
+      // Sprite-backed: preview shows the PNG, tinted to the body color via an
+      // SVG color-matrix so the gallery swatch matches the in-game tint.
+      return `<defs><filter id="toucan-tint"><feColorMatrix type="matrix" values="0 0 0 0 ${(body[0] / 255).toFixed(3)}  0 0 0 0 ${(body[1] / 255).toFixed(3)}  0 0 0 0 ${(body[2] / 255).toFixed(3)}  0 0 0 1 0"/></filter></defs>
+              <image href="/sprites/toucan.png" x="-19" y="-19" width="38" height="38" filter="url(#toucan-tint)"/>`;
   }
 }

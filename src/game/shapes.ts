@@ -27,7 +27,8 @@ export type ShapeId =
   | "vector-bird"
   | "leaf"
   | "lightning"
-  | "ghost";
+  | "ghost"
+  | "toucan";
 
 export interface ShapeUnlock {
   // Computed unlock state for the current player.
@@ -403,6 +404,32 @@ function drawLightning(ctx: CanvasRenderingContext2D, r: number, skin: SkinColor
   outline(ctx, highContrast);
 }
 
+// Polygon fallback for the sprite-backed toucan (used before the PNG loads
+// or if image loading is unavailable). A chunky body + forward beak so it
+// still reads as a bird.
+function drawToucanFallback(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
+  outline(ctx, highContrast);
+  ctx.fillStyle = rgbCss(skin.body);
+  ctx.beginPath();
+  ctx.ellipse(-r * 0.2, 0, r * 0.95, r * 0.7, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  // Beak
+  ctx.fillStyle = rgbCss(skin.accent);
+  ctx.beginPath();
+  ctx.moveTo(r * 0.5, -r * 0.25);
+  ctx.lineTo(r * 1.5, -r * 0.05);
+  ctx.lineTo(r * 0.55, r * 0.25);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // Eye
+  ctx.fillStyle = highContrast ? "#fff" : "#1a1a1a";
+  ctx.beginPath();
+  ctx.arc(r * 0.35, -r * 0.2, r * 0.1, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 function drawGhost(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
   outline(ctx, highContrast);
   const top = -r * 1.1;
@@ -657,6 +684,19 @@ export const SHAPES: ShapeMeta[] = [
       hint: "win 5 challenges",
     }),
     draw: drawGhost,
+  },
+  {
+    id: "toucan",
+    name: "origami toucan",
+    blurb: "folded-paper toucan — a real sprite, tinted to your color.",
+    unlock: ({ bestScore }) => ({
+      unlocked: bestScore >= 40,
+      hint: "score 40 in a single run",
+    }),
+    // Sprite-backed shape: the renderer draws the tinted PNG when loaded and
+    // only falls back to this polygon (a simple beaked silhouette) offline /
+    // before load, so it always renders something.
+    draw: drawToucanFallback,
   },
 ];
 

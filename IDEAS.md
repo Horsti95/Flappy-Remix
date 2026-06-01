@@ -1,12 +1,65 @@
 # Ideas
 
-Long-running list. Four buckets: **next**, **later**, **maybe**, plus
-**tech debt** at the bottom. Each entry has a rough size (`xs` < 1h,
-`s` < half day, `m` < day, `l` < week, `xl` more) and a one-line
-shape so future-you remembers what you meant.
+Sizes: `xs` < 1h, `s` < half day, `m` < day, `l` < week, `xl` more.
 
-> When you ship something on this list, move it to the bottom under
-> **Shipped** with the date.
+> **This top section (MASTER BACKLOG) is the authoritative, current list.**
+> Everything below the `--- HISTORY ---` divider is kept for context but is
+> superseded by what's here.
+
+## MASTER BACKLOG (updated 2026-06-01)
+
+### A. Decided — ready to build, ranked easy → hard
+| # | Item | Size | Notes |
+|---|------|------|-------|
+| A1 | Friend requests (accept/decline) | `m` | TODAY send = auto-accept (both friendship rows inserted). Add `status` (pending/accepted) + accept/decline RPCs + incoming-requests UI. Needs migration. |
+| A2 | Surface the 26 placeholder criteria in the gallery | `s` | `unlock-criteria.ts` exists; render as locked `TBA` cards. |
+| A3 | Patch-notes / "what's new" modal | `s` | client `CHANGELOG` array + last-seen version in localStorage; show once per update (version-based, NOT per-login — less spammy); dismissible; no push. |
+| A4 | Feedback button | `s` | decide delivery: `mailto:` (exposes address) vs serverless email API (Resend/SendGrid, private). |
+| A5 | Sprite glow FX | `s` | unlockable FX; auto-apply to legendary skins; respect reduced-motion. |
+| A6 | Ranked-friend run UX (see Q-block #7) | `s`–`m` | server already rejects replayed rounds (`round_already_played`) so NOT exploitable, but the game-over wrongly offers plain "Play again". Change ranked game-over to "Submit round 1/3 → round 2 of 3 …"; confirm Elo wording. |
+| A7 | Player-pickable pillar style | `m` | new equip axis {solid/glass/neon/stone}; glass see-through always; glass on DAILY adds difficulty (readability only, never hitboxes); unlockable. |
+| A8 | Daily hardness-% logic | `m` | OWNER assigns each modifier a % first, then encode; multiplicative; tier DERIVED; display "today: 160%". |
+| A9 | **Sprite/background image pipeline — extend to backgrounds** | `m`–`l` | sprite half SHIPPED (toucan, #63). Add the `backgroundImage` draw path (under pillars, center lane clear) → unlocks the uploaded bg art + packages. |
+| A10 | Vectorize uploaded toucan → recolorable layers | `s` | flat ref → body/accent so skin system tints cleanly. |
+| A11 | Cosmetic packages (mix-and-match, Fortnite-style) | `m` | bundle {sprite+bg+pillar+sound}, independently mixable. |
+| A12 | 3-color premium skins (primary/secondary/tertiary) | `m` | base stays 2-color; premium/packages get optional 3rd slot. Do with A11. |
+| A13 | Country / national-day packages | `m` | unlock on national day ±1 day (NOT GPS); country-color sprite + country-flag PROFILE BADGE. Germany first. |
+| A14 | Event skins + badge-shapes | `m` | placeholders coded (pride/new-year/red-ribbon). Needs A9 for art. |
+| A15 | City + beach background redesign | `l` | after A9; real art. |
+| A16 | Sound redesign / juice pass | `m` | post-dev; characterful synth/samples with final visuals. |
+| A17 | Achievement/unlock DEEPER merge | `l` | make registry the single source presets/quests read (foundation #54). |
+
+### B. Ideas to reason / decide before building
+- **Community skin gifting (#9):** give a skin to another player; it's then
+  permanently locked for the giver. Feasible but needs: a transfer record,
+  anti-abuse (rate limit, no gifting event/limited items?), and a "gifted by
+  @x" provenance tag. Nice social hook; medium. Decide gift economy rules.
+- **Upload-your-own sprite (#10):** users upload a custom sprite, synced to
+  the DB so anyone can use it. BIG risks: (1) **moderation** — hate symbols
+  (Hakenkreuz etc.), NSFW, slurs → MUST have human review/report+takedown
+  before public sharing, or legal/store removal; (2) storage + cost; (3)
+  perf (arbitrary image sizes). RECOMMENDATION: if ever done, gate behind
+  approval queue + report system, start private-only (your own use), public
+  sharing much later. High effort + ongoing moderation burden.
+- **GPS regional unlocks:** REJECTED as a criterion (spoofable, permission
+  friction, port dependency). The country-PACKAGE idea (A13) replaces it via
+  national-day windows instead.
+- **2- vs 3-color skins:** DECIDED — base 2-color, premium optional 3rd (A12).
+
+### Q-block — answers to recent questions
+- **#7 ranked-friend "ranked" naming:** (a) YES it affects Elo — it's a real
+  ranked best-of-3 reusing the same match/Elo path. (b) The "infinite play
+  again" is a UI bug only: the SERVER rejects a second submit for an
+  already-played round (`round_already_played`), so it can't actually be
+  farmed — but the game-over shouldn't offer plain "Play again". (c) FIX
+  (A6): ranked game-over should read "Submit round 1/3" → then "round 2 of
+  3", not "Play again".
+- **Tinted skins on non-grayscale art (#11):** the multiply-tint only works
+  cleanly on GRAYSCALE sprites (like the toucan). A pre-colored sprite would
+  get muddy when multiplied. So: tintable sprites must be authored grayscale;
+  already-colored art ships as fixed-color skins (no recolor). Noted for A10/A11.
+
+--- HISTORY (superseded by the master backlog above) ---
 
 ## Session 2026-05-31 — decisions + idea inflow
 

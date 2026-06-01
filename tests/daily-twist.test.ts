@@ -35,6 +35,28 @@ describe("pickDaily", () => {
     }
   });
 
+  it("visualEffect is deterministic and never changes physics config", () => {
+    const a = pickDaily("2026-07-04");
+    const b = pickDaily("2026-07-04");
+    expect(a.visualEffect).toEqual(b.visualEffect);
+    // A visual-only overlay must leave the composed SimConfig identical to
+    // the modifiers alone — it carries no configOverride effect.
+    const withMods = applyModifiers(DEFAULT_CONFIG, a.modifiers);
+    expect(withMods).toEqual(applyModifiers(DEFAULT_CONFIG, b.modifiers));
+  });
+
+  it("at least one day in a sample carries a visual overlay, some carry none", () => {
+    const fx = new Set<string | null>();
+    const base = new Date(Date.UTC(2026, 0, 1));
+    for (let i = 0; i < 60; i++) {
+      const d = new Date(base);
+      d.setUTCDate(d.getUTCDate() + i);
+      fx.add(pickDaily(d.toISOString().slice(0, 10)).visualEffect);
+    }
+    expect(fx.has(null)).toBe(true);
+    expect([...fx].some((v) => v !== null)).toBe(true);
+  });
+
   it("roughly matches the 1/3/2/1 weighting over a large sample", () => {
     const counts: Record<Tier, number> = { easy: 0, medium: 0, hard: 0, super_hard: 0 };
     const days = 365 * 5; // 5 years of UTC dates

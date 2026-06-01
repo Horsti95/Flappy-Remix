@@ -528,6 +528,9 @@ function startRun(runMode: RunMode = "casual"): void {
     runMode === "daily" && dailyInfo
       ? applyModifiers(DEFAULT_CONFIG, dailyInfo.pick.modifiers)
       : DEFAULT_CONFIG;
+  // Visual overlay applies to the daily only (global, fair worldwide);
+  // cleared for every other mode below.
+  renderer.options.visualEffect = null;
   if (runMode === "challenge" && activeChallenge) {
     currentSeed = activeChallenge.seed >>> 0;
     ghost = new GhostSim(currentSeed, activeChallenge.inputs, runCfg);
@@ -551,6 +554,7 @@ function startRun(runMode: RunMode = "casual"): void {
     renderer.options.ghostShape = undefined;
     renderer.options.theme = equippedThemeId;
     renderer.options.mirror = (dailyInfo?.pick.modifiers ?? []).some(m => m.id === "mirror");
+    renderer.options.visualEffect = dailyInfo.pick.visualEffect;
   } else {
     currentSeed = (Math.random() * 0xffffffff) >>> 0;
     renderer.options.ghostSkin = undefined;

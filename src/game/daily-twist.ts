@@ -26,6 +26,15 @@ export type ModifierKind = "physics" | "geometry" | "visual" | "mechanical";
 
 export type Tier = "easy" | "medium" | "hard" | "super_hard";
 
+/**
+ * Visual overlay effects. Purely cosmetic — they never touch SimConfig,
+ * so daily replays stay byte-identical regardless of which one is active.
+ * The renderer paints them over the scene (see RenderOptions.visualEffect).
+ * "blinding_sun" makes incoming pipes harder to read on the right; the
+ * others are pure mood.
+ */
+export type VisualEffect = "night" | "sunset" | "blinding_sun" | "rain";
+
 export interface DailyModifier {
   id: string;
   name: string;
@@ -36,6 +45,8 @@ export interface DailyModifier {
   configOverride: (cfg: SimConfig) => SimConfig;
   /** Short one-line copy for the pre-game screen. */
   blurb: string;
+  /** For kind:"visual" — the overlay the renderer should paint. */
+  visual?: VisualEffect;
 }
 
 /**
@@ -158,7 +169,53 @@ const HOSTILE: DailyModifier[] = [
   },
 ];
 
-const ALL: DailyModifier[] = [...FRIENDLY, ...NEUTRAL, ...HOSTILE];
+/**
+ * Visual modifiers — cosmetic overlays only. They never change physics
+ * (configOverride is identity), so they're safe to layer onto any tier
+ * without affecting replay determinism. "blinding sun" is the one with a
+ * mild gameplay edge (right-side glare), so it's tagged neutral; the rest
+ * are pure mood and friendly.
+ */
+const VISUAL: DailyModifier[] = [
+  {
+    id: "night",
+    name: "night day",
+    kind: "visual",
+    difficulty: "friendly",
+    configOverride: (c) => c,
+    blurb: "night sky",
+    visual: "night",
+  },
+  {
+    id: "sunset",
+    name: "sunset day",
+    kind: "visual",
+    difficulty: "friendly",
+    configOverride: (c) => c,
+    blurb: "sunset glow",
+    visual: "sunset",
+  },
+  {
+    id: "rain",
+    name: "rainy day",
+    kind: "visual",
+    difficulty: "friendly",
+    configOverride: (c) => c,
+    blurb: "light rain",
+    visual: "rain",
+  },
+  {
+    id: "blinding_sun",
+    name: "blinding sun day",
+    kind: "visual",
+    difficulty: "neutral",
+    configOverride: (c) => c,
+    blurb: "sun glare on the right",
+    visual: "blinding_sun",
+  },
+];
+
+const ALL: DailyModifier[] = [...FRIENDLY, ...NEUTRAL, ...HOSTILE, ...VISUAL];
 const BY_ID = new Map(ALL.map((m) => [m.id, m]));
 
 export function getModifier(id: string): DailyModifier | null {
@@ -190,7 +247,14 @@ export interface DailyPick {
   date: string;
   tier: Tier;
   modifiers: DailyModifier[];
+  /** Cosmetic-only overlay for the day, or null. Independent of `modifiers`
+   *  so it never affects physics, scoring, or replay determinism. */
+  visualEffect: VisualEffect | null;
 }
+
+/** How often a day gets a visual overlay. Drawn from its own RNG draw so
+ *  adding/removing visuals never shifts the tier/modifier picks above it. */
+const VISUAL_CHANCE = 0.55;
 
 export function pickDaily(dateUtc: string): DailyPick {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateUtc)) {
@@ -220,7 +284,15 @@ export function pickDaily(dateUtc: string): DailyPick {
       break;
     }
   }
-  return { date: dateUtc, tier, modifiers };
+  // Visual overlay rolled last, on the same deterministic stream. Cosmetic
+  // only — keeps the daily fair worldwide while varying the mood.
+  const visualMod = rng.next() < VISUAL_CHANCE ? pickOne(VISUAL, rng) : null;
+  return {
+    date: dateUtc,
+    tier,
+    modifiers,
+    visualEffect: visualMod?.visual ?? null,
+  };
 }
 
 export function applyModifiers(cfg: SimConfig, modifiers: readonly DailyModifier[]): SimConfig {

@@ -177,6 +177,48 @@ Status as of 2026-06-01 — most of the queue has shipped to `main`.
   gameplay-affecting variable aspect ratio is intentionally NOT built —
   it would break determinism/fairness.
 
+### Next-iteration backlog (2026-06-01) — ranked easy → hard
+
+The consolidated "what to build next" list. Most rows are unbuilt; the
+ones marked SHIPPED are done and kept here for context.
+
+| # | Item | Effort | Status / notes |
+|---|------|--------|----------------|
+| — | 8-bit bird preview ≠ playable skin | `xs` | **SHIPPED** (#61) — SVG regenerated from canvas bitmap |
+| 1 | Surface the 26 placeholder criteria in the gallery | `s` | registry + criteria exist (`unlock-criteria.ts`); just render them as locked cards with `TBA` rewards |
+| 2 | Feedback button | `s` | needs delivery decision: `mailto:` (exposes address) vs serverless email API (Resend/SendGrid, private) |
+| 3 | Sprite glow FX | `s` | unlockable FX option; auto-apply to legendary skins; hang on flap-FX system; respect reduced-motion |
+| 4 | **Player-pickable pillar style** | `m` | NEW equip axis `{pillarStyle}`: solid / glass / neon / stone. Player picks favorite (like shape/theme). Unlockable via the registry (`pillar` reward kind already reserved). |
+| 4a | Glass pillars see-through always | — | part of #4: glass renders semi-transparent in ALL modes |
+| 4b | Glass on the DAILY adds a difficulty level | — | glass = harder to read → counts as a hardness modifier on daily ONLY; cosmetic-only in casual/ranked; never changes hitboxes (determinism) |
+| 5 | Daily hardness-% logic (multiplicative, tier derived) | `m` | OWNER assigns each modifier a hardness % first, THEN encode. Product maps to tier; show "today: 160% intensity". Display/derivation only — physics still from the modifiers. |
+| 6 | **Sprite / background image pipeline** | `m`–`l` | THE gate. No `drawImage` loader exists today. Add: async image loader, `backgroundImage` draw path (under pillars, center lane kept clear), `spriteImage` path (bitmap at bird pos/rotation, sized to collision radius). Unlocks #7–#11 + the uploaded art in `design/uploads/`. |
+| 7 | Vectorize the uploaded toucan → 2-color recolorable sprite | `s` (after #6) | flat JPG can't recolor; trace to body/accent layers so the skin system tints it |
+| 8 | Cosmetic **packages** (Fortnite-style mix-and-match bundles) | `m` (after #6) | a package = {sprite + background + pillar + sound}, all independently mixable. Registry is the home. e.g. "realistic cyberpunk pack", "pink fairy pack". |
+| 9 | Country packages + national-day unlocks | `m` (after #6/#8) | unlock on a national day ±1 day (NOT GPS). Recolor sprite to country colors + a country-flag PROFILE BADGE. Germany pack = first. |
+| 10 | City + beach background redesign | `l` (after #6) | replace fillRect skyline / gradient with real art |
+| 11 | Sound redesign / juice pass | `m` | post-dev; characterful/cute synth or samples, designed with final visuals |
+| 12 | Event skins + badge-shapes | `m` | placeholders coded (`new_year_flight`, `pride_wings`, `red_ribbon`); needs #6 for art |
+| 13 | Achievement/unlock DEEPER merge | `l` | make the registry the single source presets/quests read from (foundation shipped in #54) |
+
+**Recommended order:** quick wins 1→2→3, then pillar system (4), then
+commit to the image pipeline (6) since it gates the art direction
+(7,8,9,10) and the uploaded references.
+
+### Open design questions (owner to decide)
+
+- **2- vs 3-color skins.** Today skins are `{body, accent}` (2 colors).
+  Considering primary/secondary/tertiary (3 colors) for richer skins.
+  Trade-off: 3 colors = more expressive but touches the skin type, the
+  renderer's per-shape draw (each shape decides where accent goes), the
+  procedural rarity math, and the share-card. Medium refactor; worth it
+  for premium/package skins, maybe overkill for the base pool. LEANING:
+  keep base skins 2-color, add an optional 3rd "tertiary" slot that only
+  richer shapes/packages use. Decide before the package work (#8).
+- **National-day reward shape:** country colors on the sprite AND/OR a
+  country-flag profile badge — owner likes both; do both with #9.
+- **Feedback delivery:** `mailto:` vs serverless (see #2).
+
 ## Next — concrete, deciding what to start
 
 ### Daily twist — pre-game warning + remaining modifiers (`s` to `m` each)

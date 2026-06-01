@@ -6,6 +6,10 @@ export interface AchievementDef {
   blurb: string;
   category: "score" | "efficiency" | "streak" | "daily" | "social" | "milestone" | "special";
   reward: { type: "color"; body: [number, number, number]; accent: [number, number, number] };
+  /** Prestige rewards stay a blacked-out mystery while locked (the color is
+   *  a surprise). Most rewards preview their real color when locked; only a
+   *  few rare/special ones set this. */
+  secret?: boolean;
   check(stats: AchievementStats): boolean;
 }
 
@@ -68,6 +72,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     blurb: "score 200+ in a single run",
     category: "score",
     reward: { type: "color", body: [185, 242, 255], accent: [255, 255, 255] },
+    secret: true,
     check: (s) => s.bestScore >= 200,
   },
   {
@@ -76,6 +81,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     blurb: "score 500+ in a single run",
     category: "score",
     reward: { type: "color", body: [20, 20, 20], accent: [139, 0, 0] },
+    secret: true,
     check: (s) => s.bestScore >= 500,
   },
 
@@ -112,6 +118,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     blurb: "30-day streak",
     category: "streak",
     reward: { type: "color", body: [255, 100, 100], accent: [100, 200, 255] },
+    secret: true,
     check: (s) => s.streakDays >= 30,
   },
 
@@ -206,6 +213,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     blurb: "play 1000 games",
     category: "milestone",
     reward: { type: "color", body: [200, 200, 255], accent: [255, 200, 200] },
+    secret: true,
     check: (s) => s.totalGames >= 1000,
   },
 
@@ -216,6 +224,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     blurb: "score 20+ in 5 dailys in a row",
     category: "special",
     reward: { type: "color", body: [255, 107, 53], accent: [196, 30, 58] },
+    secret: true,
     check: (s) => s.dailyStreakDays >= 5 && s.bestScoreDaily >= 20,
   },
 ];

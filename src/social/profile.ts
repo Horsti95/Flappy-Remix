@@ -16,6 +16,7 @@ export interface PublicProfile {
   ranked_losses: number;
   ranked_draws: number;
   best_rank: number | null;
+  shape: string | null;
   equipped: { body: [number, number, number]; accent: [number, number, number]; rarity: string | null } | null;
 }
 
@@ -44,6 +45,7 @@ export async function fetchPublicProfile(username: string): Promise<PublicProfil
     ranked_losses: (row.ranked_losses as number) ?? 0,
     ranked_draws: (row.ranked_draws as number) ?? 0,
     best_rank: (row.best_rank as number | null) ?? null,
+    shape: (row.equipped_shape as string | null) ?? null,
     equipped: hasSkin
       ? {
           body: [row.equipped_body_r as number, row.equipped_body_g as number, row.equipped_body_b as number],

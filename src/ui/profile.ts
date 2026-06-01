@@ -1,5 +1,7 @@
 import { fetchPublicProfile, type PublicProfile } from "../social/profile";
 import { RARITY_COLOR, type Rarity } from "../game/rarity";
+import { shapeSvgInner } from "./shape-svg";
+import { DEFAULT_SHAPE_ID, type ShapeId } from "../game/shapes";
 
 /**
  * Public profile inspector — a read-only stat card for any player by
@@ -51,7 +53,7 @@ function card(p: PublicProfile): string {
   const skin = p.equipped;
   const rarityColor = skin?.rarity ? RARITY_COLOR[skin.rarity as Rarity] : "#9ca3af";
   const plane = skin
-    ? `<svg viewBox="-20 -20 40 40" class="w-16 h-16 mx-auto"><polygon points="-14,6 14,-6 1,0 14,-6 -1,11" fill="rgb(${skin.body.join(",")})" stroke="#1a1a1a" stroke-width="0.8"/><polygon points="1,0 -14,6 -1,11" fill="rgb(${skin.accent.join(",")})" stroke="#1a1a1a" stroke-width="0.8"/></svg>`
+    ? `<svg viewBox="-20 -20 40 40" class="w-16 h-16 mx-auto">${shapeSvgInner((p.shape ?? DEFAULT_SHAPE_ID) as ShapeId, skin.body, skin.accent)}</svg>`
     : `<div class="w-16 h-16 mx-auto rounded-full bg-white/10"></div>`;
 
   const ranked = p.ranked_rating != null

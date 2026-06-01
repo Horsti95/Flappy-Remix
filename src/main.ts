@@ -600,6 +600,7 @@ function startRun(runMode: RunMode = "casual"): void {
         const ticks = sim.dieTick;
         if (currentRunMode === "daily" && dailyInfo) {
           recordDailyBest(dailyInfo.date, score);
+          bumpDailyAttempt(dailyInfo.date);
         }
         if (score > bestScoreSeen) {
           bestScoreSeen = score;
@@ -645,7 +646,14 @@ function startRun(runMode: RunMode = "casual"): void {
         const share = (): void => {
           void openShare(score, result);
         };
-        renderGameOver(overlays, score, () => startRun(currentRunMode), showMenu, {
+        // "Play again" repeats the same mode — except a spent daily routes
+        // back through the landing so the 3-attempt cap (and casual
+        // fallback) applies instead of silently replaying the daily.
+        const onPlayAgain =
+          currentRunMode === "daily"
+            ? () => openDailyLanding()
+            : () => startRun(currentRunMode);
+        renderGameOver(overlays, score, onPlayAgain, showMenu, {
           result,
           ticks,
           onShare: share,

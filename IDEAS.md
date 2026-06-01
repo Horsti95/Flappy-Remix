@@ -51,21 +51,29 @@ sequenced into their own branches.
   gallery).
 
 ### Build queue (each its own branch)
-1. **Challenge overhaul** (`m`–`l`) — real sender cosmetics (store
-   `creator_shape` + `creator_theme` on the challenge; render the ghost
-   as the real sender shape + paint their theme/sky/pillars so they
-   flex); hide sender score until you finish; new game-over layout
-   (improve · submit · brag · back) + receiver give-up / win-and-brag;
-   friend-picker shows the friend's recent score.
-2. **Daily best-of-3** (`m`) — 3 attempts/day, best counts, then blocked
-   (unblocked by the leaderboard dedupe).
-3. **Public profiles + Badges tab** (`m`).
-4. **Visual daily modifiers** (`m`) — blinding sun / light source, night,
-   sunset, rain, on top of the existing fog.
-5. **Leaderboard 3-axis matrix** (`s`–`m`).
-6. **Monetisation foundation** (`s`) — ETHICS.md amend + BMC tip button
-   + non-tracking banner slot + cosmetic supporter chip.
-7. **Quest-chains-in-Gallery** (`s`, separate compare branch).
+Status as of 2026-06-01 — most of the queue has shipped to `main`.
+1. ✅ **Challenge overhaul** — sender cosmetics flex (#36), unlimited
+   best-counts response (#38), game-over UX + Send/Brag/Give-up (#39).
+2. ✅ **Daily best-of-3** — 3 attempts/day, best counts, server backstop
+   (#43/#44).
+3. ✅ **Public profiles** — `public_profile()` RPC + card from friends /
+   leaderboard (#41/#42). Full **Badges tab** still TODO (profile shows
+   the headline season badge only).
+4. ✅ **Visual daily modifiers** — night / sunset / blinding sun / rain (#40).
+5. ✅ **Monetisation foundation** — ETHICS amend + tip button + non-tracking
+   banner slot (#35).
+6. ✅ **Equipped-shape display** — persist shape; show it on leaderboard +
+   profile (#45, migration 0012).
+7. ⬜ **Leaderboard 3-axis matrix** — add the mode axis {all, casual, daily}
+   alongside scope × period. NEXT.
+8. ⬜ **Ranked margin bonus** — flat capped +1/+2/+3 for win-margin 5/25/50,
+   winner-only, after Elo.
+9. ⬜ **Full Badges tab** in the gallery (per-season list).
+10. ⬜ **Quest-chains-in-Gallery** (separate compare branch).
+
+**Pending migrations to apply (Supabase SQL Editor, in order):** 0011
+(public_profile), 0012 (equipped_shape). 0009/0010 already applied.
+
 
 ### New idea inflow (not yet scheduled)
 - **Pipes letterboxing** (`xs`, bug) — world is fixed 360×640; when the

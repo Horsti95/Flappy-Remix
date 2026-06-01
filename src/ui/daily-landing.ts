@@ -10,6 +10,9 @@ export interface DailyLandingMeta {
   attemptsUsed: number;
   /** Max attempts per UTC day. */
   maxAttempts: number;
+  /** Player's equipped pillar style is see-through (glass) — a self-imposed
+   *  extra difficulty for today's daily. Shown as a heads-up chip. */
+  glassHandicap?: boolean;
 }
 
 export interface DailyLandingCallbacks {
@@ -70,6 +73,7 @@ export function renderDailyLanding(
       <div class="text-2xl font-bold leading-tight">${escapeHtml(modifierList)}</div>
       <div class="text-[12px] opacity-70 leading-tight">${escapeHtml(modifierBlurbs)}</div>
       ${meta.pick.visualEffect ? `<div class="text-[12px] opacity-80">${visualChip(meta.pick.visualEffect)}</div>` : ""}
+      ${meta.glassHandicap ? `<div class="text-[11px] text-amber-300">🪟 glass pillars equipped — harder to read today</div>` : ""}
       <div class="text-[12px] opacity-60 mt-2">${escapeHtml(warningCopy)}</div>
       <div class="mt-4 grid grid-cols-2 gap-3 text-center min-w-[200px]">
         <div class="rounded-xl bg-white/5 px-3 py-2">

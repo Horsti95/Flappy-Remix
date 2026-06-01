@@ -31,6 +31,7 @@ import {
 import { DEFAULT_SHAPE_ID, type ShapeId } from "./game/shapes";
 import { getEquippedThemeLocal, setEquippedThemeLocal, setThemesLabMode, type ThemeId } from "./game/themes";
 import { getEquippedPresetLocal, setEquippedPresetLocal, getPreset, setPresetLabMode } from "./game/preset-skins";
+import { getEquippedPillarLocal, getPillarStyle } from "./game/pillars";
 import { type SubmitResult } from "./social/runs";
 import { installFlushHooks, pendingCount, submitOrEnqueue } from "./social/offline-queue";
 import { fetchDaily, type DailyInfo } from "./social/daily";
@@ -527,6 +528,7 @@ function openDailyLanding(): void {
       streakDays: authState().profile?.streak_days ?? 0,
       attemptsUsed: dailyAttemptsUsed(dailyInfo.date),
       maxAttempts: DAILY_MAX_ATTEMPTS,
+      glassHandicap: getPillarStyle(getEquippedPillarLocal()).hardensDaily,
     },
     {
       onPlay: () => startRun("daily"),
@@ -618,6 +620,7 @@ function startRun(runMode: RunMode = "casual"): void {
   overlays.innerHTML = "";
   mode = "playing";
   currentRunMode = runMode;
+  renderer.options.pillarStyle = getEquippedPillarLocal();
   setBannerVisible(false);
   pauseBtn.classList.remove("hidden");
   let ghost: GhostSim | undefined;

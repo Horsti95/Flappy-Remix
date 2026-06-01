@@ -7,6 +7,7 @@ import { DEFAULT_SHAPE_ID, getShape, type ShapeId } from "./shapes";
 import { getParticles, tickParticles } from "./flap-fx";
 import { type VisualEffect } from "./daily-twist";
 import { preloadSprites, hasSprite, getTintedSprite } from "./sprites";
+import { getPillarStyle, type PillarStyleId } from "./pillars";
 
 export interface RenderOptions {
   highContrast: boolean;
@@ -22,6 +23,8 @@ export interface RenderOptions {
   /** Soft glow around the player's shape, tinted to the accent color.
    *  Auto-on for legendary skins; an unlockable FX can also drive it. */
   glow?: boolean;
+  /** Player-picked pillar style (solid / glass / neon / stone). */
+  pillarStyle?: PillarStyleId;
 }
 
 export class Renderer {
@@ -200,15 +203,22 @@ export class Renderer {
     // Purely cosmetic — the gap geometry (gapY..gapY+gapH) is untouched, so
     // collision + determinism are unchanged.
     const over = this.overscanY;
+    const pillarStyle = getPillarStyle(this.options.pillarStyle);
     for (const p of sim.pipes) {
       const prev = sim.prevPipeXs.get(p.id);
       const x = prev !== undefined ? prev + (p.x - prev) * alpha : p.x;
-      ctx.fillStyle = palette.pipeBody;
-      ctx.fillRect(x, -over, cfg.pipeWidth, p.gapY + over);
-      ctx.fillRect(x, p.gapY + p.gapH, cfg.pipeWidth, cfg.worldHeight - (p.gapY + p.gapH) + over);
-      ctx.fillStyle = palette.pipeCap;
-      ctx.fillRect(x - 3, p.gapY - 14, cfg.pipeWidth + 6, 14);
-      ctx.fillRect(x - 3, p.gapY + p.gapH, cfg.pipeWidth + 6, 14);
+      pillarStyle.draw({
+        ctx,
+        x,
+        gapY: p.gapY,
+        gapH: p.gapH,
+        worldHeight: cfg.worldHeight,
+        pipeWidth: cfg.pipeWidth,
+        over,
+        bodyColor: palette.pipeBody,
+        capColor: palette.pipeCap,
+        highContrast: this.options.highContrast,
+      });
     }
 
     if (ghost && ghost.isAlive()) {

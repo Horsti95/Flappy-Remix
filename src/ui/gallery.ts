@@ -21,6 +21,7 @@ import { THEMES, isThemesLabMode, type Theme, type ThemeId } from "../game/theme
 import { getGrantedShapesLocal } from "../social/grants";
 import { PRESET_SKINS, presetUnlock, type PresetSkin } from "../game/preset-skins";
 import { evaluateCriteria, isEventActive, type CriterionDef } from "../game/unlock-criteria";
+import { PILLAR_STYLES, getEquippedPillarLocal, setEquippedPillarLocal, type PillarStyle } from "../game/pillars";
 import {
   FLAP_FX_OPTIONS,
   flapFxUnlock,
@@ -83,13 +84,14 @@ export function renderGallery(
       <button data-tab="backgrounds" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">backgrounds</button>
       <button data-tab="effects" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">effects</button>
       <button data-tab="quests" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">quests</button>
+      <button data-tab="pillars" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">pillars</button>
       <button data-tab="badges" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">badges</button>
     </div>
     <div data-body class="mt-3 px-3 flex-1 overflow-y-auto pb-6"></div>
   `;
   host.appendChild(wrap);
 
-  type Tab = "shapes" | "skins" | "backgrounds" | "effects" | "quests" | "badges";
+  type Tab = "shapes" | "skins" | "backgrounds" | "effects" | "quests" | "badges" | "pillars";
   let activeTab: Tab = "shapes";
   let currentEquipped = { ...equipped };
   let cancelled = false;
@@ -126,6 +128,25 @@ export function renderGallery(
     else if (activeTab === "effects") renderEffects();
     else if (activeTab === "quests") renderQuestsTab();
     else if (activeTab === "badges") void renderBadges();
+    else if (activeTab === "pillars") renderPillars();
+  }
+
+  function renderPillars(): void {
+    const body = wrap.querySelector("[data-body]") as HTMLDivElement;
+    body.innerHTML = `<div class="text-[11px] opacity-70 px-2 mb-3">pick your pillar look. glass is see-through — it adds a difficulty level on the daily.</div><div class="grid grid-cols-2 gap-3 px-2" data-pillar-grid></div>`;
+    const grid = body.querySelector("[data-pillar-grid]") as HTMLDivElement;
+    const stats = loadAchievementStats();
+    const equippedPillar = getEquippedPillarLocal();
+    for (const style of PILLAR_STYLES) {
+      const st = style.unlock(stats);
+      grid.appendChild(
+        pillarCard(style, equippedPillar === style.id, st.unlocked, st.hint, () => {
+          if (!st.unlocked) return;
+          setEquippedPillarLocal(style.id);
+          renderPillars();
+        }),
+      );
+    }
   }
 
   async function renderBadges(): Promise<void> {
@@ -920,6 +941,68 @@ function criterionCard(def: CriterionDef, unlocked: boolean): HTMLElement {
     <div class="text-[11px] opacity-70 mt-0.5">${hint}</div>
     <div class="text-[10px] opacity-55 mt-1.5">${icon} reward: ${rewardLabel}</div>
   `;
+  return el;
+}
+
+function pillarCard(
+  style: PillarStyle,
+  equipped: boolean,
+  unlocked: boolean,
+  hint: string | undefined,
+  onTap: () => void,
+): HTMLElement {
+  const el = document.createElement("button");
+  el.dataset.noFlap = "true";
+  el.className = `relative rounded-2xl p-3 flex flex-col items-center text-[11px] gap-2 border-2 ${
+    equipped ? "border-paper" : unlocked ? "border-white/10" : "border-white/5"
+  } bg-white/5 ${unlocked ? "active:scale-95" : "opacity-50 cursor-not-allowed"} transition`;
+  // Mini preview: render the style onto a small canvas with a gap in the middle.
+  const cv = document.createElement("canvas");
+  cv.width = 120;
+  cv.height = 90;
+  cv.className = "w-full rounded-xl swatch-plate";
+  const cx = cv.getContext("2d");
+  if (cx) {
+    const gapY = 38;
+    const gapH = 22;
+    style.draw({
+      ctx: cx,
+      x: 46,
+      gapY,
+      gapH,
+      worldHeight: 90,
+      pipeWidth: 28,
+      over: 0,
+      bodyColor: "#3d8b58",
+      capColor: "#2b6f4d",
+      highContrast: false,
+    });
+  }
+  const label = document.createElement("div");
+  label.className = "font-bold capitalize";
+  label.textContent = style.name;
+  const sub = document.createElement("div");
+  sub.className = "text-[10px] opacity-60 text-center leading-snug";
+  sub.textContent = unlocked ? style.blurb : (hint ?? "locked");
+  el.appendChild(cv);
+  el.appendChild(label);
+  el.appendChild(sub);
+  if (style.hardensDaily) {
+    const chip = document.createElement("div");
+    chip.className = "text-[9px] uppercase tracking-wider text-amber-300";
+    chip.textContent = "harder daily";
+    el.appendChild(chip);
+  }
+  if (equipped) {
+    const eq = document.createElement("div");
+    eq.className = "absolute top-1 right-1 text-[9px] bg-paper text-ink rounded-full px-1.5 py-0.5";
+    eq.textContent = "equipped";
+    el.appendChild(eq);
+  }
+  el.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onTap();
+  });
   return el;
 }
 

@@ -27,6 +27,8 @@ export class Renderer {
   private scale = 1;
   private offsetX = 0;
   private offsetY = 0;
+  private overscanX = 0;
+  private overscanY = 0;
   options: RenderOptions;
 
   constructor(canvas: HTMLCanvasElement, cfg: SimConfig, options?: Partial<RenderOptions>) {
@@ -57,6 +59,13 @@ export class Renderer {
     this.scale = Math.min(sx, sy);
     this.offsetX = (cssW * dpr - this.cfg.worldWidth * this.scale) / 2;
     this.offsetY = (cssH * dpr - this.cfg.worldHeight * this.scale) / 2;
+    // Letterbox overscan in WORLD units: how far the visible canvas extends
+    // past the world rect on each axis (contain-fit centers the world, so a
+    // band appears top/bottom on tall screens, left/right on wide ones).
+    // Used to bleed cosmetics (pillars) to the physical screen edge without
+    // touching the fixed 360x640 sim — keeps runs deterministic + port-safe.
+    this.overscanX = this.offsetX / this.scale;
+    this.overscanY = this.offsetY / this.scale;
   }
 
   draw(sim: Sim, alphaIn: number, ghost?: GhostSim | null): void {
@@ -181,12 +190,17 @@ export class Renderer {
       }
     }
 
+    // Bleed the pillar bodies into the top/bottom letterbox overscan so they
+    // reach the physical screen edge instead of stopping at the world rect.
+    // Purely cosmetic — the gap geometry (gapY..gapY+gapH) is untouched, so
+    // collision + determinism are unchanged.
+    const over = this.overscanY;
     for (const p of sim.pipes) {
       const prev = sim.prevPipeXs.get(p.id);
       const x = prev !== undefined ? prev + (p.x - prev) * alpha : p.x;
       ctx.fillStyle = palette.pipeBody;
-      ctx.fillRect(x, 0, cfg.pipeWidth, p.gapY);
-      ctx.fillRect(x, p.gapY + p.gapH, cfg.pipeWidth, cfg.worldHeight - (p.gapY + p.gapH));
+      ctx.fillRect(x, -over, cfg.pipeWidth, p.gapY + over);
+      ctx.fillRect(x, p.gapY + p.gapH, cfg.pipeWidth, cfg.worldHeight - (p.gapY + p.gapH) + over);
       ctx.fillStyle = palette.pipeCap;
       ctx.fillRect(x - 3, p.gapY - 14, cfg.pipeWidth + 6, 14);
       ctx.fillRect(x - 3, p.gapY + p.gapH, cfg.pipeWidth + 6, 14);
@@ -313,6 +327,24 @@ export class Renderer {
       ctx.fillStyle = this.options.highContrast ? "#fff" : "#1a1a1a";
       ctx.font = "16px system-ui,sans-serif";
       ctx.fillText("tap to lift", cfg.worldWidth / 2, cfg.worldHeight * 0.62);
+    }
+
+    // Letterbox frame: darken just the bands outside the world rect so they
+    // read as an intentional frame instead of raw bright sky — important when
+    // a dark theme meets a light-blue overscan. Screen space; cosmetic only.
+    if (this.overscanX > 0.5 || this.overscanY > 0.5) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = "rgba(0,0,0,0.28)";
+      const W = this.canvas.width;
+      const H = this.canvas.height;
+      if (this.offsetY > 0.5) {
+        ctx.fillRect(0, 0, W, this.offsetY);
+        ctx.fillRect(0, H - this.offsetY, W, this.offsetY);
+      }
+      if (this.offsetX > 0.5) {
+        ctx.fillRect(0, 0, this.offsetX, H);
+        ctx.fillRect(W - this.offsetX, 0, this.offsetX, H);
+      }
     }
 
     ctx.restore();

@@ -3,6 +3,7 @@ import { authState } from "../social/auth";
 
 export interface FriendsPanelCallbacks {
   onChallenge?: (friend: Friend) => void;
+  onViewProfile?: (friend: Friend) => void;
 }
 
 export function renderFriendsPanel(host: HTMLElement, onClose: () => void, cbs?: FriendsPanelCallbacks): () => void {
@@ -83,7 +84,8 @@ export function renderFriendsPanel(host: HTMLElement, onClose: () => void, cbs?:
       await removeFriend(f.user_id);
       await load();
       void refreshFriendCount();
-    }, cbs?.onChallenge ? () => cbs.onChallenge!(f) : undefined)));
+    }, cbs?.onChallenge ? () => cbs.onChallenge!(f) : undefined,
+    cbs?.onViewProfile && f.username ? () => cbs.onViewProfile!(f) : undefined)));
     // Backfill the vs-record badges asynchronously so the list paints fast.
     void Promise.all(
       rows.map(async (f) => {
@@ -103,16 +105,20 @@ export function renderFriendsPanel(host: HTMLElement, onClose: () => void, cbs?:
   };
 }
 
-function row(f: Friend, onRemove: () => void, onChallenge?: () => void): HTMLElement {
+function row(f: Friend, onRemove: () => void, onChallenge?: () => void, onView?: () => void): HTMLElement {
   const el = document.createElement("div");
   el.dataset.friendId = f.user_id;
   el.className = "flex items-center justify-between gap-3 px-3 py-3 rounded-xl bg-white/5";
   const challengeBtn = onChallenge
     ? `<button data-challenge class="rounded-lg bg-paper text-ink text-[11px] font-bold px-3 py-1.5">challenge</button>`
     : "";
+  // The handle is a tappable profile link when a view callback + handle exist.
+  const nameEl = onView && f.username
+    ? `<button data-view class="text-sm truncate underline decoration-dotted underline-offset-2 text-left">${escapeHtml("@" + f.username)}</button>`
+    : `<div class="text-sm truncate">${f.username ? escapeHtml("@" + f.username) : "(no handle)"}</div>`;
   el.innerHTML = `
     <div class="flex-1 min-w-0">
-      <div class="text-sm truncate">${f.username ? escapeHtml("@" + f.username) : "(no handle)"}</div>
+      ${nameEl}
       <div data-record class="text-[10px] opacity-50 mt-0.5">vs: …</div>
     </div>
     <div class="flex items-center gap-3 shrink-0">
@@ -127,6 +133,10 @@ function row(f: Friend, onRemove: () => void, onChallenge?: () => void): HTMLEle
   el.querySelector("[data-challenge]")?.addEventListener("click", (e) => {
     e.stopPropagation();
     onChallenge?.();
+  });
+  el.querySelector("[data-view]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onView?.();
   });
   return el;
 }

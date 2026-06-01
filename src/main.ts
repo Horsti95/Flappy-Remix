@@ -45,7 +45,7 @@ import { renderDailyLanding } from "./ui/daily-landing";
 import { renderRankedPanel } from "./ui/ranked";
 import { playFlap, setSoundLabMode } from "./game/sfx";
 import { clearParticles, getActiveFlapFx, setFxLabMode, spawnFlapFx } from "./game/flap-fx";
-import { type RankedMatch } from "./social/ranked";
+import { type RankedMatch, createRankedChallenge } from "./social/ranked";
 import { createChallenge, fetchChallenge, ghostSkinFromChallenge, fetchUnseenChallengeCount, type FetchedChallenge } from "./social/challenges";
 import { renderInbox } from "./ui/inbox";
 import { renderProfile } from "./ui/profile";
@@ -376,17 +376,7 @@ function showMenu(): void {
       },
       onOpenLeaderboard: () => { pushSubView(); panelOpen = true; renderLeaderboard(overlays, () => showMenu(), (username) => openProfile(username)); },
       onOpenFriends: () => openFriendsPanel(),
-      onOpenRanked: () => {
-        pushSubView();
-        panelOpen = true;
-        renderRankedPanel(overlays, {
-          onPlayRound: (match, round) => {
-            activeRanked = { match, round };
-            startRun("ranked");
-          },
-          onClose: () => showMenu(),
-        });
-      },
+      onOpenRanked: () => openRankedPanel(),
       onOpenQuests: () => {
         pushSubView();
         panelOpen = true;
@@ -804,6 +794,26 @@ function openProfile(username: string): void {
   });
 }
 
+function openRankedPanel(): void {
+  pushSubView();
+  panelOpen = true;
+  renderRankedPanel(overlays, {
+    onPlayRound: (match, round) => {
+      activeRanked = { match, round };
+      startRun("ranked");
+    },
+    onClose: () => showMenu(),
+  });
+}
+
+function showToast(message: string): void {
+  const toast = document.createElement("div");
+  toast.className = "pointer-events-none fixed top-6 left-1/2 -translate-x-1/2 rounded-2xl bg-paper text-ink px-5 py-3 font-bold text-sm shadow-xl z-50";
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2500);
+}
+
 function openFriendsPanel(): void {
   pushSubView();
   panelOpen = true;
@@ -812,6 +822,16 @@ function openFriendsPanel(): void {
       panelOpen = false;
       pendingChallengeTarget = { friend };
       startRun("challenge-create");
+    },
+    onRankedChallenge: async (friend) => {
+      if (!friend.username) return;
+      const r = await createRankedChallenge(friend.username);
+      if (r.ok) {
+        showToast(`Ranked match vs @${friend.username} started!`);
+        openRankedPanel();
+      } else {
+        showToast("Couldn't start ranked match.");
+      }
     },
     onViewProfile: (friend) => {
       if (friend.username) openProfile(friend.username);

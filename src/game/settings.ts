@@ -2,6 +2,8 @@ export interface Settings {
   sound: boolean;
   highContrast: boolean;
   reducedMotion: boolean;
+  /** Challenge-ghost opacity 0..100 (%), in 5% steps. 0 = ghost hidden. */
+  ghostOpacity: number;
 }
 
 const KEY = "pflug.settings.v1";
@@ -10,6 +12,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sound: false,
   highContrast: false,
   reducedMotion: false,
+  ghostOpacity: 25,
 };
 
 export function loadSettings(): Settings {

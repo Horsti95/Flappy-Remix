@@ -20,6 +20,7 @@ import {
 import { THEMES, isThemesLabMode, type Theme, type ThemeId } from "../game/themes";
 import { getGrantedShapesLocal } from "../social/grants";
 import { PRESET_SKINS, presetUnlock, type PresetSkin } from "../game/preset-skins";
+import { evaluateCriteria, isEventActive, type CriterionDef } from "../game/unlock-criteria";
 import {
   FLAP_FX_OPTIONS,
   flapFxUnlock,
@@ -209,6 +210,21 @@ export function renderGallery(
     const questsBody = body.querySelector("[data-quests-body]") as HTMLDivElement;
     const views = getChainViews();
     for (const v of views) questsBody.appendChild(chainCard(v.chain, v.activeIndex, v.complete));
+
+    // Goals catalog — the wider set of unlock criteria (rewards still TBA in
+    // dev). Shows what's earnable and how, with secret ones hidden until done.
+    const achStats = loadAchievementStats();
+    const results = evaluateCriteria(achStats);
+    const got = results.filter((r) => r.unlocked).length;
+    questsBody.appendChild(headerLabel(`goals — ${got} / ${results.length}`));
+    const intro = document.createElement("div");
+    intro.className = "text-[10px] opacity-60 px-2 mb-2";
+    intro.textContent = "challenges to chase. rewards are still in the works (TBA) — the goal is live.";
+    questsBody.appendChild(intro);
+    const grid = document.createElement("div");
+    grid.className = "grid grid-cols-1 gap-2";
+    for (const { def, unlocked } of results) grid.appendChild(criterionCard(def, unlocked));
+    questsBody.appendChild(grid);
   }
 
   function renderBackgrounds(): void {
@@ -862,6 +878,47 @@ function badgeCard(badge: SeasonBadge, isBest: boolean): HTMLElement {
     <div class="opacity-70 text-[12px]">Rank #${badge.rank}</div>
     <div class="opacity-50 text-[10px]">Rating ${badge.rating}</div>
     ${isBest ? `<div class="absolute top-1 right-1 text-[9px] bg-amber-300 text-ink rounded-full px-1.5 py-0.5">best</div>` : ""}
+  `;
+  return el;
+}
+
+const REWARD_ICON: Record<string, string> = {
+  skin: "🎨",
+  shape: "✈️",
+  background: "🌅",
+  pillar: "🏛️",
+  sound: "🔊",
+  fx: "✨",
+  badge: "🏅",
+};
+
+function criterionCard(def: CriterionDef, unlocked: boolean): HTMLElement {
+  const el = document.createElement("div");
+  el.dataset.noFlap = "true";
+  // Secret + locked stays a mystery; everything else shows its goal + the
+  // (TBA) reward slot it will fill once the art lands.
+  const mystery = def.secret && !unlocked;
+  const eventLive = def.event ? isEventActive(def) : false;
+  el.className = `rounded-xl p-3 border ${
+    unlocked ? "border-emerald-400/40 bg-emerald-400/5" : "border-white/10 bg-white/5"
+  }`;
+  const title = mystery ? "??? secret goal" : escapeHtml(def.name);
+  const hint = mystery ? "keep playing to discover this one." : escapeHtml(def.hint);
+  const icon = REWARD_ICON[def.plannedReward.kind] ?? "🎁";
+  const rewardLabel = mystery ? "secret reward" : escapeHtml(def.plannedReward.label);
+  const eventChip = def.event
+    ? `<span class="ml-1 text-[9px] rounded-full px-1.5 py-0.5 ${eventLive ? "bg-pink-500/30 text-pink-100" : "bg-white/10 opacity-60"}">${eventLive ? "event live" : "seasonal"}</span>`
+    : "";
+  const state = unlocked
+    ? `<span class="text-[9px] uppercase tracking-wider font-bold text-emerald-300">done</span>`
+    : `<span class="text-[9px] uppercase tracking-wider opacity-50">locked</span>`;
+  el.innerHTML = `
+    <div class="flex items-center justify-between gap-2">
+      <div class="text-[13px] font-bold capitalize truncate">${title}${eventChip}</div>
+      ${state}
+    </div>
+    <div class="text-[11px] opacity-70 mt-0.5">${hint}</div>
+    <div class="text-[10px] opacity-55 mt-1.5">${icon} reward: ${rewardLabel}</div>
   `;
   return el;
 }

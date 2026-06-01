@@ -1,4 +1,4 @@
-import { fetchLeaderboard, type LeaderboardScope, type LeaderboardPeriod } from "../social/leaderboard";
+import { fetchLeaderboard, type LeaderboardScope, type LeaderboardPeriod, type LeaderboardMode } from "../social/leaderboard";
 import { authState } from "../social/auth";
 import { RARITY_COLOR, type Rarity } from "../game/rarity";
 import { shapeSvgInner } from "./shape-svg";
@@ -27,6 +27,11 @@ export function renderLeaderboard(
       ${seg("period", "monthly", "this month", false)}
       ${seg("period", "total", "total", false)}
     </div>
+    <div data-modes class="px-5 mt-2 flex gap-2 text-[12px] overflow-x-auto">
+      ${seg("mode", "all", "all", true)}
+      ${seg("mode", "casual", "casual", false)}
+      ${seg("mode", "daily", "daily", false)}
+    </div>
     <div data-list class="mt-3 px-3 flex-1 overflow-y-auto pb-6">
       <div class="text-center text-xs opacity-60 mt-12">loading…</div>
     </div>
@@ -35,6 +40,7 @@ export function renderLeaderboard(
 
   let scope: LeaderboardScope = "global";
   let period: LeaderboardPeriod = "weekly";
+  let mode: LeaderboardMode = "all";
   let cancelled = false;
 
   const close = () => {
@@ -71,11 +77,19 @@ export function renderLeaderboard(
       void load();
     }),
   );
+  wrap.querySelectorAll<HTMLButtonElement>("[data-mode]").forEach((btn) =>
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      mode = btn.dataset.mode as LeaderboardMode;
+      setActive("[data-mode]", btn);
+      void load();
+    }),
+  );
 
   async function load(): Promise<void> {
     const list = wrap.querySelector("[data-list]") as HTMLDivElement;
     list.innerHTML = `<div class="text-center text-xs opacity-60 mt-12">loading…</div>`;
-    const rows = await fetchLeaderboard(scope, period, 100);
+    const rows = await fetchLeaderboard(scope, period, mode, 100);
     if (cancelled) return;
     if (rows.length === 0) {
       const hint = scope === "friends"
@@ -148,7 +162,7 @@ function rankBadge(rank: number): string {
   return `<span class="text-[11px] opacity-60 tabular-nums">${rank}</span>`;
 }
 
-function seg(attr: "scope" | "period", id: string, label: string, active: boolean): string {
+function seg(attr: "scope" | "period" | "mode", id: string, label: string, active: boolean): string {
   return `<button data-${attr}="${id}" class="rounded-full px-3 py-1 whitespace-nowrap ${
     active ? "bg-paper text-ink" : "bg-white/5 opacity-60"
   }">${label}</button>`;

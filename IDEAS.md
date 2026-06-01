@@ -64,15 +64,23 @@ Status as of 2026-06-01 — most of the queue has shipped to `main`.
    banner slot (#35).
 6. ✅ **Equipped-shape display** — persist shape; show it on leaderboard +
    profile (#45, migration 0012).
-7. ⬜ **Leaderboard 3-axis matrix** — add the mode axis {all, casual, daily}
-   alongside scope × period. NEXT.
-8. ⬜ **Ranked margin bonus** — flat capped +1/+2/+3 for win-margin 5/25/50,
-   winner-only, after Elo.
-9. ⬜ **Full Badges tab** in the gallery (per-season list).
-10. ⬜ **Quest-chains-in-Gallery** (separate compare branch).
+7. ✅ **Leaderboard 3-axis matrix** — mode axis {all, casual, daily}
+   alongside scope × period (#49, migration 0013).
+8. ✅ **Ranked margin bonus** — flat capped +1/+2/+3 for win-margin 5/25/50,
+   winner-only, after Elo (#48).
+9. ✅ **Full Badges tab** in the gallery (per-season list) (#50).
+10. ⬜ **Quest-chains-in-Gallery cross-tab breadcrumbs** — LOW priority /
+    experimental. Note: quests are ALREADY a gallery tab (`data-tab="quests"`),
+    so the "separate quest panel" concern is resolved. Remaining idea is just
+    cross-tab "next unlock →" breadcrumbs; keep as a standalone compare branch.
+11. ⬜ **Friend-directed ranked challenge** — challenge a friend to a ranked
+    best-of-3 (reuses ranked_matches/Elo). IN PROGRESS this session.
+12. ⬜ **Achievement/unlock unification** — the big deep refactor. Deferred:
+    touches the same gallery/achievements code as Badges + quest-in-gallery,
+    needs its own focused pass.
 
-**Pending migrations to apply (Supabase SQL Editor, in order):** 0011
-(public_profile), 0012 (equipped_shape). 0009/0010 already applied.
+**Pending migrations to apply (Supabase SQL Editor, in order):** 0013
+(leaderboard mode axis). 0009–0012 already applied.
 
 
 ### New idea inflow (not yet scheduled)

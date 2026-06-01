@@ -349,6 +349,7 @@ async function loadEquippedSkin(): Promise<void> {
     if (p) {
       equippedSkin = null;
       renderer.options.skin = { body: p.body, accent: p.accent };
+      renderer.options.glow = false;
       return;
     }
   }
@@ -356,18 +357,22 @@ async function loadEquippedSkin(): Promise<void> {
   if (!s.ready || s.offline) {
     equippedSkin = null;
     renderer.options.skin = DEFAULT_SKIN;
+    renderer.options.glow = false;
     return;
   }
   const wantedId = s.profile?.equipped_skin_id ?? getEquippedSkinIdLocal();
   if (!wantedId) {
     equippedSkin = null;
     renderer.options.skin = DEFAULT_SKIN;
+    renderer.options.glow = false;
     return;
   }
   const rows = await listOwnedSkins();
   const found = rows.find((r) => r.id === wantedId) ?? null;
   equippedSkin = found;
   renderer.options.skin = found ? rowToColors(found) : DEFAULT_SKIN;
+  // Legendary skins glow — makes the top rarity visible in motion.
+  renderer.options.glow = found?.rarity === "legendary";
 }
 
 function menuAccountLabel(): string {

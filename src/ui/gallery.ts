@@ -1,4 +1,5 @@
 import { listOwnedSkins, type SkinRow } from "../social/skins";
+import { unlockProgress } from "../game/unlockables";
 import { RARITY_COLOR, rarityRank } from "../game/rarity";
 import { SHAPES, type ShapeId, type ShapeMeta } from "../game/shapes";
 import { DEFAULT_SKIN } from "../game/skin";
@@ -66,11 +67,15 @@ export function renderGallery(
   wrap.dataset.noFlap = "true";
   wrap.className =
     "pointer-events-auto absolute inset-0 z-30 bg-black/85 backdrop-blur-sm font-display text-paper flex flex-col";
+  // Unified collection progress across shapes + themes + palettes +
+  // achievement colors (one registry — see game/unlockables.ts).
+  const collection = unlockProgress();
   wrap.innerHTML = `
-    <div class="px-5 pt-5 pb-3 flex items-center justify-between">
+    <div class="px-5 pt-5 pb-1 flex items-center justify-between">
       <h2 class="text-xl font-bold">gallery</h2>
       <button data-close class="text-sm underline opacity-70">close</button>
     </div>
+    <div class="px-5 pb-2 text-[11px] opacity-60">collection ${collection.unlocked} / ${collection.total} unlocked</div>
     <div data-tabs class="px-5 flex gap-2 text-[12px] overflow-x-auto">
       <button data-tab="shapes" class="rounded-full px-3 py-1 bg-paper text-ink whitespace-nowrap">Icons</button>
       <button data-tab="skins" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">colors</button>

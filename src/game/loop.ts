@@ -21,8 +21,8 @@ export class GameLoop {
   private inputBuffer: InputEvent[] = [];
   private notifiedDeath = false;
 
-  constructor(seed: number, cfg: SimConfig, handlers: LoopHandlers, ghost?: GhostSim) {
-    this.sim = new Sim(seed, cfg);
+  constructor(seed: number, cfg: SimConfig, handlers: LoopHandlers, ghost?: GhostSim, noFail = false) {
+    this.sim = new Sim(seed, cfg, noFail);
     this.dtMs = 1000 / cfg.tickHz;
     this.handlers = handlers;
     this.ghost = ghost ?? null;

@@ -33,7 +33,7 @@ export type Tier = "easy" | "medium" | "hard" | "super_hard";
  * "blinding_sun" makes incoming pipes harder to read on the right; the
  * others are pure mood.
  */
-export type VisualEffect = "night" | "sunset" | "blinding_sun" | "rain";
+export type VisualEffect = "night" | "sunset" | "blinding_sun" | "rain" | "fog";
 
 export interface DailyModifier {
   id: string;
@@ -224,10 +224,21 @@ const VISUAL: DailyModifier[] = [
     id: "blinding_sun",
     name: "blinding sun day",
     kind: "visual",
-    difficulty: "neutral",
+    difficulty: "hostile",
     configOverride: (c) => c,
-    blurb: "sun glare on the right",
+    blurb: "blinding sun glare — pipes hard to read",
+    intensity: 1.3,
     visual: "blinding_sun",
+  },
+  {
+    id: "fog",
+    name: "fog day",
+    kind: "visual",
+    difficulty: "hostile",
+    configOverride: (c) => c,
+    blurb: "thick fog — limited visibility",
+    intensity: 1.4,
+    visual: "fog",
   },
 ];
 
@@ -236,6 +247,15 @@ const BY_ID = new Map(ALL.map((m) => [m.id, m]));
 
 export function getModifier(id: string): DailyModifier | null {
   return BY_ID.get(id) ?? null;
+}
+
+/** Intensity contribution of an active visual effect (1 = no effect). The
+ *  daily rolls its visual separately from `modifiers`, so the landing folds
+ *  this into the overall intensity. */
+export function visualEffectIntensity(visual: VisualEffect | null): number {
+  if (!visual) return 1;
+  const m = VISUAL.find((v) => v.visual === visual);
+  return m?.intensity ?? 1;
 }
 
 const TIER_WEIGHTS: Array<{ tier: Tier; weight: number }> = [

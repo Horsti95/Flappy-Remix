@@ -306,11 +306,15 @@ export function renderGallery(
     const ach = ACHIEVEMENTS;
     const unlockedN = ach.filter((a) => a.check(achStats)).length;
     const pct = Math.round((unlockedN / ach.length) * 100);
-    body.appendChild(headerLabel(`achievement rewards — ${unlockedN} / ${ach.length}`));
+    body.appendChild(headerLabel(`achievement colors — ${unlockedN} / ${ach.length}`));
     const progress = document.createElement("div");
     progress.className = "px-3 mb-2";
     progress.innerHTML = `<div class="h-1.5 bg-white/10 rounded-full overflow-hidden"><div class="h-full bg-paper transition-all" style="width:${pct}%"></div></div>`;
+    const achDesc = document.createElement("div");
+    achDesc.className = "px-3 mb-3 text-[10px] opacity-60";
+    achDesc.textContent = "color palettes earned by achievements — preview shown locked; ??? are secret.";
     body.appendChild(progress);
+    body.appendChild(achDesc);
     const achGrid = document.createElement("div");
     achGrid.className = "grid grid-cols-3 gap-3 px-2";
     body.appendChild(achGrid);
@@ -588,18 +592,28 @@ function themeCard(theme: Theme, equipped: boolean, stats: GalleryStats, onTap: 
 
 function achievementColorCard(a: AchievementDef, stats: AchievementStats, shapeId: ShapeId): HTMLElement {
   const got = a.check(stats);
+  // Locked cards preview their real reward color so players can see what
+  // they're working toward — EXCEPT prestige (secret) rewards, which stay a
+  // blacked-out mystery to keep them aspirational.
+  const mystery = !got && a.secret === true;
   const el = document.createElement("div");
   el.dataset.noFlap = "true";
-  el.className = `relative rounded-2xl p-3 flex flex-col items-center text-[10px] gap-2 border-2 bg-white/5 ${got ? "border-emerald-400/40" : "border-white/5 opacity-60"}`;
-  const body = got ? a.reward.body : [120, 120, 120] as [number, number, number];
-  const accent = got ? a.reward.accent : [60, 60, 60] as [number, number, number];
+  el.className = `relative rounded-2xl p-3 flex flex-col items-center text-[10px] gap-2 border-2 bg-white/5 ${
+    got ? "border-emerald-400/40" : mystery ? "border-white/10" : "border-white/5 opacity-80"
+  }`;
+  const body = mystery ? ([18, 18, 22] as [number, number, number]) : a.reward.body;
+  const accent = mystery ? ([10, 10, 12] as [number, number, number]) : a.reward.accent;
+  const preview = mystery
+    ? `<div class="w-full aspect-square flex items-center justify-center bg-black/40 rounded-xl text-2xl font-black opacity-70">?</div>`
+    : `<div class="w-full aspect-square flex items-center justify-center bg-sky-day/30 rounded-xl ${got ? "" : "opacity-75"}">
+         ${shapeSvgWithColors(shapeId, body, accent)}
+       </div>`;
+  const stateLabel = got ? "unlocked" : mystery ? "secret" : "preview · locked";
   el.innerHTML = `
-    <div class="w-full aspect-square flex items-center justify-center bg-sky-day/30 rounded-xl">
-      ${shapeSvgWithColors(shapeId, body, accent)}
-    </div>
-    <div class="font-bold capitalize leading-tight text-center">${escapeHtml(a.name)}</div>
+    ${preview}
+    <div class="font-bold capitalize leading-tight text-center">${mystery ? "???" : escapeHtml(a.name)}</div>
     <div class="opacity-60 text-[10px] text-center leading-snug">${escapeHtml(a.blurb)}</div>
-    <div class="text-[9px] uppercase tracking-wider font-bold ${got ? "text-emerald-300" : "opacity-50"}">${got ? "unlocked" : "locked"}</div>
+    <div class="text-[9px] uppercase tracking-wider font-bold ${got ? "text-emerald-300" : "opacity-50"}">${stateLabel}</div>
   `;
   return el;
 }

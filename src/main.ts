@@ -88,7 +88,7 @@ function pushSubView(): void {
 }
 
 type Mode = "menu" | "playing" | "paused" | "dead";
-type RunMode = "casual" | "daily" | "challenge" | "challenge-create" | "ranked";
+type RunMode = "casual" | "daily" | "challenge" | "challenge-create" | "ranked" | "training";
 
 const app = document.getElementById("app");
 if (!app) throw new Error("missing #app");
@@ -146,15 +146,31 @@ if (appBanner) {
       e.preventDefault();
       bannerDismissed = true;
       appBanner.hidden = true;
+      applyBannerOffset(false);
     });
   } else {
     appBanner.remove();
   }
 }
 
+// Banner height in px (matches the h-9 = 2.25rem bar). When the banner is
+// shown we push #app down by this much so it sits ABOVE the menu chips
+// instead of overlapping the account/settings buttons; the game area shrinks
+// slightly. During gameplay the banner hides and the app returns to full.
+const BANNER_H = 36;
+function applyBannerOffset(active: boolean): void {
+  const appEl = document.getElementById("app");
+  if (!appEl) return;
+  appEl.style.top = active ? `${BANNER_H}px` : "";
+}
+
 function setBannerVisible(visible: boolean): void {
-  if (!appBanner || !BANNER.enabled || bannerDismissed) return;
+  if (!appBanner || !BANNER.enabled || bannerDismissed) {
+    applyBannerOffset(false);
+    return;
+  }
   appBanner.hidden = !visible;
+  applyBannerOffset(visible);
 }
 
 function escapeHtmlAttr(s: string): string {
@@ -365,6 +381,7 @@ function showMenu(): void {
     settings,
     {
       onPlay: () => { pushSubView(); startRun("casual"); },
+      onTraining: () => { pushSubView(); startRun("training"); },
       onPlayDaily: () => { pushSubView(); openDailyLanding(); },
       onToggleSetting,
       onOpenAccount: () => { pushSubView(); panelOpen = true; renderAccountPanel(overlays, () => showMenu()); },
@@ -632,6 +649,16 @@ function startRun(runMode: RunMode = "casual"): void {
         pauseBtn.classList.add("hidden");
         const score = sim.score;
         const ticks = sim.dieTick;
+        // Training mode: practice only. Nothing is tracked, submitted, or
+        // unlocked — just replay. Skip all the recording side-effects.
+        if (currentRunMode === "training") {
+          announce(`Practice run ended. Score ${score}. Press R to play again.`);
+          renderGameOver(overlays, score, () => startRun("training"), showMenu, {
+            ticks,
+            trainingMode: true,
+          });
+          return;
+        }
         if (currentRunMode === "daily" && dailyInfo) {
           recordDailyBest(dailyInfo.date, score);
           bumpDailyAttempt(dailyInfo.date);
@@ -887,7 +914,9 @@ async function trySubmit(sim: { score: number; dieTick: number }): Promise<Submi
     score: sim.score,
     ticks: sim.dieTick,
     inputs: loop.getRecordedInputs(),
-    mode: currentRunMode === "challenge-create" ? "casual" : currentRunMode,
+    // training never reaches here (it returns before trySubmit), but map it
+    // to casual so the submit payload type stays valid.
+    mode: currentRunMode === "challenge-create" || currentRunMode === "training" ? "casual" : currentRunMode,
     dailyDate: currentRunMode === "daily" ? dailyInfo?.date : undefined,
     challengeShortId: currentRunMode === "challenge" ? activeChallenge?.short_id : undefined,
     rankedMatchId: currentRunMode === "ranked" ? activeRanked?.match.id : undefined,

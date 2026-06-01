@@ -10,6 +10,7 @@ import { SUPPORT_ENABLED, SUPPORT_URL } from "../game/support";
 
 export interface MenuCallbacks {
   onPlay(): void;
+  onTraining(): void;
   onPlayDaily(): void;
   onToggleSetting(key: keyof Settings): void;
   onOpenAccount(): void;
@@ -130,6 +131,7 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
           Board
         </button>
       </div>
+      <button data-action="training" class="block mx-auto mt-3 text-[11px] opacity-50 hover:opacity-90 transition-opacity underline">🪶 practice mode (untracked)</button>
       ${
         SUPPORT_ENABLED
           ? `<a href="${escapeHtml(SUPPORT_URL)}" target="_blank" rel="noopener noreferrer" data-support class="block mt-4 text-center text-[11px] opacity-50 hover:opacity-90 transition-opacity">☕ buy me a coffee</a>`
@@ -168,6 +170,10 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   wrap.querySelector('[data-action="daily"]')?.addEventListener("click", (e) => {
     e.stopPropagation();
     cbs.onPlayDaily();
+  });
+  wrap.querySelector('[data-action="training"]')?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    cbs.onTraining();
   });
   wrap.querySelector('[data-action="inbox"]')?.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -281,6 +287,8 @@ export interface GameOverResult {
     canSubmit: boolean;
     onSubmit: () => void;
   };
+  /** Training/practice run — nothing tracked; show a lightweight game-over. */
+  trainingMode?: boolean;
 }
 
 export function renderGameOver(
@@ -313,7 +321,9 @@ function renderGameOverInner(
   wrap.className = `pointer-events-auto absolute inset-x-0 bottom-0 z-10 px-4 pb-6 pt-6 bg-gradient-to-t ${ctx ? "from-black/95" : "from-black/80"} to-transparent text-paper font-display`;
   const unlocks = extra?.result?.unlocked ?? [];
   const unlocksHtml = unlocks.length > 0 ? renderUnlocks(unlocks) : "";
-  const acceptStatus = extra?.result
+  const acceptStatus = extra?.trainingMode
+    ? `<div class="text-[10px] opacity-50">practice — not tracked</div>`
+    : extra?.result
     ? extra.result.accepted
       ? `<div class="text-[10px] opacity-60">submitted · ${extra.result.total_games ?? "?"} games total</div>`
       : `<div class="text-[10px] opacity-40">offline / not accepted</div>`

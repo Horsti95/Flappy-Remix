@@ -177,7 +177,9 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void): () =
         status.textContent = `export failed: ${(err as Error).message}`;
       }
     });
-    wrap.querySelector("[data-delete]")?.addEventListener("click", async (e) => {
+    let deleteArmed = false;
+    const deleteBtn = wrap.querySelector("[data-delete]") as HTMLButtonElement | null;
+    deleteBtn?.addEventListener("click", async (e) => {
       e.stopPropagation();
       const status = wrap.querySelector("[data-account-status]") as HTMLDivElement;
       const session = s.session;
@@ -185,8 +187,35 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void): () =
         status.textContent = "not signed in";
         return;
       }
+      // Step 1: arm. A stray single tap just turns the button into a clear
+      // warning; it does nothing destructive and re-disarms shortly.
+      if (!deleteArmed) {
+        deleteArmed = true;
+        deleteBtn.textContent = "tap again to delete";
+        deleteBtn.classList.add("bg-red-600", "text-white");
+        deleteBtn.classList.remove("bg-red-900/40", "text-red-100");
+        status.textContent = "this permanently wipes everything — tap again to continue.";
+        window.setTimeout(() => {
+          deleteArmed = false;
+          deleteBtn.textContent = "delete account";
+          deleteBtn.classList.remove("bg-red-600", "text-white");
+          deleteBtn.classList.add("bg-red-900/40", "text-red-100");
+          if (status.textContent?.startsWith("this permanently")) status.textContent = "";
+        }, 4000);
+        return;
+      }
+      // Step 2: explicit OK dialog, THEN the typed phrase. Two deliberate
+      // confirmations after arming — accidental deletion is now very hard.
+      deleteArmed = false;
+      deleteBtn.textContent = "delete account";
+      deleteBtn.classList.remove("bg-red-600", "text-white");
+      deleteBtn.classList.add("bg-red-900/40", "text-red-100");
+      if (!window.confirm("Delete your account? This cannot be undone — profile, runs, skins, friends, challenges and ranked matches are all wiped.")) {
+        status.textContent = "cancelled";
+        return;
+      }
       const phrase = window.prompt(
-        "Type 'delete me forever' to confirm. This wipes profile, runs, skins, friendships, challenges and ranked matches.",
+        "Final step — type 'delete me forever' to confirm.",
       );
       if (phrase !== "delete me forever") {
         status.textContent = "cancelled";

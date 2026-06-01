@@ -34,6 +34,24 @@ Sizes: `xs` < 1h, `s` < half day, `m` < day, `l` < week, `xl` more.
 **Pending migration to apply:** 0014 (friend requests). 0009–0013 already applied.
 
 ### B. Ideas to reason / decide before building
+- **A11/A12 — packages + 3-color skins (deferred, maybe special-only):**
+  cosmetic bundles {sprite+bg+pillar+sound} + an optional 3rd color slot. The
+  pipeline is ready (A9). LEANING (owner): do 3-color ONLY for new special
+  skins, not the base pool. Build when we commit to the first package.
+- **A13 — country / national-day packages (deferred):** unlock on a national
+  day ±1 day (not GPS); country-color sprite + country-flag profile badge.
+- **Feedback → GitHub issues (#10):** instead of mailto, a serverless
+  `/api/feedback` that opens a GitHub Issue in the repo via the GitHub API
+  (fine-grained token w/ issues:write as a Vercel secret). Feedback lands as
+  triageable issues, not email. Small endpoint + a textarea modal replacing
+  the mailto link. RECOMMENDED next feedback step. Needs: the token + decide
+  public vs private repo (public repo issues are world-readable — fine, or
+  use a separate private feedback repo).
+- **Uploads contribution link (#5):** friends drop AI-generated art in
+  `design/uploads/` (specs in its README) → we review + wire usable ones.
+  For now: share the GitHub folder URL, or a Drive/Dropbox folder you link
+  there. A true in-app uploader is the bigger "upload-your-own-sprite" item
+  below.
 - **Community skin gifting (#9):** give a skin to another player; it's then
   permanently locked for the giver. Feasible but needs: a transfer record,
   anti-abuse (rate limit, no gifting event/limited items?), and a "gifted by

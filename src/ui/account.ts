@@ -57,12 +57,12 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void): () =
 
         <div class="mt-3 rounded-2xl bg-white/5 p-4">
           <div class="text-[11px] uppercase tracking-wider opacity-60">redeem code</div>
-          <form data-redeem-form class="mt-2 flex gap-2">
+          <form data-redeem-form class="mt-2 flex gap-2 items-stretch">
             <input data-redeem-input name="code" autocomplete="off" autocapitalize="characters" spellcheck="false"
                    maxlength="32"
-                   class="flex-1 rounded-xl bg-white/10 px-3 py-2 text-base outline-none focus:bg-white/20 uppercase tracking-wider"
+                   class="flex-1 min-w-0 rounded-xl bg-white/10 px-3 py-2 text-base outline-none focus:bg-white/20 uppercase tracking-wider"
                    placeholder="enter code" />
-            <button class="rounded-xl bg-paper text-ink px-4 py-2 font-bold disabled:opacity-50">redeem</button>
+            <button class="shrink-0 rounded-xl bg-paper text-ink px-3 py-2 text-sm font-bold disabled:opacity-50">use</button>
           </form>
           <div data-redeem-status class="mt-2 text-[12px] min-h-[1em] opacity-70"></div>
         </div>
@@ -99,6 +99,14 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void): () =
     });
     wrap.querySelector("[data-signout]")?.addEventListener("click", (e) => {
       e.stopPropagation();
+      // Anonymous accounts have no way back in — signing out abandons all
+      // progress permanently. Warn first (Google accounts can re-sign-in).
+      if (!isGoogle) {
+        const ok = window.confirm(
+          "You're playing anonymously — there's no way to sign back into this account. Signing out PERMANENTLY abandons your runs, skins, streak and friends. Continue?",
+        );
+        if (!ok) return;
+      }
       signOut();
     });
     wrap.querySelector("[data-toggle-equipped]")?.addEventListener("change", (e) => {

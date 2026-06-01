@@ -130,7 +130,7 @@ export function renderLeaderboard(
         <div class="w-7 flex items-center justify-center shrink-0">${rankBadge(rank)}</div>
         ${plane}
         <div class="flex-1 min-w-0">
-          <div class="text-sm truncate flex items-center gap-1.5">${row.username ? escapeHtml(row.username) : "anon"} ${meChip}</div>
+          <div class="text-sm truncate flex items-center gap-1.5">${row.username ? escapeHtml(row.username) : anonName(row.user_id)} ${meChip}</div>
           <div class="text-[10px] opacity-50" style="color:${rarityColor}">${row.skin_rarity ?? ""}</div>
         </div>
         <div class="font-bold ${podium ? "text-xl" : "text-lg"} tabular-nums">${row.score}</div>
@@ -152,6 +152,14 @@ export function renderLeaderboard(
     cancelled = true;
     wrap.remove();
   };
+}
+
+/** A stable, distinguishable name for handle-less players, derived from the
+ *  first 4 chars of their user id (e.g. "guest-3f9a"). Beats every anon
+ *  showing the same "anon". */
+function anonName(userId: string | null): string {
+  if (!userId) return "guest";
+  return `guest-${userId.slice(0, 4)}`;
 }
 
 /** Gold/silver/bronze medal disc for the podium, plain number otherwise. */

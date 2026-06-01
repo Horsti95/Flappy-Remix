@@ -25,7 +25,9 @@ export type ThemeId =
   | "cyber_rain"
   | "cyber_noir"
   | "neo_city"
-  | "fairy_spires";
+  | "fairy_spires"
+  | "ocean"
+  | "space";
 
 export interface CityBuilding {
   /** Left edge in world-units (world width is 360). */
@@ -342,6 +344,33 @@ export const THEMES: Theme[] = [
       highContrast: HC_DEFAULT,
     },
     unlock: (s) => ({ unlocked: s.streakDays >= 7, hint: "7-day streak" }),
+  },
+  {
+    id: "ocean",
+    name: "ocean",
+    blurb: "dive below — deep blue water + drifting bubbles.",
+    colors: {
+      skyTop: "#1b6fa8",
+      skyBottom: "#04263f",
+      pipeBody: "#0e7c8c",
+      pipeCap: "#0a5560",
+      fogIntensity: 0.18,
+      highContrast: HC_DEFAULT,
+    },
+    unlock: (s) => ({ unlocked: s.totalGames >= 40, hint: "play 40 games" }),
+  },
+  {
+    id: "space",
+    name: "space",
+    blurb: "the void — starfield + distant nebula.",
+    colors: {
+      skyTop: "#0b0626",
+      skyBottom: "#020210",
+      pipeBody: "#3a2d6e",
+      pipeCap: "#6b54c4",
+      highContrast: HC_DEFAULT,
+    },
+    unlock: (s) => ({ unlocked: s.bestScore >= 90, hint: "score 90 in a single run" }),
   },
 ];
 

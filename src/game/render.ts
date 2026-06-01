@@ -356,11 +356,50 @@ export class Renderer {
       }
     }
 
-    ctx.fillStyle = this.options.highContrast ? "#fff" : "#1a1a1a";
-    ctx.font = "bold 36px system-ui,sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    ctx.fillText(String(sim.score), cfg.worldWidth / 2, 24);
+    // Score counter — a rounded pill with a soft glow so it reads on any
+    // background. Hidden in practice/no-fail mode (no score to chase there).
+    if (!sim.noFail) {
+      const txt = String(sim.score);
+      const cx = cfg.worldWidth / 2;
+      const cy = 38;
+      ctx.save();
+      ctx.font = "bold 34px system-ui,sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const w = Math.max(46, ctx.measureText(txt).width + 28);
+      const h = 44;
+      const rx = cx - w / 2;
+      const ry = cy - h / 2;
+      const rad = h / 2;
+      // Pill background
+      ctx.beginPath();
+      ctx.moveTo(rx + rad, ry);
+      ctx.arcTo(rx + w, ry, rx + w, ry + h, rad);
+      ctx.arcTo(rx + w, ry + h, rx, ry + h, rad);
+      ctx.arcTo(rx, ry + h, rx, ry, rad);
+      ctx.arcTo(rx, ry, rx + w, ry, rad);
+      ctx.closePath();
+      if (this.options.highContrast) {
+        ctx.fillStyle = "#000";
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#fff";
+        ctx.stroke();
+        ctx.fillStyle = "#fff";
+      } else {
+        ctx.shadowColor = "rgba(0,0,0,0.35)";
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = "rgba(20,20,28,0.55)";
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = "rgba(255,255,255,0.35)";
+        ctx.stroke();
+        ctx.fillStyle = "#f4ead5";
+      }
+      ctx.fillText(txt, cx, cy + 1);
+      ctx.restore();
+    }
 
     if (sim.startGrace && sim.alive) {
       ctx.fillStyle = this.options.highContrast ? "#fff" : "#1a1a1a";

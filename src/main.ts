@@ -621,7 +621,9 @@ function startRun(runMode: RunMode = "casual"): void {
   mode = "playing";
   currentRunMode = runMode;
   renderer.options.pillarStyle = getEquippedPillarLocal();
-  setBannerVisible(false);
+  // Banner stays visible during gameplay too (consistent everywhere); the
+  // offset shrinks the stage below it, so the pause button isn't covered.
+  setBannerVisible(true);
   pauseBtn.classList.remove("hidden");
   let ghost: GhostSim | undefined;
   // Daily twist: apply the modifier(s) on top of DEFAULT_CONFIG for

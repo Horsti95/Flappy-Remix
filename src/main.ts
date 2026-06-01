@@ -49,6 +49,8 @@ import { type RankedMatch, createRankedChallenge } from "./social/ranked";
 import { createChallenge, fetchChallenge, ghostSkinFromChallenge, fetchUnseenChallengeCount, type FetchedChallenge } from "./social/challenges";
 import { renderInbox } from "./ui/inbox";
 import { renderProfile } from "./ui/profile";
+import { renderWhatsNew } from "./ui/whats-new";
+import { isFirstRun, markChangelogSeen, unseenChanges } from "./game/changelog";
 import { renderQuests } from "./ui/quests";
 import { evaluateRun, type QuestCompletion } from "./game/quests";
 import { getGrantedShapesLocal } from "./social/grants";
@@ -312,7 +314,22 @@ loadEquippedSkin().then(async () => {
   }
   showMenu();
   hideSplash();
+  maybeShowWhatsNew();
 });
+
+// Show the "what's new" modal once after an update. First-time players are
+// not ambushed — we just record the current version as seen.
+function maybeShowWhatsNew(): void {
+  if (isFirstRun()) {
+    markChangelogSeen();
+    return;
+  }
+  const entries = unseenChanges();
+  if (entries.length === 0) return;
+  pushSubView();
+  panelOpen = true;
+  renderWhatsNew(overlays, entries, () => showMenu());
+}
 
 async function refreshDaily(): Promise<void> {
   dailyInfo = await fetchDaily();

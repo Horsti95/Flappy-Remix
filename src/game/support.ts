@@ -19,7 +19,7 @@ const env = import.meta.env;
  * Ko-fi / GitHub Sponsors) over a personal PayPal.me link to avoid doxxing.
  */
 export const SUPPORT_URL: string =
-  env.VITE_SUPPORT_URL ?? "https://buymeacoffee.com/your-handle-here";
+  env.VITE_SUPPORT_URL ?? "https://buymeacoffee.com/hossi95";
 
 /** Whether to show the subtle tip link in the menu. */
 export const SUPPORT_ENABLED = true;

@@ -53,6 +53,7 @@ import { renderQuests } from "./ui/quests";
 import { evaluateRun, type QuestCompletion } from "./game/quests";
 import { getGrantedShapesLocal } from "./social/grants";
 import { listMyBadges } from "./social/badges";
+import { BANNER } from "./game/support";
 
 setupPWA();
 initAuth();
@@ -124,6 +125,42 @@ const liveRegion = document.getElementById("live-region") as HTMLDivElement;
 
 function announce(msg: string): void {
   if (liveRegion) liveRegion.textContent = msg;
+}
+
+// Persistent non-tracking banner slot. A single static message (house message
+// or one sponsor) you control — no ad network, no SDK. It lives in the app
+// shell (a thin fixed bar at the top of the viewport) so it shows on every
+// menu/overlay screen but is hidden during an active run. It sits outside the
+// canvas play area, so it never resizes the stage or perturbs the
+// ResizeObserver-driven canvas sizing.
+const appBanner = document.getElementById("app-banner") as HTMLDivElement | null;
+let bannerDismissed = false;
+if (appBanner) {
+  if (BANNER.enabled) {
+    const content = BANNER.href
+      ? `<a href="${escapeHtmlAttr(BANNER.href)}" target="_blank" rel="noopener noreferrer" class="truncate hover:underline">${escapeHtmlAttr(BANNER.label)}</a>`
+      : `<span class="truncate">${escapeHtmlAttr(BANNER.label)}</span>`;
+    appBanner.innerHTML = `${content}<button data-banner-dismiss class="absolute right-2 opacity-50 hover:opacity-100 px-1" aria-label="Dismiss banner">✕</button>`;
+    appBanner.querySelector("[data-banner-dismiss]")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      bannerDismissed = true;
+      appBanner.hidden = true;
+    });
+  } else {
+    appBanner.remove();
+  }
+}
+
+function setBannerVisible(visible: boolean): void {
+  if (!appBanner || !BANNER.enabled || bannerDismissed) return;
+  appBanner.hidden = !visible;
+}
+
+function escapeHtmlAttr(s: string): string {
+  return s.replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
+  );
 }
 
 const initialShape: ShapeId = ((): ShapeId => {
@@ -310,6 +347,7 @@ function menuAccountLabel(): string {
 function showMenu(): void {
   mode = "menu";
   panelOpen = false;
+  setBannerVisible(true);
   pauseBtn.classList.add("hidden");
   loop?.stop();
   loop = null;
@@ -541,6 +579,7 @@ function startRun(runMode: RunMode = "casual"): void {
   overlays.innerHTML = "";
   mode = "playing";
   currentRunMode = runMode;
+  setBannerVisible(false);
   pauseBtn.classList.remove("hidden");
   let ghost: GhostSim | undefined;
   // Daily twist: apply the modifier(s) on top of DEFAULT_CONFIG for

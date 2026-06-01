@@ -327,6 +327,39 @@ export class Renderer {
       ctx.fillRect(0, 0, cfg.worldWidth, cfg.worldHeight);
     }
 
+    // Ambient theme decoration — ocean bubbles / space stars. Decorative,
+    // world-space, deterministic-lattice + wall-clock drift (never feeds the
+    // sim). Static under reduced motion.
+    if (!this.options.highContrast && (this.options.theme === "ocean" || this.options.theme === "space")) {
+      const W = cfg.worldWidth;
+      const H = cfg.worldHeight;
+      const t = this.options.reducedMotion ? 0 : (performance.now() % 6000) / 6000;
+      ctx.save();
+      if (this.options.theme === "ocean") {
+        ctx.fillStyle = "rgba(255,255,255,0.22)";
+        for (let i = 0; i < 18; i++) {
+          const ph = (i * 0.6180339) % 1;
+          const x = (ph * W + i * 13) % W;
+          const y = H - ((t + ph) % 1) * (H + 20); // rise upward
+          const r = 1.2 + (i % 3);
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else {
+        // starfield — twinkle via alpha, no movement needed
+        for (let i = 0; i < 40; i++) {
+          const ph = (i * 0.6180339) % 1;
+          const x = (ph * W * 1.7) % W;
+          const y = ((i * 0.39) % 1) * H;
+          const tw = 0.35 + 0.45 * Math.abs(Math.sin((t * Math.PI * 2) + i));
+          ctx.fillStyle = `rgba(255,255,255,${tw.toFixed(2)})`;
+          ctx.fillRect(x, y, i % 5 === 0 ? 2 : 1, i % 5 === 0 ? 2 : 1);
+        }
+      }
+      ctx.restore();
+    }
+
     // Rain overlay — animated streaks in world space. Purely visual; a
     // fixed lattice scrolled by wall-clock time so it never feeds the sim.
     // Skipped under reduced motion (static dampening tint instead).

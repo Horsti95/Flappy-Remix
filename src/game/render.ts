@@ -26,6 +26,8 @@ export interface RenderOptions {
   glow?: boolean;
   /** Player-picked pillar style (solid / glass / neon / stone). */
   pillarStyle?: PillarStyleId;
+  /** Challenge-ghost opacity, 0..100 (%). */
+  ghostOpacity?: number;
 }
 
 export class Renderer {
@@ -238,9 +240,10 @@ export class Renderer {
       });
     }
 
-    if (ghost && ghost.isAlive()) {
+    const ghostAlpha = (this.options.ghostOpacity ?? 25) / 100;
+    if (ghost && ghost.isAlive() && ghostAlpha > 0) {
       const gy = ghost.prevBirdY() + (ghost.birdY() - ghost.prevBirdY()) * alpha;
-      ctx.globalAlpha = 0.25;
+      ctx.globalAlpha = ghostAlpha;
       this.drawShape(
         cfg.birdX,
         gy,

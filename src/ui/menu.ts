@@ -8,12 +8,14 @@ import { getTheme, DEFAULT_THEME_ID, type ThemeId } from "../game/themes";
 import { shapeSvgInner } from "./shape-svg";
 import { SUPPORT_ENABLED, SUPPORT_URL, FEEDBACK_EMAIL } from "../game/support";
 import { APP_VERSION } from "../game/changelog";
+import { getShowEquippedInMenu, setShowEquippedInMenu } from "../game/menu-prefs";
 
 export interface MenuCallbacks {
   onPlay(): void;
   onTraining(): void;
   onPlayDaily(): void;
   onToggleSetting(key: keyof Settings): void;
+  onSetGhostOpacity(pct: number): void;
   onOpenAccount(): void;
   onOpenSkins(): void;
   onOpenLeaderboard(): void;
@@ -138,11 +140,6 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
           ? `<a href="${escapeHtml(SUPPORT_URL)}" target="_blank" rel="noopener noreferrer" data-support class="block mt-4 text-center text-[11px] opacity-50 hover:opacity-90 transition-opacity">☕ buy me a coffee</a>`
           : ""
       }
-      ${
-        FEEDBACK_EMAIL
-          ? `<a href="${feedbackMailto()}" data-feedback class="block mt-2 text-center text-[11px] opacity-50 hover:opacity-90 transition-opacity">💬 send feedback</a>`
-          : ""
-      }
     </div>
     <div data-settings-panel class="hidden absolute inset-0 z-20 flex flex-col justify-end pointer-events-auto">
       <div class="bg-black/40 absolute inset-0" data-settings-backdrop></div>
@@ -153,6 +150,22 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
           ${toggle("highContrast", "Contrast", settings.highContrast)}
           ${toggle("reducedMotion", "Motion", settings.reducedMotion)}
         </div>
+        <label class="mt-4 flex items-center justify-between text-[12px] cursor-pointer">
+          <span class="opacity-90">show my plane + sky in the menu</span>
+          <input type="checkbox" data-show-equipped ${getShowEquippedInMenu() ? "checked" : ""} class="w-5 h-5 accent-paper" />
+        </label>
+        <div class="mt-4">
+          <div class="flex items-center justify-between text-[12px]">
+            <span class="opacity-90">challenge ghost opacity</span>
+            <span data-ghost-val class="opacity-70 tabular-nums">${settings.ghostOpacity}%</span>
+          </div>
+          <input type="range" min="0" max="100" step="5" value="${settings.ghostOpacity}" data-ghost-opacity class="w-full mt-1 accent-paper" />
+        </div>
+        ${
+          FEEDBACK_EMAIL
+            ? `<a href="${feedbackMailto()}" data-feedback class="block mt-4 text-center text-[12px] underline opacity-70 hover:opacity-100">💬 send feedback</a>`
+            : ""
+        }
       </div>
     </div>
   `;
@@ -218,6 +231,18 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
       e.stopPropagation();
       cbs.onToggleSetting(btn.dataset.toggle as keyof Settings);
     });
+  });
+  wrap.querySelector("[data-show-equipped]")?.addEventListener("change", (e) => {
+    e.stopPropagation();
+    setShowEquippedInMenu((e.target as HTMLInputElement).checked);
+  });
+  const ghostSlider = wrap.querySelector("[data-ghost-opacity]") as HTMLInputElement | null;
+  ghostSlider?.addEventListener("input", (e) => {
+    e.stopPropagation();
+    const pct = Number((e.target as HTMLInputElement).value);
+    const val = wrap.querySelector("[data-ghost-val]");
+    if (val) val.textContent = `${pct}%`;
+    cbs.onSetGhostOpacity(pct);
   });
 }
 

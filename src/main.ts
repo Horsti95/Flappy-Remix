@@ -204,6 +204,7 @@ const renderer = new Renderer(canvas, DEFAULT_CONFIG, {
   shape: equippedShapeId,
   theme: equippedThemeId,
   reducedMotion: settings.reducedMotion || matchMedia("(prefers-reduced-motion: reduce)").matches,
+  ghostOpacity: settings.ghostOpacity,
 });
 const observer = new ResizeObserver(() => renderer.resize());
 observer.observe(stage);
@@ -410,6 +411,11 @@ function showMenu(): void {
       onTraining: () => { pushSubView(); startRun("training"); },
       onPlayDaily: () => { pushSubView(); openDailyLanding(); },
       onToggleSetting,
+      onSetGhostOpacity: (pct: number) => {
+        settings.ghostOpacity = pct;
+        saveSettings(settings);
+        renderer.options.ghostOpacity = pct;
+      },
       onOpenAccount: () => { pushSubView(); panelOpen = true; renderAccountPanel(overlays, () => showMenu()); },
       onOpenSkins: () => {
         pushSubView();
@@ -611,8 +617,12 @@ function applyQuestReward(c: QuestCompletion): void {
   }
 }
 
+type BoolSetting = "sound" | "highContrast" | "reducedMotion";
 function onToggleSetting(key: keyof Settings): void {
-  settings[key] = !settings[key];
+  // Only the boolean toggles route here; ghostOpacity uses its own slider.
+  if (key !== "sound" && key !== "highContrast" && key !== "reducedMotion") return;
+  const k = key as BoolSetting;
+  settings[k] = !settings[k];
   saveSettings(settings);
   renderer.options.highContrast = settings.highContrast;
   renderer.options.reducedMotion = settings.reducedMotion || matchMedia("(prefers-reduced-motion: reduce)").matches;

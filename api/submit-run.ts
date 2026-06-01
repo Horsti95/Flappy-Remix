@@ -13,6 +13,7 @@ import {
   applyElo,
   decideResult,
   isBestOfThreeComplete,
+  marginBonus,
   tallyOutcome,
 } from "./_lib/elo";
 
@@ -186,8 +187,13 @@ export default async function handler(req: Request): Promise<Response> {
       const aBefore = (m.data.a_rating_before as number) ?? 1200;
       const bBefore = (m.data.b_rating_before as number) ?? 1200;
       const next = applyElo(aBefore, bBefore, result);
-      aAfter = next.a;
-      bAfter = next.b;
+      // Winner-only flat bonus scaled by aggregate score margin over the
+      // rounds actually played. Applied after the core Elo math.
+      const aTotal = definedPaired.reduce((sum, i) => sum + (a[i] as number), 0);
+      const bTotal = definedPaired.reduce((sum, i) => sum + (b[i] as number), 0);
+      const bonus = marginBonus(aTotal, bTotal, result);
+      aAfter = next.a + bonus.a;
+      bAfter = next.b + bonus.b;
       winnerId = result === "draw" ? null : result === "a_win" ? (m.data.player_a as string) : (m.data.player_b as string);
       nextState = "completed";
 

@@ -5,6 +5,7 @@ import {
   expectedScore,
   isBestOfThreeComplete,
   K_FACTOR,
+  marginBonus,
   ratingWindow,
   softReset,
   tallyOutcome,
@@ -70,6 +71,30 @@ describe("best-of-three resolution", () => {
   it("1-1-1 (one tie) -> tie if other two cancel", () => {
     const o = tallyOutcome([5, 6, 7], [4, 6, 9]);
     expect(decideResult(o)).toBe("draw");
+  });
+});
+
+describe("ranked margin bonus", () => {
+  it("margin 4 -> no bonus", () => {
+    expect(marginBonus(14, 10, "a_win")).toEqual({ a: 0, b: 0 });
+  });
+  it("margin 5 -> +1 to the winner", () => {
+    expect(marginBonus(15, 10, "a_win")).toEqual({ a: 1, b: 0 });
+  });
+  it("margin 25 -> +2 to the winner", () => {
+    expect(marginBonus(35, 10, "a_win")).toEqual({ a: 2, b: 0 });
+  });
+  it("margin 50 -> +3 to the winner", () => {
+    expect(marginBonus(60, 10, "a_win")).toEqual({ a: 3, b: 0 });
+  });
+  it("margin 60 -> capped at +3", () => {
+    expect(marginBonus(70, 10, "a_win")).toEqual({ a: 3, b: 0 });
+  });
+  it("draw gets no bonus", () => {
+    expect(marginBonus(100, 0, "draw")).toEqual({ a: 0, b: 0 });
+  });
+  it("loser gets 0; bonus goes to b when b wins", () => {
+    expect(marginBonus(10, 70, "b_win")).toEqual({ a: 0, b: 3 });
   });
 });
 

@@ -53,6 +53,27 @@ export function applyElo(ratingA: number, ratingB: number, result: Result, k = K
   };
 }
 
+// Flat winner-only bonus scaled by aggregate score margin across the match.
+// Highest matching tier wins. Loser and draws get nothing.
+export const MARGIN_BONUS_TIERS: ReadonlyArray<readonly [number, number]> = [
+  [50, 3],
+  [25, 2],
+  [5, 1],
+];
+
+export function marginBonus(aTotal: number, bTotal: number, result: Result): { a: number; b: number } {
+  if (result === "draw") return { a: 0, b: 0 };
+  const margin = Math.abs(aTotal - bTotal);
+  let bonus = 0;
+  for (const [threshold, value] of MARGIN_BONUS_TIERS) {
+    if (margin >= threshold) {
+      bonus = value;
+      break;
+    }
+  }
+  return result === "a_win" ? { a: bonus, b: 0 } : { a: 0, b: bonus };
+}
+
 export function softReset(rating: number): number {
   return Math.round(SOFT_RESET_PULL_TO + (rating - SOFT_RESET_PULL_TO) * SOFT_RESET_FACTOR);
 }

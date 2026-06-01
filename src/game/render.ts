@@ -19,6 +19,9 @@ export interface RenderOptions {
   mirror?: boolean;
   /** Cosmetic daily overlay (night / sunset / blinding sun / rain). */
   visualEffect?: VisualEffect | null;
+  /** Soft glow around the player's shape, tinted to the accent color.
+   *  Auto-on for legendary skins; an unlockable FX can also drive it. */
+  glow?: boolean;
 }
 
 export class Renderer {
@@ -224,7 +227,7 @@ export class Renderer {
 
     const by = sim.alive ? sim.prevBirdY + (sim.birdY - sim.prevBirdY) * alpha : sim.birdY;
     const tilt = this.options.reducedMotion ? 0 : Math.max(-0.6, Math.min(1.0, sim.birdVY / 600));
-    this.drawShape(cfg.birdX, by, tilt, this.options.skin, this.options.shape, sim.cfg.birdRadius);
+    this.drawShape(cfg.birdX, by, tilt, this.options.skin, this.options.shape, sim.cfg.birdRadius, true);
 
     // Flap-FX particles. Painted after the bird so they trail behind it
     // visually. Tick happens on each draw call using a fixed assumed
@@ -352,12 +355,28 @@ export class Renderer {
     ctx.restore();
   }
 
-  private drawShape(x: number, y: number, tilt: number, skin: SkinColors, shapeId: ShapeId, radius?: number): void {
+  private drawShape(x: number, y: number, tilt: number, skin: SkinColors, shapeId: ShapeId, radius?: number, isPlayer = false): void {
     const ctx = this.ctx;
     const r = radius ?? this.cfg.birdRadius;
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(tilt);
+    // Glow: a soft accent-tinted halo behind the player's shape. Player-only
+    // (never the ghost), off under reduced-motion/high-contrast. Cosmetic.
+    if (isPlayer && this.options.glow && !this.options.highContrast && !this.options.reducedMotion) {
+      ctx.save();
+      ctx.shadowColor = `rgb(${skin.accent.join(",")})`;
+      ctx.shadowBlur = r * 1.2;
+      ctx.fillStyle = `rgb(${skin.accent.join(",")})`;
+      // Two stacked discs build up a bloom via the shadow; the discs
+      // themselves are tiny so they don't show, only their glow does.
+      ctx.globalAlpha = 0.9;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fill();
+      ctx.restore();
+    }
     // Sprite-backed shapes draw a tinted bitmap when it's loaded; otherwise
     // (offline / pre-load / high-contrast) fall back to the polygon draw.
     const tinted = !this.options.highContrast && hasSprite(shapeId)

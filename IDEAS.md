@@ -119,6 +119,64 @@ Status as of 2026-06-01 — most of the queue has shipped to `main`.
   but exposes the address) vs a tiny serverless endpoint using an email
   API (Resend/SendGrid) so the address stays private.
 
+### Design-phase decisions (2026-06-01) — deferred to a post-dev polish pass
+
+- **Sound redesign (`m`, post-dev).** Current SFX are clean synthesized
+  Web Audio tones — inoffensive but not characterful/cute. For positive
+  emotion: hand-tuned multi-layer synth (pitch bends, smiling envelopes)
+  or short recorded samples, designed *after* the visuals are final so
+  audio + art share one personality. Dedicated "juice" milestone.
+- **Background redesigns (`l`, post-dev).** City (fillRect skyline) and
+  beach (gradient + horizon band) are functional, not beautiful. Best
+  path = build the **sprite/art pipeline** first (image loader + tiling),
+  which also unlocks the AI-art prompts, event skins, and nicer pillars.
+  So "prettier backgrounds" really means "do the sprite pipeline, then
+  art." Bigger than a quick fix.
+- **Sprite glow FX (`s`, design-phase OK to prototype).** Soft radial /
+  shadowBlur glow around the shape, tinted to the skin accent. Should be
+  an *unlockable FX option* (like flap effects), respect reduced-motion,
+  and ideally auto-apply to **legendary** skins so rarity is visible in
+  motion. Hang it on the existing flap-FX system.
+- **Daily hardness % (`m`, LATER — NOT the current additive rng).**
+  Replace the label-only tier with a **multiplicative** intensity score:
+  each modifier carries a hardness factor (e.g. tight gaps 1.3, rush
+  1.25, heavy 1.15; friendly <1.0 like floaty 0.85); multiply them →
+  e.g. 1.2×1.2 = 1.44 = "+44% intensity"; map the product to tiers
+  (<1.0 easy … >1.7 super-hard) so the **tier is DERIVED** from the mods
+  (today tier + mods are rolled independently). Display "today: 160%
+  intensity" on the landing. Keep physics from the modifiers themselves
+  — display/derivation only, stays deterministic.
+  - **Workflow the owner wants:** Claude lists every modifier; the OWNER
+    assigns each a hardness %; then we encode those weights. Do the
+    list-and-assign step before coding.
+- **GPS / regional unlocks — investigated, NOT building.** Geolocation
+  as an unlock criterion is weak: permission friction, trivially
+  spoofable (VPN/emulator), and adds a native-permission dependency for
+  the iOS/Android port. If ever done, only as opt-in *local-only*
+  regional flair, never a required criterion.
+- **Selling geolocation data — rejected on business merit (ethics
+  aside).** Brokers pay only at massive DAU scale (≈0 for a new game);
+  Apple/Google **prohibit selling location data** → app rejection/removal
+  (kills the port); GDPR/CCPA consent burden. High risk, ~zero yield,
+  blocks mobile. Revenue stays: tips + cosmetics + non-tracking banner.
+- **Event skins + badge-shapes (`m`).** Time-gated unlocks (Pride, New
+  Year, World AIDS Day red ribbon) — available only in a date window,
+  owned forever once earned; free + respectful (no grind, no paywall on
+  a cause skin). A "purple badge" doubles as a flyable **shape** AND a
+  **profile badge** (profile already renders shape + season badges).
+  Placeholder criteria already coded in `src/game/unlock-criteria.ts`
+  (`new_year_flight`, `pride_wings`, `red_ribbon` + `isEventActive`).
+- **Richer unlock criteria catalog — STARTED.** 26 placeholder criteria
+  with `TBA ·` rewards live in `unlock-criteria.ts` (#56). Attach real
+  skins/shapes/backgrounds/pillars/sounds/fx as they're designed. A
+  follow-up branch surfaces them in the gallery.
+- **Adjustable screen ratios — done the safe way (#57); the rest is a
+  no.** Keep the fixed 360×640 world (it's what makes runs deterministic
+  + replay-verifiable + port-safe). Only the *presentation* fills the
+  screen: pillar-edge bleed + letterbox framing shipped. True
+  gameplay-affecting variable aspect ratio is intentionally NOT built —
+  it would break determinism/fairness.
+
 ## Next — concrete, deciding what to start
 
 ### Daily twist — pre-game warning + remaining modifiers (`s` to `m` each)

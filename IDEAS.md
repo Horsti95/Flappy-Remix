@@ -8,26 +8,30 @@ Sizes: `xs` < 1h, `s` < half day, `m` < day, `l` < week, `xl` more.
 
 ## MASTER BACKLOG (updated 2026-06-01)
 
-### A. Decided — ready to build, ranked easy → hard
-| # | Item | Size | Notes |
+### A. Decided — ranked easy → hard  (A1–A9 SHIPPED 2026-06-01)
+| # | Item | Size | Status / Notes |
 |---|------|------|-------|
-| A1 | Friend requests (accept/decline) | `m` | TODAY send = auto-accept (both friendship rows inserted). Add `status` (pending/accepted) + accept/decline RPCs + incoming-requests UI. Needs migration. |
-| A2 | Surface the 26 placeholder criteria in the gallery | `s` | `unlock-criteria.ts` exists; render as locked `TBA` cards. |
-| A3 | Patch-notes / "what's new" modal | `s` | client `CHANGELOG` array + last-seen version in localStorage; show once per update (version-based, NOT per-login — less spammy); dismissible; no push. |
-| A4 | Feedback button | `s` | decide delivery: `mailto:` (exposes address) vs serverless email API (Resend/SendGrid, private). |
-| A5 | Sprite glow FX | `s` | unlockable FX; auto-apply to legendary skins; respect reduced-motion. |
-| A6 | Ranked-friend run UX (see Q-block #7) | `s`–`m` | server already rejects replayed rounds (`round_already_played`) so NOT exploitable, but the game-over wrongly offers plain "Play again". Change ranked game-over to "Submit round 1/3 → round 2 of 3 …"; confirm Elo wording. |
-| A7 | Player-pickable pillar style | `m` | new equip axis {solid/glass/neon/stone}; glass see-through always; glass on DAILY adds difficulty (readability only, never hitboxes); unlockable. |
-| A8 | Daily hardness-% logic | `m` | OWNER assigns each modifier a % first, then encode; multiplicative; tier DERIVED; display "today: 160%". |
-| A9 | **Sprite/background image pipeline — extend to backgrounds** | `m`–`l` | sprite half SHIPPED (toucan, #63). Add the `backgroundImage` draw path (under pillars, center lane clear) → unlocks the uploaded bg art + packages. |
+| A1 | Friend requests (accept/decline) | `m` | ✅ #70 — `status` column (migration 0014) + accept/decline RPCs + requests UI. |
+| A2 | Surface the 26 placeholder criteria | `s` | ✅ #66 — goals list in the quests tab. |
+| A3 | Patch-notes / "what's new" modal | `s` | ✅ #67 — version-based, once per update; bump `APP_VERSION` + prepend `CHANGELOG`. |
+| A4 | Feedback button | `s` | ⬜ NEXT. Decide delivery: `mailto:` (exposes address) vs serverless email API (Resend/SendGrid, private). |
+| A5 | Sprite glow FX | `s` | ✅ #69 — legendary skins glow; `RenderOptions.glow`. |
+| A6 | Ranked-friend run UX | `s` | ✅ #68 — game-over routes to match ("round N/3 submitted"), not replay. |
+| A7 | Player-pickable pillar style | `m` | ✅ #71 — solid/stone/neon/glass; glass see-through + harder-daily. |
+| A8 | Daily intensity meter | `m` | ✅ #72 — per-modifier multipliers, compounding; bands easy→extreme + %. |
+| A9 | Background image pipeline | `m`–`l` | ✅ #73 — `Theme.backgroundImage`; neo_city + fairy_spires themes. (Sprite half = #63.) |
 | A10 | Vectorize uploaded toucan → recolorable layers | `s` | flat ref → body/accent so skin system tints cleanly. |
-| A11 | Cosmetic packages (mix-and-match, Fortnite-style) | `m` | bundle {sprite+bg+pillar+sound}, independently mixable. |
+| A11 | Cosmetic packages (mix-and-match, Fortnite-style) | `m` | bundle {sprite+bg+pillar+sound}, independently mixable. Pipeline ready (A9). |
 | A12 | 3-color premium skins (primary/secondary/tertiary) | `m` | base stays 2-color; premium/packages get optional 3rd slot. Do with A11. |
 | A13 | Country / national-day packages | `m` | unlock on national day ±1 day (NOT GPS); country-color sprite + country-flag PROFILE BADGE. Germany first. |
-| A14 | Event skins + badge-shapes | `m` | placeholders coded (pride/new-year/red-ribbon). Needs A9 for art. |
-| A15 | City + beach background redesign | `l` | after A9; real art. |
+| A14 | Event skins + badge-shapes | `m` | placeholders coded (pride/new-year/red-ribbon). Pipeline ready (A9). |
+| A15 | City + beach background redesign | `l` | real art via A9. |
 | A16 | Sound redesign / juice pass | `m` | post-dev; characterful synth/samples with final visuals. |
 | A17 | Achievement/unlock DEEPER merge | `l` | make registry the single source presets/quests read (foundation #54). |
+
+**Remaining A-block, recommended order:** A4 (feedback, quick) → A10 (vectorize toucan) → A11+A12 (packages + 3-color, together) → A13 (country packs) / A14 (events) → A15/A16 (redesign, post-dev) → A17 (deeper merge).
+
+**Pending migration to apply:** 0014 (friend requests). 0009–0013 already applied.
 
 ### B. Ideas to reason / decide before building
 - **Community skin gifting (#9):** give a skin to another player; it's then

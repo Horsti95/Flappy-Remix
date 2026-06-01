@@ -47,6 +47,7 @@ import { clearParticles, getActiveFlapFx, setFxLabMode, spawnFlapFx } from "./ga
 import { type RankedMatch } from "./social/ranked";
 import { createChallenge, fetchChallenge, ghostSkinFromChallenge, fetchUnseenChallengeCount, type FetchedChallenge } from "./social/challenges";
 import { renderInbox } from "./ui/inbox";
+import { renderProfile } from "./ui/profile";
 import { renderQuests } from "./ui/quests";
 import { evaluateRun, type QuestCompletion } from "./game/quests";
 import { getGrantedShapesLocal } from "./social/grants";
@@ -368,7 +369,7 @@ function showMenu(): void {
           },
         );
       },
-      onOpenLeaderboard: () => { pushSubView(); panelOpen = true; renderLeaderboard(overlays, () => showMenu()); },
+      onOpenLeaderboard: () => { pushSubView(); panelOpen = true; renderLeaderboard(overlays, () => showMenu(), (username) => openProfile(username)); },
       onOpenFriends: () => openFriendsPanel(),
       onOpenRanked: () => {
         pushSubView();
@@ -755,6 +756,16 @@ function shareChallenge(score: number, shortId: string, addressedTo: string | nu
   });
 }
 
+function openProfile(username: string): void {
+  pushSubView();
+  panelOpen = true;
+  // The profile card layers above whatever opened it (friends list,
+  // leaderboard); closing it returns to that surface, not the menu.
+  renderProfile(overlays, username, () => {
+    /* card removed itself; nothing else to restore */
+  });
+}
+
 function openFriendsPanel(): void {
   pushSubView();
   panelOpen = true;
@@ -763,6 +774,9 @@ function openFriendsPanel(): void {
       panelOpen = false;
       pendingChallengeTarget = { friend };
       startRun("challenge-create");
+    },
+    onViewProfile: (friend) => {
+      if (friend.username) openProfile(friend.username);
     },
   });
 }

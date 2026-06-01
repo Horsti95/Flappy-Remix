@@ -2,7 +2,11 @@ import { fetchLeaderboard, type LeaderboardScope, type LeaderboardPeriod } from 
 import { authState } from "../social/auth";
 import { RARITY_COLOR, type Rarity } from "../game/rarity";
 
-export function renderLeaderboard(host: HTMLElement, onClose: () => void): () => void {
+export function renderLeaderboard(
+  host: HTMLElement,
+  onClose: () => void,
+  onViewProfile?: (username: string) => void,
+): () => void {
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
   wrap.className = "pointer-events-auto absolute inset-0 z-30 bg-black/80 backdrop-blur-sm font-display text-paper flex flex-col";
@@ -109,6 +113,13 @@ export function renderLeaderboard(host: HTMLElement, onClose: () => void): () =>
         </div>
         <div class="font-bold ${podium ? "text-xl" : "text-lg"} tabular-nums">${row.score}</div>
       `;
+      if (onViewProfile && row.username) {
+        r.classList.add("cursor-pointer");
+        r.addEventListener("click", (e) => {
+          e.stopPropagation();
+          onViewProfile(row.username as string);
+        });
+      }
       list.appendChild(r);
     });
   }

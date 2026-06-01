@@ -6,8 +6,7 @@ import { DEFAULT_SHAPE_ID, type ShapeId } from "../game/shapes";
 import { DEFAULT_SKIN, type SkinColors } from "../game/skin";
 import { getTheme, DEFAULT_THEME_ID, type ThemeId } from "../game/themes";
 import { shapeSvgInner } from "./shape-svg";
-import { SUPPORT_ENABLED, SUPPORT_URL, FEEDBACK_EMAIL } from "../game/support";
-import { APP_VERSION } from "../game/changelog";
+import { SUPPORT_ENABLED, SUPPORT_URL } from "../game/support";
 import { getShowEquippedInMenu, setShowEquippedInMenu } from "../game/menu-prefs";
 
 export interface MenuCallbacks {
@@ -161,11 +160,7 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
           </div>
           <input type="range" min="0" max="100" step="5" value="${settings.ghostOpacity}" data-ghost-opacity class="w-full mt-1 accent-paper" />
         </div>
-        ${
-          FEEDBACK_EMAIL
-            ? `<a href="${feedbackMailto()}" data-feedback class="block mt-4 text-center text-[12px] underline opacity-70 hover:opacity-100">💬 send feedback</a>`
-            : ""
-        }
+        <button data-feedback type="button" class="block mt-4 w-full text-center text-[12px] underline opacity-70 hover:opacity-100">Feedback</button>
       </div>
     </div>
   `;
@@ -244,20 +239,16 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
     if (val) val.textContent = `${pct}%`;
     cbs.onSetGhostOpacity(pct);
   });
+  wrap.querySelector("[data-feedback]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    window.alert("Coming soon. Feedback system not yet connected.");
+  });
 }
 
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
   );
-}
-
-// Prefilled mailto for the feedback link. Includes app version so reports are
-// actionable; the body is a friendly template the player edits. No tracking.
-function feedbackMailto(): string {
-  const subject = `Glide feedback (v${APP_VERSION})`;
-  const body = `What happened / what would you like?\n\n\n— sent from Glide v${APP_VERSION}`;
-  return `mailto:${encodeURIComponent(FEEDBACK_EMAIL)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
 function formatPlays(n: number): string {

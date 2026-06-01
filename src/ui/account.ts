@@ -205,14 +205,14 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void): () =
       deleteBtn.textContent = "delete account";
       deleteBtn.classList.remove("bg-red-600", "text-white");
       deleteBtn.classList.add("bg-red-900/40", "text-red-100");
-      if (!window.confirm("Delete your account? This cannot be undone — profile, runs, skins, friends, challenges and ranked matches are all wiped.")) {
+      if (!window.confirm("Delete your account? This cannot be undone. Stats, purchases, unlocks, runs, friends, challenges and ranked matches will be removed.")) {
         status.textContent = "cancelled";
         return;
       }
       const phrase = window.prompt(
-        "Final step — type 'delete me forever' to confirm.",
+        "Final step: type DELETE to permanently delete this account.",
       );
-      if (phrase !== "delete me forever") {
+      if (phrase !== "DELETE") {
         status.textContent = "cancelled";
         return;
       }

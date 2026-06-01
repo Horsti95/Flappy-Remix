@@ -6,7 +6,7 @@ Sizes: `xs` < 1h, `s` < half day, `m` < day, `l` < week, `xl` more.
 > Everything below the `--- HISTORY ---` divider is kept for context but is
 > superseded by what's here.
 
-## MASTER BACKLOG (updated 2026-06-01)
+## MASTER BACKLOG (updated 2026-06-02)
 
 ### A. Decided — ranked easy → hard  (A1–A9 SHIPPED 2026-06-01)
 | # | Item | Size | Status / Notes |
@@ -14,7 +14,7 @@ Sizes: `xs` < 1h, `s` < half day, `m` < day, `l` < week, `xl` more.
 | A1 | Friend requests (accept/decline) | `m` | ✅ #70 — `status` column (migration 0014) + accept/decline RPCs + requests UI. |
 | A2 | Surface the 26 placeholder criteria | `s` | ✅ #66 — goals list in the quests tab. |
 | A3 | Patch-notes / "what's new" modal | `s` | ✅ #67 — version-based, once per update; bump `APP_VERSION` + prepend `CHANGELOG`. |
-| A4 | Feedback button | `s` | ⬜ NEXT. Decide delivery: `mailto:` (exposes address) vs serverless email API (Resend/SendGrid, private). |
+| A4 | Feedback button | `s` | IN PROGRESS split: placeholder button in Settings is OK now; backend delivery still deferred. Decide `mailto:` vs serverless GitHub/email API later. |
 | A5 | Sprite glow FX | `s` | ✅ #69 — legendary skins glow; `RenderOptions.glow`. |
 | A6 | Ranked-friend run UX | `s` | ✅ #68 — game-over routes to match ("round N/3 submitted"), not replay. |
 | A7 | Player-pickable pillar style | `m` | ✅ #71 — solid/stone/neon/glass; glass see-through + harder-daily. |
@@ -67,6 +67,67 @@ Sizes: `xs` < 1h, `s` < half day, `m` < day, `l` < week, `xl` more.
   friction, port dependency). The country-PACKAGE idea (A13) replaces it via
   national-day windows instead.
 - **2- vs 3-color skins:** DECIDED — base 2-color, premium optional 3rd (A12).
+
+### C. Current direction: finish polish first, then branch arcade ideas
+
+Owner leaning: polish and finish the current game state first. Keep the core
+loop clean before adding a second ruleset. Recommended product order:
+
+1. **Finish/polish branch** — settings cleanup, ghost transparency, stronger
+   delete flow, redeem polish, challenge ghost polish, readable banner copy,
+   no new game-mode complexity.
+2. **Arcade experiment branch** — a clearly labeled WIP branch/version that
+   collects power-ups, combo scoring, dynamic obstacles, bonus gates and extra
+   movement. Keep it separate from ranked/daily until it feels fair.
+3. **App version** — only after the PWA loop feels worth installing. iOS/Android
+   can add reminders for daily reset, friend challenges, new patches/skins and
+   limited events, but avoid anxiety/streak pressure.
+
+Decision note: normal, daily, challenge and ranked are already enough for the
+main game. Arcade should be optional and experimental, not a fifth mandatory
+surface competing for attention.
+
+### D. New ideas to keep, grouped for later
+
+#### Theme / world progression
+- **Ocean theme/package** (`m`): underwater background, fish silhouettes,
+  bubbles as flap/fx particles, softened water audio, readable obstacles.
+- **Space theme/package** (`m`): city launch into country/world/solar-system/
+  galaxy layers, stars/comets, low-gravity visual feel without changing ranked
+  physics unless it is an arcade modifier.
+- **Five more theme directions** (`m` each): volcano/lava, snowy mountain,
+  jungle canopy, candy/toybox, storm/night city.
+- **Theme bundles / patches** (`m`): announce grouped cosmetic drops like
+  "Space Bundle" or "Ocean Patch" containing background, sprite, pillar,
+  sound and fx cosmetics. Later app notifications can announce these.
+- **Interactive theme depth** (`l`): score milestones change world layers every
+  25 points. Ocean goes deeper; space zooms from city to country to world to
+  solar system to galaxy. Best fit: casual/arcade visuals first.
+
+#### Arcade mode candidate
+- **Risk/reward scoring** (`m`): coins in dangerous positions, harder bonus
+  gates, near-obstacle score multipliers, perfect-pass combo meter. Medium
+  difficulty; high value, but must keep hitboxes fair and readable.
+- **Extra-life pickup** (`m`): heart pickup grants one wall hit forgiveness for
+  the current run. Needs very clear UI so it does not feel like collision bugs.
+- **Tap-and-hold glide** (`m`): hold to fall slower, probably arcade-only
+  because it changes core skill timing and leaderboard comparability.
+- **Dynamic obstacles** (`m`-`l`): rotating saws/barriers, moving pipes,
+  wind tunnels, disappearing hazards. Keep out of ranked until deterministic
+  and well-tested.
+- **Power-ups** (`m`-`l`): shield, slow time, gravity flip, mini/giant size,
+  coin magnet, second life, pipe breaker, temporary rocket boost. Build one or
+  two first, not all at once.
+- **Timer modes** (`m`): either "reach score 30 fastest" or "best score in
+  2-3 minutes." The fixed-time variant is easier to understand but may reward
+  survival over skill spikes; keep as arcade/daily-twist experiment.
+
+#### App / live-service ideas
+- **Push reminders** (`m` app-only): daily reset, incoming challenges, new
+  patches, new skins. Default gentle, opt-in, no streak-loss anxiety.
+- **Challenge reminders** (`s` app-only): notify when a friend sends a run or
+  ranked match. More valuable than generic daily reminders.
+- **Patch/skin announcements** (`s` app-only): useful if bundles become real.
 
 ### Q-block — answers to recent questions
 - **#7 ranked-friend "ranked" naming:** (a) YES it affects Elo — it's a real

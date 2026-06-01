@@ -22,7 +22,7 @@ export default async function handler(req: Request): Promise<Response> {
   } catch {
     return new Response(JSON.stringify({ error: "bad json" }), { status: 400 });
   }
-  if (body.confirm !== "delete me forever") {
+  if (body.confirm !== "DELETE") {
     return new Response(
       JSON.stringify({ error: "missing confirmation phrase" }),
       { status: 400 },

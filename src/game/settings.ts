@@ -12,7 +12,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sound: false,
   highContrast: false,
   reducedMotion: false,
-  ghostOpacity: 25,
+  ghostOpacity: 50,
 };
 
 export function loadSettings(): Settings {

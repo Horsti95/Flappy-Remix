@@ -8,6 +8,7 @@ import { getParticles, tickParticles } from "./flap-fx";
 import { type VisualEffect } from "./daily-twist";
 import { preloadSprites, hasSprite, getTintedSprite } from "./sprites";
 import { getPillarStyle, type PillarStyleId } from "./pillars";
+import { preloadBackgrounds, hasBackgroundImage, getBackgroundImage } from "./backgrounds";
 
 export interface RenderOptions {
   highContrast: boolean;
@@ -53,6 +54,7 @@ export class Renderer {
       ...options,
     };
     preloadSprites();
+    preloadBackgrounds();
     this.resize();
   }
 
@@ -90,6 +92,21 @@ export class Renderer {
     grd.addColorStop(1, palette.skyBottom);
     ctx.fillStyle = grd;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Full-art background image (cover-fit, centered) when the theme declares
+    // one and its art has loaded. Painted over the fallback gradient; skipped
+    // under high-contrast so the a11y palette stays clean. Cosmetic.
+    if (!this.options.highContrast && theme.backgroundImage && hasBackgroundImage(theme.backgroundImage)) {
+      const img = getBackgroundImage(theme.backgroundImage);
+      if (img && img.naturalWidth > 0) {
+        const cw = this.canvas.width;
+        const ch = this.canvas.height;
+        const scale = Math.max(cw / img.naturalWidth, ch / img.naturalHeight);
+        const dw = img.naturalWidth * scale;
+        const dh = img.naturalHeight * scale;
+        ctx.drawImage(img, (cw - dw) / 2, (ch - dh) / 2, dw, dh);
+      }
+    }
 
     if (!this.options.highContrast && theme.colors.sunSpot) {
       const s = theme.colors.sunSpot;

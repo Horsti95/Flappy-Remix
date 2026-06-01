@@ -23,7 +23,9 @@ export type ThemeId =
   | "cyber_neon"
   | "cyber_sunset"
   | "cyber_rain"
-  | "cyber_noir";
+  | "cyber_noir"
+  | "neo_city"
+  | "fairy_spires";
 
 export interface CityBuilding {
   /** Left edge in world-units (world width is 360). */
@@ -81,6 +83,9 @@ export interface Theme {
   name: string;
   blurb: string;
   colors: ThemeColors;
+  /** Optional full-bleed background image id (see game/backgrounds.ts). When
+   *  its art is loaded the renderer paints it instead of the gradient. */
+  backgroundImage?: string;
   unlock(stats: { totalGames: number; bestScore: number; streakDays: number; lateNightGames?: number; morningGames?: number; dailyStreakDays?: number; challengeWins?: number }): { unlocked: boolean; hint?: string };
 }
 
@@ -308,6 +313,35 @@ export const THEMES: Theme[] = [
       highContrast: HC_DEFAULT,
     },
     unlock: (s) => ({ unlocked: (s.challengeWins ?? 0) >= 5, hint: "win 5 challenges" }),
+  },
+  {
+    id: "neo_city",
+    name: "neo city",
+    blurb: "a painted neon skyline — full-art background.",
+    backgroundImage: "neo-city",
+    colors: {
+      // Fallback gradient (shown until the image loads / if it fails).
+      skyTop: "#1b1140",
+      skyBottom: "#3a2a6a",
+      pipeBody: "#2a1d52",
+      pipeCap: "#ff5cc8",
+      highContrast: HC_DEFAULT,
+    },
+    unlock: (s) => ({ unlocked: s.bestScore >= 75, hint: "score 75 in a single run" }),
+  },
+  {
+    id: "fairy_spires",
+    name: "fairy spires",
+    blurb: "pink dreamlike towers — full-art background.",
+    backgroundImage: "fairy-spires",
+    colors: {
+      skyTop: "#8ec5ff",
+      skyBottom: "#e3b8ff",
+      pipeBody: "#d98fc8",
+      pipeCap: "#a85aa0",
+      highContrast: HC_DEFAULT,
+    },
+    unlock: (s) => ({ unlocked: s.streakDays >= 7, hint: "7-day streak" }),
   },
 ];
 

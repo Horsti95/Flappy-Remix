@@ -538,6 +538,13 @@ function shapeSvgWithColors(
          <ellipse cx="-3.5" cy="-1" rx="2" ry="3" fill="${a}"/>
          <ellipse cx="3.5" cy="-1" rx="2" ry="3" fill="${a}"/>`,
       );
+    case "toucan":
+      // Sprite-backed: preview the PNG tinted to the body color (color-matrix
+      // keeps shading + outline), matching the in-game tint.
+      return svg(
+        `<defs><filter id="tc-tint"><feColorMatrix type="matrix" values="0 0 0 0 ${(body[0] / 255).toFixed(3)}  0 0 0 0 ${(body[1] / 255).toFixed(3)}  0 0 0 0 ${(body[2] / 255).toFixed(3)}  0 0 0 1 0"/></filter></defs>
+         <image href="/sprites/toucan.png" x="-16" y="-16" width="32" height="32" filter="url(#tc-tint)"/>`,
+      );
   }
 }
 

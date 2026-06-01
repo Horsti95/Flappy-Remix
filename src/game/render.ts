@@ -6,6 +6,7 @@ import { DEFAULT_THEME_ID, getTheme, type ThemeId } from "./themes";
 import { DEFAULT_SHAPE_ID, getShape, type ShapeId } from "./shapes";
 import { getParticles, tickParticles } from "./flap-fx";
 import { type VisualEffect } from "./daily-twist";
+import { preloadSprites, hasSprite, getTintedSprite } from "./sprites";
 
 export interface RenderOptions {
   highContrast: boolean;
@@ -45,6 +46,7 @@ export class Renderer {
       reducedMotion: false,
       ...options,
     };
+    preloadSprites();
     this.resize();
   }
 
@@ -356,7 +358,19 @@ export class Renderer {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(tilt);
-    getShape(shapeId).draw(ctx, r, skin, this.options.highContrast);
+    // Sprite-backed shapes draw a tinted bitmap when it's loaded; otherwise
+    // (offline / pre-load / high-contrast) fall back to the polygon draw.
+    const tinted = !this.options.highContrast && hasSprite(shapeId)
+      ? getTintedSprite(shapeId, skin)
+      : null;
+    if (tinted) {
+      // The sprite art faces right; size it to ~the collision diameter so it
+      // sits where the polygon would. Cosmetic only — hitbox is unchanged.
+      const size = r * 3.0;
+      ctx.drawImage(tinted, -size / 2, -size / 2, size, size);
+    } else {
+      getShape(shapeId).draw(ctx, r, skin, this.options.highContrast);
+    }
     ctx.restore();
   }
 

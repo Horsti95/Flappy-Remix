@@ -349,7 +349,7 @@ function shapeCard(
     equipped ? "border-paper" : unlocked ? "border-white/10" : "border-white/5"
   } bg-white/5 ${unlocked ? "active:scale-95" : "opacity-50 cursor-not-allowed"} transition`;
   el.innerHTML = `
-    <div class="w-full aspect-square flex items-center justify-center bg-sky-day/30 rounded-xl">
+    <div class="w-full aspect-square flex items-center justify-center swatch-plate rounded-xl">
       ${shapeSvg(shape.id, unlocked)}
     </div>
     <div class="font-bold">${shape.name}</div>
@@ -385,7 +385,7 @@ function skinCard(
   } bg-white/5 active:scale-95 transition`;
   el.style.setProperty("--ring", RARITY_COLOR[row.rarity]);
   el.innerHTML = `
-    <div class="w-full aspect-square flex items-center justify-center bg-sky-day/30 rounded-xl">
+    <div class="w-full aspect-square flex items-center justify-center swatch-plate rounded-xl">
       ${shapeSvgWithColors(shapeId, row.body, row.accent)}
     </div>
     <div class="font-bold capitalize" style="color: var(--ring)">${row.rarity}</div>
@@ -406,7 +406,7 @@ function defaultSkinCard(equipped: boolean, shapeId: ShapeId, onTap: () => void)
     equipped ? "border-paper" : "border-white/10"
   } bg-white/5 active:scale-95 transition`;
   el.innerHTML = `
-    <div class="w-full aspect-square flex items-center justify-center bg-sky-day/30 rounded-xl">
+    <div class="w-full aspect-square flex items-center justify-center swatch-plate rounded-xl">
       ${shapeSvgWithColors(shapeId, DEFAULT_SKIN.body, DEFAULT_SKIN.accent)}
     </div>
     <div class="font-bold opacity-70">default</div>
@@ -610,7 +610,7 @@ function achievementColorCard(a: AchievementDef, stats: AchievementStats, shapeI
   const accent = mystery ? ([10, 10, 12] as [number, number, number]) : a.reward.accent;
   const preview = mystery
     ? `<div class="w-full aspect-square flex items-center justify-center bg-black/40 rounded-xl text-2xl font-black opacity-70">?</div>`
-    : `<div class="w-full aspect-square flex items-center justify-center bg-sky-day/30 rounded-xl ${got ? "" : "opacity-75"}">
+    : `<div class="w-full aspect-square flex items-center justify-center swatch-plate rounded-xl ${got ? "" : "opacity-90"}">
          ${shapeSvgWithColors(shapeId, body, accent)}
        </div>`;
   const stateLabel = got ? "unlocked" : mystery ? "secret" : "preview · locked";
@@ -773,7 +773,7 @@ function presetCard(
     equipped ? "border-paper" : state.unlocked ? "border-white/10" : "border-white/5"
   } bg-white/5 ${state.unlocked ? "active:scale-95" : "opacity-50 cursor-not-allowed"} transition`;
   el.innerHTML = `
-    <div class="w-full aspect-square flex items-center justify-center bg-sky-day/30 rounded-xl">
+    <div class="w-full aspect-square flex items-center justify-center swatch-plate rounded-xl">
       ${shapeSvgWithColors(shapeId, p.body, p.accent)}
     </div>
     <div class="font-bold">${escapeHtml(p.name)}</div>
@@ -850,7 +850,7 @@ function badgeCard(badge: SeasonBadge, isBest: boolean): HTMLElement {
     isBest ? "border-amber-300/60 bg-amber-300/10" : "border-white/10 bg-white/5"
   }`;
   el.innerHTML = `
-    <div class="w-full aspect-square flex items-center justify-center bg-sky-day/30 rounded-xl text-4xl">${medal}</div>
+    <div class="w-full aspect-square flex items-center justify-center swatch-plate rounded-xl text-4xl">${medal}</div>
     <div class="font-bold">Season ${badge.season_id}</div>
     <div class="opacity-70 text-[12px]">Rank #${badge.rank}</div>
     <div class="opacity-50 text-[10px]">Rating ${badge.rating}</div>

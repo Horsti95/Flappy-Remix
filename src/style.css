@@ -130,3 +130,19 @@ a:focus-visible {
   white-space: nowrap;
   border: 0;
 }
+
+/* Gallery swatch plate — a neutral mid-gray checkerboard behind color
+   previews so both very-dark and very-light skins stay readable (a black
+   skin no longer vanishes on a dark card). The inset ring keeps the swatch
+   edge visible against any background. QoL only, no layout change. */
+.swatch-plate {
+  background-color: #8a9099;
+  background-image:
+    linear-gradient(45deg, #6f757e 25%, transparent 25%),
+    linear-gradient(-45deg, #6f757e 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #6f757e 75%),
+    linear-gradient(-45deg, transparent 75%, #6f757e 75%);
+  background-size: 14px 14px;
+  background-position: 0 0, 0 7px, 7px -7px, -7px 0;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}

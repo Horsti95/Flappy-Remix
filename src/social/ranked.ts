@@ -39,6 +39,32 @@ export async function joinRankedQueue(): Promise<QueueState | null> {
   return (await res.json()) as QueueState;
 }
 
+export async function createRankedChallenge(
+  friendUsername: string,
+): Promise<{ ok: boolean; match_id?: string; error?: string }> {
+  const s = authState();
+  if (!s.session) return { ok: false, error: "offline" };
+  try {
+    const res = await fetch("/api/ranked-challenge", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${s.session.access_token}`,
+      },
+      body: JSON.stringify({ friend_username: friendUsername }),
+    });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      return { ok: false, error: body.error ?? `http_${res.status}` };
+    }
+    const json = (await res.json()) as { match_id?: string };
+    return { ok: true, match_id: json.match_id };
+  } catch (err) {
+    console.error("[ranked] challenge", err);
+    return { ok: false, error: "network" };
+  }
+}
+
 export async function leaveRankedQueue(): Promise<void> {
   const s = authState();
   if (!s.session) return;

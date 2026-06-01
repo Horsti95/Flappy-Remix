@@ -724,14 +724,21 @@ function startRun(runMode: RunMode = "casual"): void {
         const share = (): void => {
           void openShare(score, result);
         };
-        // "Play again" repeats the same mode — except a spent daily routes
-        // back through the landing so the 3-attempt cap (and casual
-        // fallback) applies instead of silently replaying the daily.
+        // "Play again" repeats the same mode — except:
+        //  - a spent daily routes back through the landing (3-attempt cap),
+        //  - a ranked round must NOT be replayed (the round is already
+        //    submitted; the server rejects a re-submit). Route back to the
+        //    ranked panel, which shows the correct "play round N of 3".
         const onPlayAgain =
-          currentRunMode === "daily"
-            ? () => openDailyLanding()
-            : () => startRun(currentRunMode);
+          currentRunMode === "ranked"
+            ? () => { activeRanked = null; openRankedPanel(); }
+            : currentRunMode === "daily"
+              ? () => openDailyLanding()
+              : () => startRun(currentRunMode);
         renderGameOver(overlays, score, onPlayAgain, showMenu, {
+          rankedRound: currentRunMode === "ranked" && activeRanked
+            ? { round: activeRanked.round, total: 3 }
+            : undefined,
           result,
           ticks,
           onShare: share,

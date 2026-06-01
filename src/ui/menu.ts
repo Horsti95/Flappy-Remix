@@ -289,6 +289,9 @@ export interface GameOverResult {
   };
   /** Training/practice run — nothing tracked; show a lightweight game-over. */
   trainingMode?: boolean;
+  /** Ranked round just played (0-based) of `total` — drives the
+   *  "round submitted, back to match" action instead of a replay. */
+  rankedRound?: { round: number; total: number };
 }
 
 export function renderGameOver(
@@ -355,10 +358,16 @@ function renderGameOverInner(
   // Primary action button. When creating a challenge it's "Send"; when you've
   // just beaten a duel it's a "Brag" hero; otherwise it's "Play again".
   let heroBtn: string;
+  const rr = extra?.rankedRound;
   if (cc?.canSubmit) {
     heroBtn = `<button data-submit-challenge class="mt-4 w-full rounded-2xl bg-emerald-400 text-ink font-bold py-5 text-lg shadow-lg active:scale-95 transition">Send challenge${cc.friendName ? ` to @${escapeHtml(cc.friendName)}` : ""}</button>`;
   } else if (beatTarget) {
     heroBtn = `<button data-brag class="mt-4 w-full rounded-2xl bg-emerald-400 text-ink font-bold py-5 text-lg shadow-lg active:scale-95 transition">Brag — you won 🎉</button>`;
+  } else if (rr) {
+    // Ranked: the round is already submitted — there's no replay. Go back to
+    // the ranked panel, which shows the live match + the next round button.
+    const submitted = rr.round + 1;
+    heroBtn = `<button data-restart class="mt-4 w-full rounded-2xl bg-paper text-ink font-bold py-5 text-lg shadow-lg active:scale-95 transition">Round ${submitted}/${rr.total} submitted — back to match</button>`;
   } else {
     heroBtn = `<button data-restart class="mt-4 w-full rounded-2xl bg-paper text-ink font-bold py-5 text-lg shadow-lg active:scale-95 transition">Play again</button>`;
   }

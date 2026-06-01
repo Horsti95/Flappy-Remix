@@ -38,7 +38,7 @@ export interface BannerConfig {
 
 export const BANNER: BannerConfig = {
   enabled: env.VITE_BANNER_ENABLED !== "false",
-  label: env.VITE_BANNER_LABEL ?? "fake ad slot — 100.000€ to advertise to Lennart's friends & family only",
+  label: env.VITE_BANNER_LABEL ?? "100,000 EUR to advertise to his friends and family only",
   href: env.VITE_BANNER_HREF,
 };
 

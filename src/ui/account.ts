@@ -76,7 +76,11 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void): () =
         <div class="panel-group-label">Data</div>
         <div class="rounded-2xl bg-white/5 p-4">
           <button data-export class="btn-secondary w-full py-2.5 text-sm">export my data</button>
-          <button data-signout class="btn-quiet w-full text-xs py-2 mt-1">sign out and start fresh</button>
+          ${
+            isGoogle
+              ? `<button data-signout class="btn-quiet w-full text-xs py-2 mt-1">log out</button>`
+              : ""
+          }
         </div>
 
         <div class="mt-8">
@@ -91,16 +95,11 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void): () =
       e.stopPropagation();
       signInWithGoogle();
     });
+    // Log out is only offered to Google users (they can sign back in). Anon
+    // users have no "log out" — abandoning an anon account == deleting it, so
+    // we don't duplicate that footgun; they use the explicit delete button.
     wrap.querySelector("[data-signout]")?.addEventListener("click", (e) => {
       e.stopPropagation();
-      // Anonymous accounts have no way back in — signing out abandons all
-      // progress permanently. Warn first (Google accounts can re-sign-in).
-      if (!isGoogle) {
-        const ok = window.confirm(
-          "You're playing anonymously — there's no way to sign back into this account. Signing out PERMANENTLY abandons your runs, skins, streak and friends. Continue?",
-        );
-        if (!ok) return;
-      }
       signOut();
     });
     wrap.querySelector("[data-redeem-form]")?.addEventListener("submit", async (e) => {

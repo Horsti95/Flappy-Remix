@@ -99,10 +99,10 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
       <p class="mt-2 text-[11px] italic opacity-60">guide the paper plane through the gaps</p>
 
       <div class="mt-6 grid grid-cols-2 gap-3">
-        <button data-action="play" class="btn-primary py-5 text-lg">
+        <button data-action="play" class="rounded-2xl bg-paper text-ink font-bold py-5 text-lg shadow-lg active:scale-95 transition">
           Play
         </button>
-        <button data-action="daily" class="btn-primary py-3 px-4 text-left">
+        <button data-action="daily" class="rounded-2xl bg-paper text-ink font-bold py-3 px-4 text-left shadow-lg active:scale-95 transition">
           <div class="text-[10px] uppercase tracking-wider opacity-60 flex items-center gap-1.5">
             <span>Daily</span>${tierChip}
           </div>
@@ -112,32 +112,32 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
       </div>
 
       <div class="mt-3 grid grid-cols-2 gap-2">
-        <button data-action="inbox" class="btn-secondary relative py-3 text-sm border-accent-social/40">
+        <button data-action="inbox" class="relative rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
           Challenges
           ${meta.inboxUnseen && meta.inboxUnseen > 0
-            ? `<span class="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-accent-danger text-white text-[11px] font-bold flex items-center justify-center">${meta.inboxUnseen > 9 ? "9+" : meta.inboxUnseen}</span>`
+            ? `<span class="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center">${meta.inboxUnseen > 9 ? "9+" : meta.inboxUnseen}</span>`
             : ""}
         </button>
-        <button data-action="friends" class="btn-secondary py-3 text-sm border-accent-social/40">
+        <button data-action="friends" class="rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
           Friends
         </button>
       </div>
 
       <div class="mt-3 grid grid-cols-3 gap-1.5">
-        <button data-action="ranked" class="btn-secondary py-2.5 text-[10px] border-accent-ranked/40">
+        <button data-action="ranked" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
           Ranked
         </button>
-        <button data-action="skins" class="btn-secondary py-2.5 text-[10px]">
+        <button data-action="skins" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
           Gallery
         </button>
-        <button data-action="leaderboard" class="btn-secondary py-2.5 text-[10px]">
+        <button data-action="leaderboard" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
           Board
         </button>
       </div>
-      <button data-action="training" class="btn-quiet block mx-auto mt-3 text-[11px] py-1">🪶 practice mode (untracked)</button>
+      <button data-action="training" class="block mx-auto mt-3 text-[11px] opacity-50 hover:opacity-90 transition-opacity underline">🪶 practice mode (untracked)</button>
       ${
         SUPPORT_ENABLED
-          ? `<a href="${escapeHtml(SUPPORT_URL)}" target="_blank" rel="noopener noreferrer" data-support class="btn-quiet block mt-2 text-center text-[11px] py-1">☕ buy me a coffee</a>`
+          ? `<a href="${escapeHtml(SUPPORT_URL)}" target="_blank" rel="noopener noreferrer" data-support class="block mt-4 text-center text-[11px] opacity-50 hover:opacity-90 transition-opacity">☕ buy me a coffee</a>`
           : ""
       }
     </div>

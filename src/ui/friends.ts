@@ -1,4 +1,4 @@
-import { addFriendByUsername, getRecordVsFriend, listFriends, refreshFriendCount, removeFriend, type Friend, type VsRecord } from "../social/friends";
+import { addFriendByUsername, getRecordVsFriend, listFriends, refreshFriendCount, removeFriend, listIncomingRequests, acceptFriendRequest, declineFriendRequest, type Friend, type FriendRequest, type VsRecord } from "../social/friends";
 import { authState } from "../social/auth";
 
 export interface FriendsPanelCallbacks {
@@ -60,10 +60,10 @@ export function renderFriendsPanel(host: HTMLElement, onClose: () => void, cbs?:
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    status.textContent = "adding…";
+    status.textContent = "sending…";
     const r = await addFriendByUsername(input.value);
     if (r.ok) {
-      status.textContent = "added";
+      status.textContent = r.state === "accepted" ? "friend added!" : "request sent — waiting for them to accept.";
       input.value = "";
       await load();
       void refreshFriendCount();
@@ -73,11 +73,31 @@ export function renderFriendsPanel(host: HTMLElement, onClose: () => void, cbs?:
   });
 
   async function load() {
-    const rows = await listFriends();
+    const [rows, requests] = await Promise.all([listFriends(), listIncomingRequests()]);
     if (cancelled) return;
     list.innerHTML = "";
+    // Incoming friend requests first — each with accept / decline.
+    if (requests.length > 0) {
+      const reqHeader = document.createElement("div");
+      reqHeader.className = "text-[10px] uppercase tracking-wider opacity-60 font-bold px-1 mb-1";
+      reqHeader.textContent = `requests (${requests.length})`;
+      list.appendChild(reqHeader);
+      for (const req of requests) {
+        list.appendChild(requestRow(req,
+          async () => { await acceptFriendRequest(req.user_id); await load(); void refreshFriendCount(); },
+          async () => { await declineFriendRequest(req.user_id); await load(); },
+        ));
+      }
+      const friendsHeader = document.createElement("div");
+      friendsHeader.className = "text-[10px] uppercase tracking-wider opacity-60 font-bold px-1 mt-3 mb-1";
+      friendsHeader.textContent = "friends";
+      list.appendChild(friendsHeader);
+    }
     if (rows.length === 0) {
-      list.innerHTML = `<div class="text-center text-xs opacity-60 mt-12">no friends yet — add by handle above.</div>`;
+      const empty = document.createElement("div");
+      empty.className = "text-center text-xs opacity-60 mt-6";
+      empty.textContent = requests.length > 0 ? "no friends yet — accept a request above." : "no friends yet — add by handle above.";
+      list.appendChild(empty);
       return;
     }
     rows.sort((a, b) => (a.username ?? "").localeCompare(b.username ?? ""));
@@ -105,6 +125,30 @@ export function renderFriendsPanel(host: HTMLElement, onClose: () => void, cbs?:
     cancelled = true;
     wrap.remove();
   };
+}
+
+function requestRow(req: FriendRequest, onAccept: () => void, onDecline: () => void): HTMLElement {
+  const el = document.createElement("div");
+  el.className = "flex items-center justify-between gap-3 px-3 py-3 rounded-xl bg-emerald-400/5 border border-emerald-400/20 mb-1";
+  el.innerHTML = `
+    <div class="flex-1 min-w-0">
+      <div class="text-sm truncate">${req.username ? escapeHtml("@" + req.username) : "(no handle)"}</div>
+      <div class="text-[10px] opacity-50 mt-0.5">wants to be friends</div>
+    </div>
+    <div class="flex items-center gap-2 shrink-0">
+      <button data-accept class="rounded-lg bg-emerald-400 text-ink text-[11px] font-bold px-3 py-1.5">accept</button>
+      <button data-decline class="text-[11px] underline opacity-60">decline</button>
+    </div>
+  `;
+  el.querySelector("[data-accept]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onAccept();
+  });
+  el.querySelector("[data-decline]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onDecline();
+  });
+  return el;
 }
 
 function row(f: Friend, onRemove: () => void, onChallenge?: () => void, onView?: () => void, onRankedChallenge?: () => void): HTMLElement {

@@ -112,7 +112,7 @@ let pendingChallengeTarget: { friend: Friend | null } | null = null;
 let inboxUnseen = 0;
 
 app.innerHTML = `
-  <section id="stage" role="application" aria-label="Glide play area" class="relative w-full h-full max-w-md max-h-[90vh] aspect-[9/16] mx-auto bg-sky-day overflow-hidden touch-none select-none">
+  <section id="stage" role="application" aria-label="Glide play area" class="relative w-full h-full max-w-md max-h-[85vh] aspect-[9/16] mx-auto bg-sky-day overflow-hidden touch-none select-none">
     <canvas id="canvas" class="absolute inset-0 w-full h-full" aria-hidden="true"></canvas>
     <div id="live-region" aria-live="polite" aria-atomic="true" class="sr-only"></div>
     <button id="pause-btn" data-no-flap aria-label="Pause game" type="button" class="hidden absolute top-3 right-3 z-20 bg-black/30 text-paper rounded-full w-10 h-10 flex items-center justify-center text-lg font-bold">II</button>
@@ -164,7 +164,10 @@ const BANNER_H = 36;
 function applyBannerOffset(active: boolean): void {
   const appEl = document.getElementById("app");
   if (!appEl) return;
-  appEl.style.top = active ? `${BANNER_H}px` : "";
+  // Pad the top of the centered flex container so the stage sits fully below
+  // the fixed banner (no overlap, no clipped bottom). padding shrinks the
+  // box cleanly; `top` left the stage overflowing past 100vh.
+  appEl.style.paddingTop = active ? `${BANNER_H}px` : "";
 }
 
 function setBannerVisible(visible: boolean): void {

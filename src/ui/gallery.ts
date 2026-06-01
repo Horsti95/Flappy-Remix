@@ -575,8 +575,6 @@ function shapeSvgWithColors(
          <ellipse cx="-3.5" cy="-1" rx="2" ry="3" fill="${a}"/>
          <ellipse cx="3.5" cy="-1" rx="2" ry="3" fill="${a}"/>`,
       );
-    case "toucan":
-      return spriteSwatch("toucan", body);
     case "crane":
       return spriteSwatch("crane", body);
   }

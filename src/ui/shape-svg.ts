@@ -83,8 +83,6 @@ export function shapeSvgInner(
       return `<path d="M -10 12 L -10 -2 A 10 10 0 0 1 10 -2 L 10 12 L 6 8 L 2 12 L -2 8 L -6 12 Z" fill="${b}" stroke="#1a1a1a" stroke-width="0.8" stroke-linejoin="round"/>
               <ellipse cx="-4" cy="-2" rx="1.8" ry="2.4" fill="${a}"/>
               <ellipse cx="4" cy="-2" rx="1.8" ry="2.4" fill="${a}"/>`;
-    case "toucan":
-      return spritePreview("toucan", body);
     case "crane":
       return spritePreview("crane", body);
   }

@@ -16,6 +16,9 @@ export interface AchievementDef {
 export interface AchievementStats {
   totalGames: number;
   bestScore: number;
+  /** Lifetime points scored across every run (all modes). Accrues forward
+   *  from when this field shipped; old runs aren't retro-counted. */
+  totalScore: number;
   streakDays: number;
   // Extended stats tracked in localStorage until we lift to server
   bestScoreDaily: number;
@@ -233,6 +236,58 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     check: (s) => s.totalGames >= 1000,
   },
 
+  // --- Cumulative score (lifetime points across all runs) ---
+  {
+    id: "points_500",
+    name: "frequent flyer",
+    blurb: "score 500 points total — across all your runs",
+    category: "milestone",
+    reward: { type: "color", body: [120, 200, 255], accent: [40, 90, 160] },
+    check: (s) => s.totalScore >= 500,
+  },
+  {
+    id: "points_1000",
+    name: "high mileage",
+    blurb: "score 1,000 points total",
+    category: "milestone",
+    reward: { type: "color", body: [255, 190, 90], accent: [150, 90, 20] },
+    check: (s) => s.totalScore >= 1000,
+  },
+  {
+    id: "points_2000",
+    name: "globetrotter",
+    blurb: "score 2,000 points total",
+    category: "milestone",
+    reward: { type: "color", body: [130, 230, 150], accent: [30, 110, 60] },
+    check: (s) => s.totalScore >= 2000,
+  },
+  {
+    id: "points_5000",
+    name: "frequent flock",
+    blurb: "score 5,000 points total",
+    category: "milestone",
+    reward: { type: "color", body: [200, 150, 255], accent: [90, 50, 160] },
+    check: (s) => s.totalScore >= 5000,
+  },
+  {
+    id: "points_10000",
+    name: "ten thousand",
+    blurb: "score 10,000 points total",
+    category: "milestone",
+    reward: { type: "color", body: [255, 215, 0], accent: [120, 80, 0] },
+    secret: true,
+    check: (s) => s.totalScore >= 10000,
+  },
+  {
+    id: "points_100000",
+    name: "cosmic mileage",
+    blurb: "score 100,000 points total — a true legend of the skies",
+    category: "milestone",
+    reward: { type: "color", body: [230, 240, 255], accent: [140, 60, 200] },
+    secret: true,
+    check: (s) => s.totalScore >= 100000,
+  },
+
   // --- Special ---
   {
     id: "on_fire",
@@ -251,6 +306,7 @@ export function loadAchievementStats(): AchievementStats {
   const defaults: AchievementStats = {
     totalGames: 0,
     bestScore: 0,
+    totalScore: 0,
     streakDays: 0,
     bestScoreDaily: 0,
     hardDailyBest: 0,
@@ -286,6 +342,7 @@ export function updateStatsAfterRun(
 ): AchievementStats {
   const s = { ...stats };
   s.totalGames++;
+  s.totalScore += run.score;
   if (run.score > s.bestScore) s.bestScore = run.score;
 
   // "minimalist": a clean run of 25+ with fewer than 80 taps. Latches once

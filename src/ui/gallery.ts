@@ -92,16 +92,16 @@ export function renderGallery(
   // its tabs. No horizontal scroll — everything fits in the three rows.
   type Group = { id: string; label: string; tabs: { id: Tab; label: string }[] };
   const GROUPS: Group[] = [
-    { id: "plane", label: "✈️  your plane", tabs: [
+    { id: "plane", label: "✈️  Player", tabs: [
       { id: "shapes", label: "shape" },
       { id: "skins", label: "colors" },
       { id: "effects", label: "effects" },
     ] },
-    { id: "world", label: "🌍  world", tabs: [
+    { id: "world", label: "🌍  World", tabs: [
       { id: "backgrounds", label: "backgrounds" },
       { id: "pillars", label: "pillars" },
     ] },
-    { id: "progress", label: "🏆  progress", tabs: [
+    { id: "progress", label: "🏆  Achievements", tabs: [
       { id: "quests", label: "goals" },
       { id: "badges", label: "badges" },
     ] },
@@ -128,9 +128,17 @@ export function renderGallery(
       const isOpen = g.id === openGroup;
       const header = document.createElement("button");
       header.className =
-        "w-full flex items-center justify-between rounded-2xl px-4 py-2 text-sm font-bold transition " +
+        "w-full flex items-center justify-between rounded-2xl px-4 py-2 transition " +
         (isOpen ? "bg-white/10 text-paper" : "bg-white/5 text-paper/80");
-      header.innerHTML = `<span>${g.label}</span><span class="text-xs opacity-60">${isOpen ? "▾" : "▸"}</span>`;
+      // Subtitle previews what's inside the group (its sub-tabs) so the
+      // collapsed row still tells you where to find each unlockable.
+      const subtitle = g.tabs.map((t) => t.label).join(" · ");
+      header.innerHTML = `
+        <span class="flex flex-col items-start min-w-0">
+          <span class="text-sm font-bold">${g.label}</span>
+          <span class="text-[10px] opacity-50 font-normal truncate">${subtitle}</span>
+        </span>
+        <span class="text-xs opacity-60 shrink-0">${isOpen ? "▾" : "▸"}</span>`;
       header.addEventListener("click", (e) => {
         e.stopPropagation();
         openGroup = isOpen ? "" : g.id;

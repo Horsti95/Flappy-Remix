@@ -12,7 +12,6 @@ export interface ShareCardData {
   skin: SkinColors;
   rarity?: Rarity;
   streakDays: number;
-  friendCode: string | null;
   mode: "casual" | "daily" | "challenge" | "ranked";
   dailyDate?: string | null;
   dailyRank?: number | null;
@@ -143,15 +142,16 @@ export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData): v
     ctx.textAlign = "left";
   }
 
-  // Friend code line + CTA
+  // CTA line — invite via the player's handle (friend codes are retired;
+  // friends are added by @username now).
   ctx.textAlign = "center";
   ctx.font = "500 32px system-ui,sans-serif";
   ctx.fillStyle = "#f4ead5aa";
   ctx.fillText("can you beat it?", W / 2, H - 160);
-  if (data.friendCode) {
-    ctx.font = "800 56px ui-monospace,Menlo,monospace";
+  if (data.username) {
+    ctx.font = "800 48px system-ui,sans-serif";
     ctx.fillStyle = "#f4ead5";
-    ctx.fillText(data.friendCode, W / 2, H - 92);
+    ctx.fillText(`add @${data.username}`, W / 2, H - 92);
   } else {
     ctx.font = "500 28px system-ui,sans-serif";
     ctx.fillStyle = "#f4ead588";

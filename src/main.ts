@@ -849,7 +849,6 @@ async function openShare(score: number, result: SubmitResult | null): Promise<vo
       challengeShortId = created.short_id;
       const params = new URLSearchParams();
       params.set("c", challengeShortId);
-      if (s.profile?.friend_code) params.set("u", s.profile.friend_code);
       history.replaceState(null, "", `${window.location.origin}/?${params}`);
     }
   }
@@ -861,7 +860,6 @@ async function openShare(score: number, result: SubmitResult | null): Promise<vo
     themeId: equippedThemeId,
     rarity: equippedSkin?.rarity,
     streakDays: result?.streak_days ?? s.profile?.streak_days ?? 0,
-    friendCode: s.profile?.friend_code ?? null,
     mode: challengeShortId ? "challenge" : currentRunMode === "ranked" ? "ranked" : currentRunMode === "daily" ? "daily" : currentRunMode === "challenge" ? "challenge" : "casual",
     dailyDate: currentRunMode === "daily" ? dailyInfo?.date ?? null : null,
     dailyRank: null,
@@ -885,7 +883,6 @@ function shareChallenge(score: number, shortId: string, addressedTo: string | nu
     themeId: equippedThemeId,
     rarity: equippedSkin?.rarity,
     streakDays: s.profile?.streak_days ?? 0,
-    friendCode: s.profile?.friend_code ?? null,
     mode: "challenge",
     dailyDate: null,
     dailyRank: null,
@@ -897,7 +894,6 @@ function shareChallenge(score: number, shortId: string, addressedTo: string | nu
   // link kicks the recipient into the ghost run.
   const params = new URLSearchParams();
   params.set("c", shortId);
-  if (s.profile?.friend_code) params.set("u", s.profile.friend_code);
   const baseUrl = window.location.origin;
   history.replaceState(null, "", `${baseUrl}/?${params}`);
   renderShareSheet(overlays, data, () => {

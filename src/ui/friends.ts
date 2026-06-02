@@ -38,8 +38,8 @@ export function renderFriendsPanel(host: HTMLElement, onClose: () => void, cbs?:
   const me = wrap.querySelector("[data-me]") as HTMLDivElement;
 
   const profile = authState().profile;
-  if (profile?.friend_code) {
-    me.textContent = `your friend code: ${profile.friend_code}`;
+  if (profile?.username) {
+    me.textContent = `your handle: @${profile.username} — share it so friends can add you.`;
   } else if (authState().offline) {
     me.textContent = "offline — friends sync requires backend";
   }

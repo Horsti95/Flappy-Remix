@@ -11,7 +11,6 @@ export interface FetchedChallenge {
   inputs: InputEvent[];
   creator_score: number;
   creator_username: string | null;
-  creator_friend_code: string | null;
   creator_skin: { body: [number, number, number]; accent: [number, number, number]; rarity: string | null } | null;
   /** Creator's equipped cosmetics so the responder sees the sender's
    *  world. Null on legacy challenges — render falls back to defaults. */

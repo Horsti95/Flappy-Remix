@@ -18,9 +18,8 @@ export function buildShareText(data: ShareCardData): ShareLinkContext {
   // `?c=` is read on load as the challenge short id (main.ts deep-link
   // handling → fetchChallenge). For a 'Challenge a friend' share that must
   // be the challenge short id so the recipient lands in the ghost run;
-  // otherwise the link 404s. Fall back to the friend code for legacy shares.
+  // otherwise the link 404s.
   if (data.challengeShortId) params.set("c", data.challengeShortId);
-  else if (data.friendCode) params.set("c", data.friendCode);
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://pflug.app";
   const url = `${baseUrl}/${params.toString() ? `?${params}` : ""}`;
   return { url, text };

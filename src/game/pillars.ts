@@ -10,7 +10,7 @@ import type { AchievementStats } from "./achievements";
  * only, never the hitbox).
  */
 
-export type PillarStyleId = "solid" | "glass" | "neon" | "stone" | "stadium";
+export type PillarStyleId = "solid" | "glass" | "neon" | "stone" | "stadium" | "bamboo" | "brick" | "candy" | "ice";
 
 export interface PillarDrawCtx {
   ctx: CanvasRenderingContext2D;
@@ -55,11 +55,38 @@ function caps(p: PillarDrawCtx): void {
   rect(ctx, x - 3, gapY + gapH, pipeWidth + 6, 14);
 }
 
+/** Shared "HD" cylinder shading — a horizontal light→dark gradient painted
+ *  over the bodies so a flat pillar reads as a rounded tube. Alpha-only, so it
+ *  tints whatever the theme's body colour is. */
+function cylinderShade(p: PillarDrawCtx): void {
+  const { ctx, x, pipeWidth } = p;
+  const g = ctx.createLinearGradient(x, 0, x + pipeWidth, 0);
+  g.addColorStop(0, "rgba(0,0,0,0.34)");
+  g.addColorStop(0.16, "rgba(255,255,255,0.14)");
+  g.addColorStop(0.4, "rgba(255,255,255,0.28)");
+  g.addColorStop(0.62, "rgba(255,255,255,0.04)");
+  g.addColorStop(1, "rgba(0,0,0,0.4)");
+  ctx.fillStyle = g;
+  bodies(p);
+}
+
+/** Shared: a thin bright highlight along the top lip of each cap. */
+function capGloss(p: PillarDrawCtx): void {
+  const { ctx, x, gapY, gapH, pipeWidth } = p;
+  ctx.fillStyle = "rgba(255,255,255,0.22)";
+  rect(ctx, x - 3, gapY - 14, pipeWidth + 6, 3);
+  rect(ctx, x - 3, gapY + gapH, pipeWidth + 6, 3);
+}
+
 const drawSolid = (p: PillarDrawCtx): void => {
   p.ctx.fillStyle = p.bodyColor;
   bodies(p);
+  // HD pass: rounded-tube shading + glossy cap lip. Skipped under high
+  // contrast so the a11y palette stays flat and legible.
+  if (!p.highContrast) cylinderShade(p);
   p.ctx.fillStyle = p.capColor;
   caps(p);
+  if (!p.highContrast) capGloss(p);
 };
 
 const drawGlass = (p: PillarDrawCtx): void => {
@@ -154,6 +181,111 @@ const drawStadium = (p: PillarDrawCtx): void => {
   caps(p);
 };
 
+const drawBamboo = (p: PillarDrawCtx): void => {
+  const { ctx, x, pipeWidth, gapY, gapH, worldHeight, over } = p;
+  ctx.fillStyle = p.bodyColor;
+  bodies(p);
+  if (!p.highContrast) {
+    cylinderShade(p);
+    // Node rings every ~46px: a dark seam with a bright lip just below it.
+    const seg = 46;
+    const ring = (y0: number, y1: number): void => {
+      for (let y = y0; y < y1; y += seg) {
+        ctx.fillStyle = "rgba(0,0,0,0.22)";
+        rect(ctx, x, y, pipeWidth, 3);
+        ctx.fillStyle = "rgba(255,255,255,0.14)";
+        rect(ctx, x, y + 3, pipeWidth, 1.5);
+      }
+    };
+    ring(-over, gapY);
+    ring(gapY + gapH, worldHeight + over);
+  }
+  ctx.fillStyle = p.capColor;
+  caps(p);
+};
+
+const drawBrick = (p: PillarDrawCtx): void => {
+  const { ctx, x, pipeWidth, gapY, gapH, worldHeight, over } = p;
+  ctx.fillStyle = p.bodyColor;
+  bodies(p);
+  if (!p.highContrast) {
+    cylinderShade(p);
+    ctx.fillStyle = "rgba(0,0,0,0.2)";
+    const bh = 11;
+    const half = pipeWidth / 2;
+    const courses = (y0: number, y1: number): void => {
+      let row = 0;
+      for (let y = y0; y < y1; y += bh) {
+        rect(ctx, x, y, pipeWidth, 1.5); // horizontal mortar
+        // vertical mortar, offset every other course (running bond)
+        const off = row % 2 ? half : 0;
+        rect(ctx, x + off, y, 1.5, bh);
+        rect(ctx, x + ((off + half) % pipeWidth), y, 1.5, bh);
+        row++;
+      }
+    };
+    courses(-over, gapY);
+    courses(gapY + gapH, worldHeight + over);
+  }
+  ctx.fillStyle = p.capColor;
+  caps(p);
+};
+
+const drawCandy = (p: PillarDrawCtx): void => {
+  const { ctx, x, pipeWidth, gapY, gapH, worldHeight, over } = p;
+  ctx.fillStyle = p.bodyColor;
+  bodies(p);
+  if (!p.highContrast) {
+    const stripes = (y0: number, y1: number): void => {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y0, pipeWidth, y1 - y0);
+      ctx.clip();
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      const w = 10;
+      const gap = 20;
+      const span = y1 - y0 + pipeWidth;
+      for (let d = -pipeWidth; d < span; d += gap) {
+        ctx.beginPath();
+        ctx.moveTo(x, y0 + d);
+        ctx.lineTo(x + pipeWidth, y0 + d - pipeWidth);
+        ctx.lineTo(x + pipeWidth, y0 + d - pipeWidth + w);
+        ctx.lineTo(x, y0 + d + w);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+    };
+    stripes(-over, gapY);
+    stripes(gapY + gapH, worldHeight + over);
+    cylinderShade(p);
+  }
+  ctx.fillStyle = p.capColor;
+  caps(p);
+};
+
+const drawIce = (p: PillarDrawCtx): void => {
+  const { ctx } = p;
+  // Translucent like glass (so it's harder to read → hardens the daily), but
+  // with a cold sheen + a bright frozen edge.
+  ctx.save();
+  ctx.globalAlpha = p.highContrast ? 0.6 : 0.5;
+  ctx.fillStyle = p.bodyColor;
+  bodies(p);
+  ctx.globalAlpha = 1;
+  if (!p.highContrast) {
+    cylinderShade(p);
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = "#e6fbff";
+    rect(ctx, p.x + 4, -p.over, 3, p.gapY + p.over);
+    rect(ctx, p.x + 4, p.gapY + p.gapH, 3, p.worldHeight - (p.gapY + p.gapH) + p.over);
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+  ctx.fillStyle = p.capColor;
+  caps(p);
+};
+
 export const PILLAR_STYLES: PillarStyle[] = [
   {
     id: "solid",
@@ -194,6 +326,38 @@ export const PILLAR_STYLES: PillarStyle[] = [
     hardensDaily: false,
     unlock: (s) => ({ unlocked: s.bestScore >= 40, hint: "score 40 in a single run" }),
     draw: drawStadium,
+  },
+  {
+    id: "bamboo",
+    name: "bamboo",
+    blurb: "rounded green stalks with node rings.",
+    hardensDaily: false,
+    unlock: (s) => ({ unlocked: s.totalGames >= 40, hint: "play 40 games" }),
+    draw: drawBamboo,
+  },
+  {
+    id: "brick",
+    name: "brick",
+    blurb: "running-bond brickwork.",
+    hardensDaily: false,
+    unlock: (s) => ({ unlocked: s.bestScore >= 45, hint: "score 45 in a single run" }),
+    draw: drawBrick,
+  },
+  {
+    id: "candy",
+    name: "candy cane",
+    blurb: "diagonal sugar stripes.",
+    hardensDaily: false,
+    unlock: (s) => ({ unlocked: s.streakDays >= 5, hint: "5-day streak" }),
+    draw: drawCandy,
+  },
+  {
+    id: "ice",
+    name: "ice",
+    blurb: "frozen + see-through — adds a difficulty level on the daily.",
+    hardensDaily: true,
+    unlock: (s) => ({ unlocked: s.bestScore >= 80, hint: "score 80 in a single run" }),
+    draw: drawIce,
   },
 ];
 

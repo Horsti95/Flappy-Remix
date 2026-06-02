@@ -31,7 +31,13 @@ export type ShapeId =
   | "crane"
   | "submarine"
   | "soccer-ball"
-  | "pretzel";
+  | "pretzel"
+  | "hd-rocket"
+  | "hd-comet"
+  | "hd-ufo"
+  | "hd-eagle"
+  | "hd-phoenix"
+  | "hd-dragon";
 
 export interface ShapeUnlock {
   // Computed unlock state for the current player.
@@ -873,6 +879,50 @@ export const SHAPES: ShapeMeta[] = [
       hint: "play 30 games",
     }),
     draw: drawPretzel,
+  },
+  // HD fixed-colour sprites — full-art, not skin-tinted (the colour picker is
+  // disabled while one is equipped). Premium / rare.
+  {
+    id: "hd-rocket",
+    name: "HD rocket",
+    blurb: "fixed-art retro rocket. colours locked.",
+    unlock: ({ bestScore }) => ({ unlocked: bestScore >= 60, hint: "score 60 in a single run" }),
+    draw: drawRocket,
+  },
+  {
+    id: "hd-eagle",
+    name: "HD eagle",
+    blurb: "fixed-art golden eagle. colours locked.",
+    unlock: ({ bestScore }) => ({ unlocked: bestScore >= 80, hint: "score 80 in a single run" }),
+    draw: drawVectorBird,
+  },
+  {
+    id: "hd-ufo",
+    name: "HD ufo",
+    blurb: "fixed-art flying saucer. colours locked.",
+    unlock: ({ totalGames }) => ({ unlocked: totalGames >= 150, hint: "play 150 games" }),
+    draw: drawSubmarine,
+  },
+  {
+    id: "hd-comet",
+    name: "HD comet",
+    blurb: "fixed-art crystal comet. colours locked.",
+    unlock: ({ bestScore }) => ({ unlocked: bestScore >= 120, hint: "score 120 in a single run" }),
+    draw: drawStar,
+  },
+  {
+    id: "hd-dragon",
+    name: "HD dragon",
+    blurb: "fixed-art origami dragon. colours locked.",
+    unlock: ({ streakDays }) => ({ unlocked: streakDays >= 14, hint: "14-day streak" }),
+    draw: drawVectorBird,
+  },
+  {
+    id: "hd-phoenix",
+    name: "HD phoenix",
+    blurb: "fixed-art firebird. colours locked.",
+    unlock: ({ bestScore }) => ({ unlocked: bestScore >= 140, hint: "score 140 in a single run" }),
+    draw: drawButterfly,
   },
 ];
 

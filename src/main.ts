@@ -45,6 +45,7 @@ import { getShowEquippedInMenu } from "./game/menu-prefs";
 import { renderDailyLanding } from "./ui/daily-landing";
 import { renderRankedPanel } from "./ui/ranked";
 import { playFlap, playCheer, setSoundLabMode } from "./game/sfx";
+import { setUnlockAllLab } from "./game/unlockables";
 import { clearParticles, getActiveFlapFx, setFxLabMode, spawnFlapFx } from "./game/flap-fx";
 import { type RankedMatch, createRankedChallenge } from "./social/ranked";
 import { createChallenge, fetchChallenge, fetchBestRunChallenge, ghostSkinFromChallenge, fetchUnseenChallengeCount, type FetchedChallenge } from "./social/challenges";
@@ -290,11 +291,20 @@ const deepLink = (() => {
       themesLab: u.searchParams.get("themes") === "lab",
       fxLab: u.searchParams.get("fx") === "lab",
       colorsLab: u.searchParams.get("colors") === "lab",
+      unlockAll: u.searchParams.get("unlock") === "all",
     };
   } catch {
-    return { from: null, dailyDate: null, challenge: null, soundsLab: false, themesLab: false, fxLab: false, colorsLab: false };
+    return { from: null, dailyDate: null, challenge: null, soundsLab: false, themesLab: false, fxLab: false, colorsLab: false, unlockAll: false };
   }
 })();
+// ?unlock=all — test/dev: surface every cosmetic as unlocked.
+if (deepLink.unlockAll) {
+  setUnlockAllLab(true);
+  setSoundLabMode(true);
+  setThemesLabMode(true);
+  setFxLabMode(true);
+  setPresetLabMode(true);
+}
 if (deepLink.soundsLab) setSoundLabMode(true);
 if (deepLink.themesLab) setThemesLabMode(true);
 if (deepLink.fxLab) setFxLabMode(true);

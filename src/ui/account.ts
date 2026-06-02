@@ -2,7 +2,7 @@ import { authState, claimUsername, signInWithGoogle, signOut, subscribeAuth } fr
 import { validateUsername } from "../social/profanity";
 import { refreshGrantedShapes } from "../social/grants";
 
-export function renderAccountPanel(host: HTMLElement, onClose: () => void): () => void {
+export function renderAccountPanel(host: HTMLElement, onClose: () => void, onViewProfile?: (username: string) => void): () => void {
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
   wrap.className = "pointer-events-auto absolute inset-0 z-30 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center px-6 font-display text-paper";
@@ -31,8 +31,8 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void): () =
         <div class="rounded-2xl bg-white/5 p-4">
           ${
             hasUsername
-              ? `<div class="text-2xl font-bold">${escapeHtml(s.profile!.username!)}</div>
-                 <div class="mt-1 text-[11px] opacity-50">handles are permanent in v1.</div>`
+              ? `<button data-view-profile class="text-2xl font-bold underline decoration-dotted underline-offset-4 text-left">${escapeHtml(s.profile!.username!)}</button>
+                 <div class="mt-1 text-[11px] opacity-50">tap your name to view your profile · handles are permanent in v1.</div>`
               : `<form data-username-form class="flex gap-2 items-stretch">
                    <input data-username name="username" autocomplete="off" autocapitalize="none" spellcheck="false"
                           maxlength="8" minlength="3"
@@ -94,6 +94,11 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void): () =
     wrap.querySelector("[data-google]")?.addEventListener("click", (e) => {
       e.stopPropagation();
       signInWithGoogle();
+    });
+    wrap.querySelector("[data-view-profile]")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const name = s.profile?.username;
+      if (name && onViewProfile) onViewProfile(name);
     });
     // Log out is only offered to Google users (they can sign back in). Anon
     // users have no "log out" — abandoning an anon account == deleting it, so

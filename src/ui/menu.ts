@@ -17,6 +17,7 @@ export interface MenuCallbacks {
   onToggleSetting(key: keyof Settings): void;
   onSetGhostOpacity(pct: number): void;
   onShowChangelog(): void;
+  onHowToPlay(): void;
   onOpenAccount(): void;
   onOpenSkins(): void;
   onOpenLeaderboard(): void;
@@ -187,6 +188,10 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
 
         <div class="panel-group-label">About</div>
         <div class="panel-group">
+          <button data-howtoplay class="panel-row w-full text-left hover:bg-white/5">
+            <span class="opacity-90">🎓 How to play</span>
+            <span class="opacity-50">›</span>
+          </button>
           <button data-whatsnew class="panel-row w-full text-left hover:bg-white/5">
             <span class="opacity-90">📜 What's new (history)</span>
             <span class="opacity-50">v${APP_VERSION} ›</span>
@@ -273,6 +278,10 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   wrap.querySelector("[data-whatsnew]")?.addEventListener("click", (e) => {
     e.stopPropagation();
     cbs.onShowChangelog();
+  });
+  wrap.querySelector("[data-howtoplay]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    cbs.onHowToPlay();
   });
 }
 

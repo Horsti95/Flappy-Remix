@@ -41,7 +41,7 @@ export async function fetchLeaderboard(
     console.error("[leaderboard]", scope, period, mode, error);
     return [];
   }
-  return (data ?? []).map((row) => {
+  const rows = (data ?? []).map((row) => {
     const r = row as Record<string, unknown>;
     return {
       run_id: r.run_id as string,
@@ -62,4 +62,28 @@ export async function fetchLeaderboard(
       skin_rarity: (r.skin_rarity ?? null) as string | null,
     };
   });
+  return rankRows(rows);
+}
+
+/**
+ * Normalize leaderboard rows on the client so the board is always correct
+ * regardless of the row order/dedup the RPC happens to return:
+ *  - one row per user (their best/highest-score run),
+ *  - sorted by score descending (earlier run wins ties).
+ * Anonymous rows (no user_id) are kept individually, never collapsed.
+ */
+function rankRows(rows: LeaderboardRow[]): LeaderboardRow[] {
+  const bestByUser = new Map<string, LeaderboardRow>();
+  const anon: LeaderboardRow[] = [];
+  for (const r of rows) {
+    if (!r.user_id) {
+      anon.push(r);
+      continue;
+    }
+    const cur = bestByUser.get(r.user_id);
+    if (!cur || r.score > cur.score) bestByUser.set(r.user_id, r);
+  }
+  return [...bestByUser.values(), ...anon].sort(
+    (a, b) => b.score - a.score || a.created_at.localeCompare(b.created_at),
+  );
 }

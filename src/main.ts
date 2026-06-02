@@ -416,7 +416,7 @@ function showMenu(): void {
         saveSettings(settings);
         renderer.options.ghostOpacity = pct;
       },
-      onOpenAccount: () => { pushSubView(); panelOpen = true; renderAccountPanel(overlays, () => showMenu()); },
+      onOpenAccount: () => { pushSubView(); panelOpen = true; renderAccountPanel(overlays, () => showMenu(), (username) => openProfile(username)); },
       onOpenSkins: () => {
         pushSubView();
         panelOpen = true;

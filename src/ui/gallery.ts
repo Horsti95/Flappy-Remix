@@ -87,7 +87,7 @@ export function renderGallery(
       <button data-tab="pillars" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">pillars</button>
       <button data-tab="badges" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">badges</button>
     </div>
-    <div data-body class="mt-3 px-3 flex-1 overflow-y-auto pb-6"></div>
+    <div data-body class="mt-3 px-3 flex-1 overflow-y-auto pb-28"></div>
   `;
   host.appendChild(wrap);
 
@@ -133,7 +133,7 @@ export function renderGallery(
 
   function renderPillars(): void {
     const body = wrap.querySelector("[data-body]") as HTMLDivElement;
-    body.innerHTML = `<div class="text-[11px] opacity-70 px-2 mb-3">pick your pillar look. glass is see-through — it adds a difficulty level on the daily.</div><div class="grid grid-cols-2 gap-3 px-2" data-pillar-grid></div>`;
+    body.innerHTML = `<div class="text-[11px] opacity-70 px-2 mb-3">pick your pillar look. glass is see-through — it adds a difficulty level on the daily.</div><div class="grid grid-cols-2 gap-4 px-2 pt-1" data-pillar-grid></div>`;
     const grid = body.querySelector("[data-pillar-grid]") as HTMLDivElement;
     const stats = loadAchievementStats();
     const equippedPillar = getEquippedPillarLocal();
@@ -170,7 +170,7 @@ export function renderGallery(
     const sorted = [...badges].sort((a, b) => b.season_id - a.season_id);
     const bestRank = Math.min(...sorted.map((b) => b.rank));
     const grid = document.createElement("div");
-    grid.className = "grid grid-cols-2 gap-3 px-2";
+    grid.className = "grid grid-cols-2 gap-4 px-2 pt-1";
     body.appendChild(grid);
     for (const badge of sorted) {
       grid.appendChild(badgeCard(badge, badge.rank === bestRank));
@@ -250,7 +250,7 @@ export function renderGallery(
 
   function renderBackgrounds(): void {
     const body = wrap.querySelector("[data-body]") as HTMLDivElement;
-    body.innerHTML = `<div class="grid grid-cols-2 gap-3 px-2"></div>`;
+    body.innerHTML = `<div class="grid grid-cols-2 gap-4 px-2 pt-1"></div>`;
     const grid = body.firstElementChild as HTMLDivElement;
     for (const theme of THEMES) {
       grid.appendChild(
@@ -266,7 +266,7 @@ export function renderGallery(
 
   function renderShapes(): void {
     const body = wrap.querySelector("[data-body]") as HTMLDivElement;
-    body.innerHTML = `<div class="grid grid-cols-2 gap-3 px-2"></div>`;
+    body.innerHTML = `<div class="grid grid-cols-2 gap-4 px-2 pt-1"></div>`;
     const grid = body.firstElementChild as HTMLDivElement;
     const granted = new Set(getGrantedShapesLocal());
     for (const shape of SHAPES) {
@@ -294,7 +294,7 @@ export function renderGallery(
     // the player can revert; achievement-locked rewards live in a
     // separate section underneath.
     const ownedGrid = document.createElement("div");
-    ownedGrid.className = "grid grid-cols-3 gap-3 px-2";
+    ownedGrid.className = "grid grid-cols-3 gap-3.5 px-2 pt-1";
     body.appendChild(headerLabel("owned"));
     body.appendChild(ownedGrid);
     ownedGrid.appendChild(
@@ -327,7 +327,7 @@ export function renderGallery(
     // criteria. Equipping one is local-only (no DB skin row).
     body.appendChild(headerLabel("palettes"));
     const presetGrid = document.createElement("div");
-    presetGrid.className = "grid grid-cols-3 gap-3 px-2";
+    presetGrid.className = "grid grid-cols-3 gap-3.5 px-2 pt-1";
     body.appendChild(presetGrid);
     for (const p of PRESET_SKINS) {
       presetGrid.appendChild(
@@ -358,7 +358,7 @@ export function renderGallery(
     body.appendChild(progress);
     body.appendChild(achDesc);
     const achGrid = document.createElement("div");
-    achGrid.className = "grid grid-cols-3 gap-3 px-2";
+    achGrid.className = "grid grid-cols-3 gap-3.5 px-2 pt-1";
     body.appendChild(achGrid);
     for (const a of ach) achGrid.appendChild(achievementColorCard(a, achStats, currentEquipped.shapeId));
   }

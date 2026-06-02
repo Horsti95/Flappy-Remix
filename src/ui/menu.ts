@@ -143,27 +143,44 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
     </div>
     <div data-settings-panel class="hidden absolute inset-0 z-20 flex flex-col justify-end pointer-events-auto">
       <div class="bg-black/40 absolute inset-0" data-settings-backdrop></div>
-      <div class="relative bg-gradient-to-t from-black/95 to-black/80 rounded-t-3xl px-5 py-6 pb-10">
-        <div class="text-[11px] uppercase tracking-wider opacity-60 mb-4">Settings</div>
-        <div class="grid grid-cols-3 gap-2 text-[11px]">
+      <div class="relative bg-gradient-to-t from-black/95 to-black/80 rounded-t-3xl px-5 py-6 pb-10 max-h-[85vh] overflow-y-auto">
+        <div class="text-sm font-bold mb-2">Settings</div>
+
+        <div class="panel-group-label">Game</div>
+        <div class="grid grid-cols-2 gap-2 text-[11px]">
           ${toggle("sound", "Sound", settings.sound)}
-          ${toggle("highContrast", "Contrast", settings.highContrast)}
-          ${toggle("reducedMotion", "Motion", settings.reducedMotion)}
+          ${toggle("reducedMotion", "Reduced motion", settings.reducedMotion)}
         </div>
-        <label class="mt-4 flex items-center justify-between text-[12px] cursor-pointer">
-          <span class="opacity-90">show my plane + sky in the menu</span>
+
+        <div class="panel-group-label">Display</div>
+        <div class="grid grid-cols-1 gap-2 text-[11px]">
+          ${toggle("highContrast", "High contrast", settings.highContrast)}
+        </div>
+        <label class="panel-row mt-2 rounded-2xl bg-white/5 cursor-pointer">
+          <span class="opacity-90">Show my plane + sky in the menu</span>
           <input type="checkbox" data-show-equipped ${getShowEquippedInMenu() ? "checked" : ""} class="w-5 h-5 accent-paper" />
         </label>
-        <div class="mt-4">
-          <div class="flex items-center justify-between text-[12px]">
-            <span class="opacity-90">challenge ghost opacity</span>
-            <span data-ghost-val class="opacity-70 tabular-nums">${settings.ghostOpacity}%</span>
+
+        <div class="panel-group-label">Challenge</div>
+        <div class="panel-group">
+          <div class="panel-row flex-col items-stretch gap-1">
+            <div class="flex items-center justify-between">
+              <span class="opacity-90">Ghost opacity</span>
+              <span data-ghost-val class="opacity-70 tabular-nums">${settings.ghostOpacity}%</span>
+            </div>
+            <input type="range" min="0" max="100" step="5" value="${settings.ghostOpacity}" data-ghost-opacity class="w-full accent-paper" />
           </div>
-          <input type="range" min="0" max="100" step="5" value="${settings.ghostOpacity}" data-ghost-opacity class="w-full mt-1 accent-paper" />
         </div>
+
         ${
           FEEDBACK_EMAIL
-            ? `<a href="${feedbackMailto()}" data-feedback class="block mt-4 text-center text-[12px] underline opacity-70 hover:opacity-100">💬 send feedback</a>`
+            ? `<div class="panel-group-label">Support</div>
+               <div class="panel-group">
+                 <a href="${feedbackMailto()}" data-feedback class="panel-row hover:bg-white/5">
+                   <span class="opacity-90">💬 Send feedback</span>
+                   <span class="opacity-50">›</span>
+                 </a>
+               </div>`
             : ""
         }
       </div>

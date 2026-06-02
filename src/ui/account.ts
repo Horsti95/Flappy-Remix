@@ -2,7 +2,7 @@ import { authState, claimUsername, signInWithGoogle, signOut, subscribeAuth } fr
 import { validateUsername } from "../social/profanity";
 import { refreshGrantedShapes } from "../social/grants";
 
-export function renderAccountPanel(host: HTMLElement, onClose: () => void): () => void {
+export function renderAccountPanel(host: HTMLElement, onClose: () => void, onViewProfile?: (username: string) => void): () => void {
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
   wrap.className = "pointer-events-auto absolute inset-0 z-30 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center px-6 font-display text-paper";
@@ -21,66 +21,73 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void): () =
     const hasUsername = !!s.profile?.username;
     const isGoogle = (s.user?.app_metadata?.providers as string[] | undefined)?.includes("google");
     wrap.innerHTML = `
-      <div class="w-full max-w-sm">
+      <div class="w-full max-w-sm max-h-[88vh] overflow-y-auto">
         <div class="flex items-center justify-between">
           <h2 class="text-xl font-bold">account</h2>
-          <button data-close class="text-sm underline opacity-70">close</button>
+          <button data-close class="btn-quiet text-sm px-2 py-1">close</button>
         </div>
 
-        <div class="mt-4 rounded-2xl bg-white/5 p-4">
-          <div class="text-[11px] uppercase tracking-wider opacity-60">handle</div>
+        <div class="panel-group-label">Profile</div>
+        <div class="rounded-2xl bg-white/5 p-4">
           ${
             hasUsername
-              ? `<div class="text-2xl font-bold mt-1">${escapeHtml(s.profile!.username!)}</div>
-                 <div class="mt-1 text-[11px] opacity-50">handles are permanent in v1.</div>`
-              : `<form data-username-form class="mt-2 flex gap-2">
+              ? `<button data-view-profile class="text-2xl font-bold underline decoration-dotted underline-offset-4 text-left">${escapeHtml(s.profile!.username!)}</button>
+                 <div class="mt-1 text-[11px] opacity-50">tap your name to view your profile · handles are permanent in v1.</div>`
+              : `<form data-username-form class="flex gap-2 items-stretch">
                    <input data-username name="username" autocomplete="off" autocapitalize="none" spellcheck="false"
                           maxlength="8" minlength="3"
-                          class="flex-1 rounded-xl bg-white/10 px-3 py-2 text-base outline-none focus:bg-white/20"
+                          class="flex-1 min-w-0 rounded-xl bg-white/10 px-3 py-2 text-base outline-none focus:bg-white/20"
                           placeholder="3-8 chars, a-z, 0-9" />
-                   <button class="rounded-xl bg-paper text-ink px-4 py-2 font-bold disabled:opacity-50">claim</button>
+                   <button class="btn-primary shrink-0 px-4 py-2">claim</button>
                  </form>
-                 <div data-username-error class="mt-2 text-[12px] text-red-300 min-h-[1em]"></div>`
+                 <div data-username-error class="mt-2 text-[12px] text-accent-danger min-h-[1em]"></div>`
           }
+          <div class="mt-3 pt-3 border-t border-white/5">
+            ${
+              isGoogle
+                ? `<div class="text-[12px] opacity-70">✓ signed in with Google</div>`
+                : `<p class="text-xs opacity-70 mb-2">anonymous — sign in to keep your runs across devices.</p>
+                   <button data-google class="btn-primary w-full py-2.5 text-sm">continue with Google</button>`
+            }
+          </div>
         </div>
 
-        <div class="mt-3 rounded-2xl bg-white/5 p-4">
-          <div class="text-[11px] uppercase tracking-wider opacity-60">sign in</div>
-          ${
-            isGoogle
-              ? `<div class="text-sm mt-1">signed in with Google.</div>`
-              : `<p class="text-xs mt-1 opacity-70">currently anonymous. sign in to keep your runs across devices.</p>
-                 <button data-google class="mt-3 w-full rounded-xl bg-paper text-ink font-bold py-3">continue with Google</button>`
-          }
+        <div class="panel-group-label">Progress</div>
+        <div class="rounded-2xl bg-white/5 p-4">
+          <div class="grid grid-cols-3 gap-2 text-center text-xs">
+            <div><div class="opacity-60">games</div><div class="font-bold text-base">${s.profile?.total_games ?? 0}</div></div>
+            <div><div class="opacity-60">streak</div><div class="font-bold text-base">${s.profile?.streak_days ?? 0}</div></div>
+            <div><div class="opacity-60">id</div><div class="font-mono text-[10px] truncate opacity-70">${s.user?.id?.slice(0, 8) ?? "—"}</div></div>
+          </div>
         </div>
 
-        <div class="mt-3 rounded-2xl bg-white/5 p-4">
-          <div class="text-[11px] uppercase tracking-wider opacity-60">redeem code</div>
-          <form data-redeem-form class="mt-2 flex gap-2 items-stretch">
+        <div class="panel-group-label">Codes</div>
+        <div class="rounded-2xl bg-white/5 p-4">
+          <form data-redeem-form class="flex gap-2 items-stretch">
             <input data-redeem-input name="code" autocomplete="off" autocapitalize="characters" spellcheck="false"
                    maxlength="32"
                    class="flex-1 min-w-0 rounded-xl bg-white/10 px-3 py-2 text-base outline-none focus:bg-white/20 uppercase tracking-wider"
                    placeholder="enter code" />
-            <button class="shrink-0 rounded-xl bg-paper text-ink px-3 py-2 text-sm font-bold disabled:opacity-50">use</button>
+            <button class="btn-primary shrink-0 px-4 py-2 text-sm">use</button>
           </form>
           <div data-redeem-status class="mt-2 text-[12px] min-h-[1em] opacity-70"></div>
         </div>
 
-        <div class="mt-3 rounded-2xl bg-white/5 p-4">
-          <div class="text-[11px] uppercase tracking-wider opacity-60">stats</div>
-          <div class="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
-            <div><div class="opacity-60">games</div><div class="font-bold text-base">${s.profile?.total_games ?? 0}</div></div>
-            <div><div class="opacity-60">streak</div><div class="font-bold text-base">${s.profile?.streak_days ?? 0}</div></div>
-            <div><div class="opacity-60">user id</div><div class="font-mono text-[10px] truncate">${s.user?.id?.slice(0, 8) ?? "—"}</div></div>
-          </div>
+        <div class="panel-group-label">Data</div>
+        <div class="rounded-2xl bg-white/5 p-4">
+          <button data-export class="btn-secondary w-full py-2.5 text-sm">export my data</button>
+          ${
+            isGoogle
+              ? `<button data-signout class="btn-quiet w-full text-xs py-2 mt-1">log out</button>`
+              : ""
+          }
         </div>
 
-        <button data-signout class="mt-4 w-full text-xs underline opacity-50">sign out and start fresh</button>
-        <div class="mt-6 grid grid-cols-2 gap-2 text-[11px]">
-          <button data-export class="rounded-xl bg-white/5 py-2">export my data</button>
-          <button data-delete class="rounded-xl bg-red-900/40 text-red-100 py-2">delete account</button>
+        <div class="mt-8">
+          <button data-delete class="btn-danger w-full py-2.5 text-sm">delete account</button>
+          <div class="mt-1.5 text-[10px] opacity-40 text-center">permanent — export your data first if unsure</div>
         </div>
-        <div data-account-status class="mt-2 text-[11px] opacity-60 min-h-[1em]"></div>
+        <div data-account-status class="mt-2 text-[11px] opacity-60 min-h-[1em] text-center"></div>
       </div>
     `;
     bindCloseButtons(wrap, onClose);
@@ -88,16 +95,16 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void): () =
       e.stopPropagation();
       signInWithGoogle();
     });
+    wrap.querySelector("[data-view-profile]")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const name = s.profile?.username;
+      if (name && onViewProfile) onViewProfile(name);
+    });
+    // Log out is only offered to Google users (they can sign back in). Anon
+    // users have no "log out" — abandoning an anon account == deleting it, so
+    // we don't duplicate that footgun; they use the explicit delete button.
     wrap.querySelector("[data-signout]")?.addEventListener("click", (e) => {
       e.stopPropagation();
-      // Anonymous accounts have no way back in — signing out abandons all
-      // progress permanently. Warn first (Google accounts can re-sign-in).
-      if (!isGoogle) {
-        const ok = window.confirm(
-          "You're playing anonymously — there's no way to sign back into this account. Signing out PERMANENTLY abandons your runs, skins, streak and friends. Continue?",
-        );
-        if (!ok) return;
-      }
       signOut();
     });
     wrap.querySelector("[data-redeem-form]")?.addEventListener("submit", async (e) => {

@@ -146,3 +146,54 @@ a:focus-visible {
   background-position: 0 0, 0 7px, 7px -7px, -7px 0;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
 }
+
+/* ── Design system: button hierarchy ───────────────────────────────────────
+   Four intentional button roles so the eye instantly knows what matters.
+   Use these classes instead of ad-hoc rounded pills.
+     .btn-primary   filled paper — the ONE main action (Play, Send, Continue)
+     .btn-secondary outlined — normal navigation (Gallery, Board, Friends)
+     .btn-quiet     text/low-opacity — low-risk extras (practice, links)
+     .btn-danger    red — rare, destructive only (delete account)
+   Shared base handles radius, press feedback, disabled, focus ring. */
+@layer components {
+  .btn {
+    @apply rounded-2xl font-bold transition active:scale-95 disabled:opacity-50 disabled:active:scale-100 outline-none;
+  }
+  .btn-primary {
+    @apply btn bg-paper text-ink shadow-lg;
+  }
+  .btn-secondary {
+    @apply btn border border-paper/40 text-paper bg-transparent hover:bg-white/5;
+  }
+  .btn-quiet {
+    @apply btn bg-transparent text-paper/60 font-medium hover:text-paper/90 shadow-none active:scale-100;
+  }
+  .btn-danger {
+    @apply btn bg-transparent border border-accent-danger/50 text-accent-danger hover:bg-accent-danger/10;
+  }
+
+  /* Grouped settings/section block: a label + a card of rows. */
+  .panel-group-label {
+    @apply text-[10px] uppercase tracking-wider opacity-50 font-bold px-1 mb-1.5 mt-4;
+  }
+  .panel-group {
+    @apply rounded-2xl bg-white/5 divide-y divide-white/5;
+  }
+  .panel-row {
+    @apply flex items-center justify-between gap-3 px-4 py-3 text-sm;
+  }
+}
+
+/* House-ad banner: intentionally reads as a joke/placeholder, not real
+   monetization — muted, dashed border, "fake ad slot" framing. */
+.house-ad {
+  border-style: dashed;
+  border-color: rgba(244, 234, 213, 0.25);
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.03),
+    rgba(255, 255, 255, 0.03) 8px,
+    rgba(255, 255, 255, 0.06) 8px,
+    rgba(255, 255, 255, 0.06) 16px
+  );
+}

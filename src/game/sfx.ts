@@ -85,6 +85,57 @@ export function playUnlockSound(rarity: Rarity): void {
   }
 }
 
+/**
+ * Crowd applause — a synthesized cheer for hitting a milestone (used by the
+ * stadium theme every 20 points). Dense randomized "claps" over a swelling
+ * envelope, band-passed to sound like hands rather than hiss. Visual-only;
+ * never touches the sim.
+ */
+export function playCheer(): void {
+  if (reducedMotion()) return;
+  const ac = getCtx();
+  if (!ac) return;
+  if (ac.state === "suspended") ac.resume().catch(() => undefined);
+
+  const dur = 1.3;
+  const n = Math.floor(ac.sampleRate * dur);
+  const buf = ac.createBuffer(1, n, ac.sampleRate);
+  const data = buf.getChannelData(0);
+  // Base wash of hiss.
+  for (let i = 0; i < n; i++) data[i] = (Math.random() * 2 - 1) * 0.12;
+  // Sparse louder claps with a fast decay so it reads as many hands.
+  const claps = 260;
+  const clapLen = Math.floor(ac.sampleRate * 0.018);
+  for (let c = 0; c < claps; c++) {
+    const start = Math.floor(Math.random() * n);
+    for (let j = 0; j < clapLen && start + j < n; j++) {
+      const env = Math.pow(1 - j / clapLen, 2);
+      data[start + j] += (Math.random() * 2 - 1) * env * 0.5;
+    }
+  }
+  // Overall swell: quick rise, hold, gentle fall.
+  for (let i = 0; i < n; i++) {
+    const x = i / n;
+    const rise = Math.min(1, x / 0.16);
+    const fall = Math.pow(1 - Math.max(0, (x - 0.55) / 0.45), 1.5);
+    data[i] *= rise * fall;
+  }
+
+  const src = ac.createBufferSource();
+  src.buffer = buf;
+  const hp = ac.createBiquadFilter();
+  hp.type = "highpass";
+  hp.frequency.value = 700;
+  const bp = ac.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.value = 2000;
+  bp.Q.value = 0.7;
+  const gain = ac.createGain();
+  gain.gain.value = 0.4;
+  src.connect(hp).connect(bp).connect(gain).connect(ac.destination);
+  src.start();
+}
+
 // ---- Flap-sound variants ---------------------------------------------------
 // Five candidates. soft_pop is the always-on default; the rest are
 // gated behind achievements (so each unlock gives an audible reward).

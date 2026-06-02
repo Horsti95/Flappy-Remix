@@ -5,6 +5,8 @@ import { GhostSim } from "./ghost";
 export interface LoopHandlers {
   render(sim: Sim, alpha: number, ghost: GhostSim | null): void;
   onDeath?(sim: Sim): void;
+  /** Fired (visual/audio only) whenever the score increases. */
+  onScore?(score: number): void;
 }
 
 export class GameLoop {
@@ -20,6 +22,7 @@ export class GameLoop {
   private handlers: LoopHandlers;
   private inputBuffer: InputEvent[] = [];
   private notifiedDeath = false;
+  private prevScore = 0;
 
   constructor(seed: number, cfg: SimConfig, handlers: LoopHandlers, ghost?: GhostSim, noFail = false) {
     this.sim = new Sim(seed, cfg, noFail);
@@ -83,6 +86,10 @@ export class GameLoop {
       }
       this.sim.step();
       if (this.ghost) this.ghost.step();
+      if (this.sim.score > this.prevScore) {
+        this.prevScore = this.sim.score;
+        this.handlers.onScore?.(this.sim.score);
+      }
       this.accumulator -= this.dtMs;
       if (!this.sim.alive && !this.notifiedDeath) {
         this.notifiedDeath = true;

@@ -27,7 +27,8 @@ export type ThemeId =
   | "neo_city"
   | "fairy_spires"
   | "ocean"
-  | "space";
+  | "space"
+  | "stadium";
 
 export interface CityBuilding {
   /** Left edge in world-units (world width is 360). */
@@ -127,6 +128,15 @@ const SKYLINE_C: CityBuilding[] = [
   { x: 250, w: 46, topY: 290, top: "flat" },
   { x: 294, w: 66, topY: 230, top: "antenna" },
 ];
+// Stadium stands — a low continuous band across the width, read as packed
+// terraces. The neonAccents become scattered crowd specks.
+const STADIUM_STANDS: CityBuilding[] = [
+  { x: 0,   w: 94, topY: 372, top: "flat" },
+  { x: 90,  w: 98, topY: 360, top: "flat" },
+  { x: 184, w: 92, topY: 372, top: "flat" },
+  { x: 272, w: 92, topY: 362, top: "flat" },
+];
+
 const SKYLINE_D: CityBuilding[] = [
   { x: 0,   w: 60, topY: 250, top: "antenna" },
   { x: 58,  w: 42, topY: 300, top: "flat" },
@@ -371,6 +381,30 @@ export const THEMES: Theme[] = [
       highContrast: HC_DEFAULT,
     },
     unlock: (s) => ({ unlocked: s.bestScore >= 90, hint: "score 90 in a single run" }),
+  },
+  {
+    id: "stadium",
+    name: "stadium",
+    blurb: "match night — green pitch, packed stands, floodlights.",
+    colors: {
+      skyTop: "#0a1830",
+      skyBottom: "#16335c",
+      pipeBody: "#e6e9ee",
+      pipeCap: "#aab2bd",
+      cityLayer: {
+        silhouetteColor: "#0c1a2e",
+        neonAccents: ["#ffffff", "#ffe14d", "#ff6b6b", "#5ab0ff"],
+        buildings: STADIUM_STANDS,
+      },
+      horizonBand: {
+        topY: 430,
+        topColor: "#2e8b3d",
+        bottomColor: "#1d5f29",
+      },
+      sunSpot: { x: 70, y: 70, r: 110, color: "#fffbe0", opacity: 0.45 },
+      highContrast: HC_DEFAULT,
+    },
+    unlock: (s) => ({ unlocked: s.bestScore >= 40, hint: "score 40 in a single run" }),
   },
 ];
 

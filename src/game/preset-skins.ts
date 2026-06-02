@@ -41,6 +41,8 @@ export const PRESET_SKINS: PresetSkin[] = [
     unlock: (s) => ({ unlocked: s.friendCount >= 3, hint: "add 3 friends" }) },
   { id: "preset-aurora", name: "aurora", body: [110, 231, 183], accent: [99, 102, 241],
     unlock: (s) => ({ unlocked: s.totalGames >= 300, hint: "play 300 games" }) },
+  { id: "preset-germany", name: "Germany", body: [221, 0, 0], accent: [255, 206, 0],
+    unlock: (s) => ({ unlocked: s.totalGames >= 20, hint: "play 20 games" }) },
 ];
 
 const PRESET_KEY = "pflug.equippedPreset.v1";

@@ -136,7 +136,14 @@ export class Sim {
   }
 
   private spawnPipe(x: number): void {
-    const gapH = this.currentGapH();
+    // Base gap height ramps down with score (deterministic). Add a small
+    // SEEDED jitter so the same score isn't always the exact same tightness —
+    // makes runs feel varied without changing the average difficulty. Drawn
+    // from the run RNG, so two players on the same seed (ranked/daily) still
+    // get byte-identical worlds.
+    const baseGap = this.currentGapH();
+    const jitter = this.rng.nextFloat(-this.cfg.gapJitter, this.cfg.gapJitter);
+    const gapH = Math.max(this.cfg.pipeGapMin, baseGap + jitter);
     const minY = this.cfg.pipeMargin;
     const maxY = this.cfg.worldHeight - this.cfg.pipeMargin - gapH;
     const gapY = this.rng.nextFloat(minY, maxY);

@@ -8,6 +8,7 @@ import { getParticles, tickParticles } from "./flap-fx";
 import { type VisualEffect } from "./daily-twist";
 import { preloadSprites, hasSprite, getTintedSprite } from "./sprites";
 import { getPillarStyle, type PillarStyleId } from "./pillars";
+import { zoneFor } from "./depth-zones";
 import { preloadBackgrounds, hasBackgroundImage, getBackgroundImage } from "./backgrounds";
 
 export interface RenderOptions {
@@ -153,6 +154,16 @@ export class Renderer {
       glare.addColorStop(1, "rgba(255,245,205,0)");
       ctx.fillStyle = glare;
       ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+
+    // Depth-zone tint — deepens the sky as the player advances through the
+    // theme's zones (cosmetic; screen space so it covers the letterbox).
+    const zone = this.options.highContrast ? null : zoneFor(this.options.theme, sim.score);
+    if (zone?.tint) {
+      ctx.fillStyle = zone.tint.color;
+      ctx.globalAlpha = zone.tint.alpha;
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      ctx.globalAlpha = 1;
     }
 
     ctx.translate(this.offsetX, this.offsetY);
@@ -435,6 +446,12 @@ export class Renderer {
         ctx.fillStyle = "#f4ead5";
       }
       ctx.fillText(txt, cx, cy + 1);
+      // Depth-zone label under the score pill.
+      if (zone) {
+        ctx.font = "600 13px system-ui,sans-serif";
+        ctx.fillStyle = this.options.highContrast ? "#fff" : "rgba(244,234,213,0.85)";
+        ctx.fillText(zone.label, cx, cy + 34);
+      }
       ctx.restore();
     }
 

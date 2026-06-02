@@ -770,7 +770,7 @@ function themeCard(theme: Theme, equipped: boolean, stats: GalleryStats, onTap: 
       <div class="absolute left-3 right-3 bottom-3 h-12 rounded" style="background:${c.pipeBody}"></div>
       ${c.fogIntensity ? `<div class="absolute inset-0" style="background: radial-gradient(circle at 45% 55%, transparent 25%, rgba(205,214,221,${c.fogIntensity}) 80%)"></div>` : ""}
     </div>
-    <div class="font-bold flex items-center gap-1">${escapeHtml(theme.name)}${hasZones(theme.id) ? `<span class="text-[8px] uppercase tracking-wider rounded px-1 py-0.5" style="background:#a855f733;color:#c79bff">interactive</span>` : ""}</div>
+    <div class="font-bold flex items-center gap-1">${escapeHtml(theme.name)}${hasZones(theme.id) || theme.backgroundStages ? `<span class="text-[8px] uppercase tracking-wider rounded px-1 py-0.5" style="background:#a855f733;color:#c79bff">interactive</span>` : ""}</div>
     <div class="opacity-60 text-[10px] text-center leading-tight">${state.unlocked ? escapeHtml(theme.blurb) : escapeHtml(state.hint ?? "locked")}</div>
     ${
       equipped

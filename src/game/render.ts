@@ -99,8 +99,18 @@ export class Renderer {
     // Full-art background image (cover-fit, centered) when the theme declares
     // one and its art has loaded. Painted over the fallback gradient; skipped
     // under high-contrast so the a11y palette stays clean. Cosmetic.
-    if (!this.options.highContrast && theme.backgroundImage && hasBackgroundImage(theme.backgroundImage)) {
-      const img = getBackgroundImage(theme.backgroundImage);
+    // Interactive themes pick the stage for the highest score reached so the
+    // backdrop "zooms out" as the run climbs.
+    let bgId = theme.backgroundImage;
+    if (theme.backgroundStages && theme.backgroundStages.length > 0) {
+      let stageImg = theme.backgroundStages[0].image;
+      for (const st of theme.backgroundStages) {
+        if (sim.score >= st.fromScore) stageImg = st.image;
+      }
+      bgId = stageImg;
+    }
+    if (!this.options.highContrast && bgId && hasBackgroundImage(bgId)) {
+      const img = getBackgroundImage(bgId);
       if (img && img.naturalWidth > 0) {
         const cw = this.canvas.width;
         const ch = this.canvas.height;

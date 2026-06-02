@@ -96,9 +96,11 @@ export class Renderer {
     ctx.fillStyle = grd;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Full-art background image (cover-fit, centered) when the theme declares
-    // one and its art has loaded. Painted over the fallback gradient; skipped
-    // under high-contrast so the a11y palette stays clean. Cosmetic.
+    // Full-art background image (COVER-fit, centered) when the theme declares
+    // one and its art has loaded. A/B variant: the image always fills the whole
+    // canvas (edges may be cropped on off-aspect screens) so there are never
+    // any letterbox bands. Compare against claude/fairy-bg-fit-contain. Painted
+    // over the fallback gradient; skipped under high-contrast. Cosmetic.
     if (!this.options.highContrast && theme.backgroundImage && hasBackgroundImage(theme.backgroundImage)) {
       const img = getBackgroundImage(theme.backgroundImage);
       if (img && img.naturalWidth > 0) {

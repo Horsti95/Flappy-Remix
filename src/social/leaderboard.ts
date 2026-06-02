@@ -72,7 +72,7 @@ export async function fetchLeaderboard(
  *  - sorted by score descending (earlier run wins ties).
  * Anonymous rows (no user_id) are kept individually, never collapsed.
  */
-function rankRows(rows: LeaderboardRow[]): LeaderboardRow[] {
+export function rankRows(rows: LeaderboardRow[]): LeaderboardRow[] {
   const bestByUser = new Map<string, LeaderboardRow>();
   const anon: LeaderboardRow[] = [];
   for (const r of rows) {
@@ -84,6 +84,6 @@ function rankRows(rows: LeaderboardRow[]): LeaderboardRow[] {
     if (!cur || r.score > cur.score) bestByUser.set(r.user_id, r);
   }
   return [...bestByUser.values(), ...anon].sort(
-    (a, b) => b.score - a.score || a.created_at.localeCompare(b.created_at),
+    (a, b) => b.score - a.score || (a.created_at ?? "").localeCompare(b.created_at ?? ""),
   );
 }

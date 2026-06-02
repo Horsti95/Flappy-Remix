@@ -82,21 +82,32 @@ export function renderGallery(
       <button data-close class="text-sm underline opacity-70">close</button>
     </div>
     <div class="px-5 pb-2 text-[11px] opacity-60">collection ${collection.unlocked} / ${collection.total} unlocked</div>
-    <div data-tabs class="px-5 flex gap-2 text-[12px] overflow-x-auto">
-      <button data-tab="shapes" class="rounded-full px-3 py-1 bg-paper text-ink whitespace-nowrap">Icons</button>
-      <button data-tab="skins" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">colors</button>
-      <button data-tab="backgrounds" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">backgrounds</button>
-      <button data-tab="effects" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">effects</button>
-      <button data-tab="quests" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">goals</button>
-      <button data-tab="pillars" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">pillars</button>
-      <button data-tab="badges" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">badges</button>
-    </div>
+    <div data-nav class="px-5 space-y-1.5"></div>
     <div data-body class="mt-3 px-3 flex-1 overflow-y-auto pb-28"></div>
   `;
   host.appendChild(wrap);
 
   type Tab = "shapes" | "skins" | "backgrounds" | "effects" | "quests" | "badges" | "pillars";
+  // Collapsible accordion: three big groups, each expands on click to reveal
+  // its tabs. No horizontal scroll — everything fits in the three rows.
+  type Group = { id: string; label: string; tabs: { id: Tab; label: string }[] };
+  const GROUPS: Group[] = [
+    { id: "plane", label: "✈️  your plane", tabs: [
+      { id: "shapes", label: "shape" },
+      { id: "skins", label: "colors" },
+      { id: "effects", label: "effects" },
+    ] },
+    { id: "world", label: "🌍  world", tabs: [
+      { id: "backgrounds", label: "backgrounds" },
+      { id: "pillars", label: "pillars" },
+    ] },
+    { id: "progress", label: "🏆  progress", tabs: [
+      { id: "quests", label: "goals" },
+      { id: "badges", label: "badges" },
+    ] },
+  ];
   let activeTab: Tab = "shapes";
+  let openGroup = "plane";
   let currentEquipped = { ...equipped };
   let cancelled = false;
 
@@ -110,19 +121,45 @@ export function renderGallery(
     close();
   });
 
-  wrap.querySelectorAll<HTMLButtonElement>("[data-tab]").forEach((btn) =>
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      activeTab = btn.dataset.tab as Tab;
-      wrap.querySelectorAll<HTMLButtonElement>("[data-tab]").forEach((b) => {
-        b.classList.toggle("bg-paper", b === btn);
-        b.classList.toggle("text-ink", b === btn);
-        b.classList.toggle("opacity-60", b !== btn);
-        b.classList.toggle("bg-white/5", b !== btn);
+  function renderNav(): void {
+    const nav = wrap.querySelector("[data-nav]") as HTMLDivElement;
+    nav.innerHTML = "";
+    for (const g of GROUPS) {
+      const isOpen = g.id === openGroup;
+      const header = document.createElement("button");
+      header.className =
+        "w-full flex items-center justify-between rounded-2xl px-4 py-2 text-sm font-bold transition " +
+        (isOpen ? "bg-white/10 text-paper" : "bg-white/5 text-paper/80");
+      header.innerHTML = `<span>${g.label}</span><span class="text-xs opacity-60">${isOpen ? "▾" : "▸"}</span>`;
+      header.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openGroup = isOpen ? "" : g.id;
+        renderNav();
       });
-      render();
-    }),
-  );
+      nav.appendChild(header);
+      if (isOpen) {
+        const row = document.createElement("div");
+        row.className = "flex flex-wrap gap-2 px-1 py-1 text-[12px]";
+        for (const t of g.tabs) {
+          const btn = document.createElement("button");
+          const on = t.id === activeTab;
+          btn.className =
+            "rounded-full px-3 py-1 whitespace-nowrap " +
+            (on ? "bg-paper text-ink" : "bg-white/5 text-paper opacity-60");
+          btn.textContent = t.label;
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            activeTab = t.id;
+            renderNav();
+            render();
+          });
+          row.appendChild(btn);
+        }
+        nav.appendChild(row);
+      }
+    }
+  }
+  renderNav();
 
   function render(): void {
     if (cancelled) return;

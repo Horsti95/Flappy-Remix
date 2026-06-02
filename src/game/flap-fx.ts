@@ -50,6 +50,50 @@ let labMode = false;
 export function setFxLabMode(on: boolean): void { labMode = on; }
 export function isFxLabMode(): boolean { return labMode; }
 
+// ── Flap-FX color ──────────────────────────────────────────────────────────
+// A basic 16-color palette the player can tint their flap effect with. null =
+// "default" (the original per-effect colors).
+export interface FxColor { id: string; name: string; rgb: [number, number, number] }
+export const FX_COLORS: FxColor[] = [
+  { id: "default", name: "default", rgb: [244, 234, 213] },
+  { id: "white",   name: "white",   rgb: [255, 255, 255] },
+  { id: "red",     name: "red",     rgb: [255, 70, 70] },
+  { id: "orange",  name: "orange",  rgb: [255, 150, 40] },
+  { id: "yellow",  name: "yellow",  rgb: [255, 220, 60] },
+  { id: "lime",    name: "lime",    rgb: [160, 230, 60] },
+  { id: "green",   name: "green",   rgb: [60, 210, 110] },
+  { id: "teal",    name: "teal",    rgb: [50, 210, 200] },
+  { id: "cyan",    name: "cyan",    rgb: [70, 200, 255] },
+  { id: "blue",    name: "blue",    rgb: [80, 130, 255] },
+  { id: "indigo",  name: "indigo",  rgb: [120, 90, 235] },
+  { id: "purple",  name: "purple",  rgb: [180, 90, 235] },
+  { id: "pink",    name: "pink",    rgb: [255, 110, 200] },
+  { id: "magenta", name: "magenta", rgb: [235, 40, 160] },
+  { id: "brown",   name: "brown",   rgb: [165, 110, 70] },
+  { id: "gray",    name: "gray",    rgb: [150, 150, 150] },
+];
+const FX_COLOR_KEY = "pflug.flapFxColor.v1";
+
+export function getFlapFxColor(): string {
+  try {
+    const v = localStorage.getItem(FX_COLOR_KEY);
+    return v && FX_COLORS.some((c) => c.id === v) ? v : "default";
+  } catch {
+    return "default";
+  }
+}
+export function setFlapFxColor(id: string): void {
+  try { localStorage.setItem(FX_COLOR_KEY, id); } catch { /* ignore */ }
+}
+/** rgba() for the current FX color at a given alpha, or null when "default". */
+function fxColorRgba(alpha: number): string | null {
+  const id = getFlapFxColor();
+  if (id === "default") return null;
+  const c = FX_COLORS.find((x) => x.id === id);
+  if (!c) return null;
+  return `rgba(${c.rgb[0]},${c.rgb[1]},${c.rgb[2]},${alpha})`;
+}
+
 // ---- Particle store --------------------------------------------------------
 // Particles are visual-only — they never feed the sim, so they're safe
 // to spawn outside the deterministic loop.
@@ -107,7 +151,7 @@ export function spawnFlapFx(id: FlapFxId, x: number, y: number): void {
         const spread = (i - 2.5) * 4;
         PARTICLES.push({
           x, y, dx: spread, dy: 8, vx: spread * 1.2, vy: 80 + Math.random() * 20,
-          age: 0, life: 0.55, kind: "puff", color: "rgba(244,234,213,0.7)",
+          age: 0, life: 0.55, kind: "puff", color: fxColorRgba(0.7) ?? "rgba(244,234,213,0.7)",
         });
       }
       break;
@@ -117,7 +161,7 @@ export function spawnFlapFx(id: FlapFxId, x: number, y: number): void {
         const yOff = (i - 1.5) * 5;
         PARTICLES.push({
           x: x - 14, y: y + yOff, dx: 0, dy: 0, vx: -220, vy: 0,
-          age: 0, life: 0.32, kind: "line", color: "rgba(244,234,213,0.85)",
+          age: 0, life: 0.32, kind: "line", color: fxColorRgba(0.85) ?? "rgba(244,234,213,0.85)",
         });
       }
       break;
@@ -130,7 +174,7 @@ export function spawnFlapFx(id: FlapFxId, x: number, y: number): void {
           x, y, dx: 0, dy: 4,
           vx: Math.cos(ang) * speed,
           vy: Math.sin(ang) * speed,
-          age: 0, life: 0.5, kind: "sparkle", color: "rgba(255,235,150,0.9)",
+          age: 0, life: 0.5, kind: "sparkle", color: fxColorRgba(0.9) ?? "rgba(255,235,150,0.9)",
         });
       }
       break;
@@ -138,7 +182,7 @@ export function spawnFlapFx(id: FlapFxId, x: number, y: number): void {
     case "ring_pulse": {
       PARTICLES.push({
         x, y, dx: 0, dy: 0, vx: 0, vy: 0,
-        age: 0, life: 0.35, kind: "ring", color: "rgba(244,234,213,0.7)",
+        age: 0, life: 0.35, kind: "ring", color: fxColorRgba(0.7) ?? "rgba(244,234,213,0.7)",
       });
       break;
     }

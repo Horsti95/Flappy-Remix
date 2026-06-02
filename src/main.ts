@@ -51,7 +51,7 @@ import { createChallenge, fetchChallenge, ghostSkinFromChallenge, fetchUnseenCha
 import { renderInbox } from "./ui/inbox";
 import { renderProfile } from "./ui/profile";
 import { renderWhatsNew } from "./ui/whats-new";
-import { isFirstRun, markChangelogSeen, unseenChanges } from "./game/changelog";
+import { isFirstRun, markChangelogSeen, unseenChanges, CHANGELOG } from "./game/changelog";
 import { renderQuests } from "./ui/quests";
 import { evaluateRun, type QuestCompletion } from "./game/quests";
 import { getGrantedShapesLocal } from "./social/grants";
@@ -416,6 +416,7 @@ function showMenu(): void {
         saveSettings(settings);
         renderer.options.ghostOpacity = pct;
       },
+      onShowChangelog: () => { pushSubView(); panelOpen = true; renderWhatsNew(overlays, CHANGELOG, () => showMenu()); },
       onOpenAccount: () => { pushSubView(); panelOpen = true; renderAccountPanel(overlays, () => showMenu(), (username) => openProfile(username)); },
       onOpenSkins: () => {
         pushSubView();

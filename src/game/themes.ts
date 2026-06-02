@@ -28,7 +28,8 @@ export type ThemeId =
   | "fairy_spires"
   | "ocean"
   | "space"
-  | "stadium";
+  | "stadium"
+  | "ascent";
 
 export interface CityBuilding {
   /** Left edge in world-units (world width is 360). */
@@ -89,6 +90,11 @@ export interface Theme {
   /** Optional full-bleed background image id (see game/backgrounds.ts). When
    *  its art is loaded the renderer paints it instead of the gradient. */
   backgroundImage?: string;
+  /** Optional interactive backdrop: the renderer picks the image for the
+   *  highest `fromScore` the player has reached, so the scene changes as the
+   *  run climbs. Must be sorted ascending by `fromScore` (first entry is the
+   *  starting backdrop, ideally fromScore 0). Cosmetic — never read by the sim. */
+  backgroundStages?: { fromScore: number; image: string }[];
   unlock(stats: { totalGames: number; bestScore: number; streakDays: number; lateNightGames?: number; morningGames?: number; dailyStreakDays?: number; challengeWins?: number }): { unlocked: boolean; hint?: string };
 }
 
@@ -388,6 +394,31 @@ export const THEMES: Theme[] = [
       highContrast: HC_DEFAULT,
     },
     unlock: (s) => ({ unlocked: s.bestScore >= 40, hint: "score 40 in a single run" }),
+  },
+  {
+    id: "ascent",
+    name: "the ascent",
+    blurb: "legendary — the world zooms out as you climb: street → galaxy.",
+    // Fallback gradient (street-dusk) shown until the first stage image loads.
+    colors: {
+      skyTop: "#caa6d8",
+      skyBottom: "#f6c98f",
+      pipeBody: "#6b4a7a",
+      pipeCap: "#3f2b49",
+      highContrast: HC_DEFAULT,
+    },
+    backgroundStages: [
+      { fromScore: 0, image: "ascent-street" },
+      { fromScore: 10, image: "ascent-suburb" },
+      { fromScore: 20, image: "ascent-city" },
+      { fromScore: 35, image: "ascent-countryside" },
+      { fromScore: 50, image: "ascent-mountains" },
+      { fromScore: 70, image: "ascent-world" },
+      { fromScore: 95, image: "ascent-solar" },
+      { fromScore: 125, image: "ascent-milkyway" },
+      { fromScore: 160, image: "ascent-galaxy" },
+    ],
+    unlock: (s) => ({ unlocked: s.bestScore >= 100, hint: "score 100 in a single run" }),
   },
 ];
 

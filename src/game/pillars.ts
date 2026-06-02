@@ -10,7 +10,7 @@ import type { AchievementStats } from "./achievements";
  * only, never the hitbox).
  */
 
-export type PillarStyleId = "solid" | "glass" | "neon" | "stone";
+export type PillarStyleId = "solid" | "glass" | "neon" | "stone" | "stadium";
 
 export interface PillarDrawCtx {
   ctx: CanvasRenderingContext2D;
@@ -118,6 +118,42 @@ const drawStone = (p: PillarDrawCtx): void => {
   caps(p);
 };
 
+const drawStadium = (p: PillarDrawCtx): void => {
+  const { ctx } = p;
+  ctx.fillStyle = p.bodyColor;
+  bodies(p);
+  // Goal-net: a faint white diagonal mesh clipped to each pillar body.
+  if (!p.highContrast) {
+    const net = (y0: number, y1: number): void => {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(p.x, y0, p.pipeWidth, y1 - y0);
+      ctx.clip();
+      ctx.globalAlpha = 0.22;
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1;
+      const span = y1 - y0;
+      const step = 7;
+      for (let d = -p.pipeWidth; d < span + p.pipeWidth; d += step) {
+        ctx.beginPath();
+        ctx.moveTo(p.x, y0 + d);
+        ctx.lineTo(p.x + p.pipeWidth, y0 + d - p.pipeWidth);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(p.x, y0 + d);
+        ctx.lineTo(p.x + p.pipeWidth, y0 + d + p.pipeWidth);
+        ctx.stroke();
+      }
+      ctx.restore();
+    };
+    net(-p.over, p.gapY);
+    net(p.gapY + p.gapH, p.worldHeight + p.over);
+  }
+  // Bold caps read as the goal crossbar / posts.
+  ctx.fillStyle = p.capColor;
+  caps(p);
+};
+
 export const PILLAR_STYLES: PillarStyle[] = [
   {
     id: "solid",
@@ -150,6 +186,14 @@ export const PILLAR_STYLES: PillarStyle[] = [
     hardensDaily: true,
     unlock: (s) => ({ unlocked: s.bestScore >= 60, hint: "score 60 in a single run" }),
     draw: drawGlass,
+  },
+  {
+    id: "stadium",
+    name: "stadium",
+    blurb: "goal-net mesh — match day.",
+    hardensDaily: false,
+    unlock: (s) => ({ unlocked: s.bestScore >= 40, hint: "score 40 in a single run" }),
+    draw: drawStadium,
   },
 ];
 

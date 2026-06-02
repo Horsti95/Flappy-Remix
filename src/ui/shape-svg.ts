@@ -91,26 +91,8 @@ export function shapeSvgInner(
               <polygon points="-3,-6 -1,-11 3,-11 4,-6" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
               <line x1="0.5" y1="-11" x2="0.5" y2="-15" stroke="#1a1a1a" stroke-width="0.8"/><line x1="0.5" y1="-15" x2="4" y2="-15" stroke="#1a1a1a" stroke-width="0.8"/>
               <circle cx="5" cy="0" r="2.2" fill="#1a1a1a"/>`;
-    case "soccer-ball": {
-      const R = 14;
-      let patches = "";
-      for (let k = 0; k < 5; k++) {
-        const ak = -Math.PI / 2 + (k * 2 * Math.PI) / 5;
-        const cx = Math.cos(ak) * R * 0.64;
-        const cy = Math.sin(ak) * R * 0.64;
-        const pts: string[] = [];
-        for (let j = 0; j < 5; j++) {
-          const ang = ak + (j * 2 * Math.PI) / 5;
-          pts.push(`${(cx + R * 0.34 * Math.cos(ang)).toFixed(1)},${(cy + R * 0.34 * Math.sin(ang)).toFixed(1)}`);
-        }
-        patches += `<polygon points="${pts.join(" ")}" fill="${a}" stroke="#1a1a1a" stroke-width="0.5"/>`;
-      }
-      return `<circle cx="0" cy="0" r="${R}" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
-              ${patches}
-              <circle cx="${(-R * 0.15).toFixed(1)}" cy="${(-R * 0.06).toFixed(1)}" r="${(R * 0.085).toFixed(1)}" fill="#1a1a1a"/>
-              <circle cx="${(R * 0.15).toFixed(1)}" cy="${(-R * 0.06).toFixed(1)}" r="${(R * 0.085).toFixed(1)}" fill="#1a1a1a"/>
-              <path d="M ${(-R * 0.22).toFixed(1)},${(R * 0.1).toFixed(1)} Q 0,${(R * 0.42).toFixed(1)} ${(R * 0.22).toFixed(1)},${(R * 0.1).toFixed(1)}" fill="none" stroke="#1a1a1a" stroke-width="1" stroke-linecap="round"/>`;
-    }
+    case "soccer-ball":
+      return soccerBallSvg();
     case "pretzel":
       return `<g fill="none" stroke="${b}" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M -3,-8 C -19,-17 -22,3 -7,8 C -2,10 2,10 7,8 C 22,3 19,-17 3,-8"/>
@@ -119,6 +101,43 @@ export function shapeSvgInner(
               </g>
               <g fill="${a}"><circle cx="-9" cy="-2" r="1"/><circle cx="9" cy="-2" r="1"/><circle cx="0" cy="9" r="1"/></g>`;
   }
+}
+
+/**
+ * Classic 1960s "Telstar" football — white ball with black pentagon panels.
+ * Fixed colours (not skin-tinted) so it always reads as the iconic ball.
+ * Authored in the shared "-20..20" viewBox; used by both shape SVG renderers.
+ */
+export function soccerBallSvg(): string {
+  const R = 14;
+  const white = "#f4f4f4";
+  const black = "#161616";
+  const cR = R * 0.3;
+  const oR = R * 0.23;
+  const oRad = R * 0.7;
+  const pent = (cx: number, cy: number, rad: number, rot: number): string => {
+    const p: string[] = [];
+    for (let j = 0; j < 5; j++) {
+      const a = rot + (j * 2 * Math.PI) / 5;
+      p.push(`${(cx + rad * Math.cos(a)).toFixed(2)},${(cy + rad * Math.sin(a)).toFixed(2)}`);
+    }
+    return p.join(" ");
+  };
+  let seams = "";
+  for (let k = 0; k < 5; k++) {
+    const a = -Math.PI / 2 + Math.PI / 5 + (k * 2 * Math.PI) / 5;
+    seams += `<line x1="${(Math.cos(a) * cR * 0.95).toFixed(2)}" y1="${(Math.sin(a) * cR * 0.95).toFixed(2)}" x2="${(Math.cos(a) * (oRad - oR)).toFixed(2)}" y2="${(Math.sin(a) * (oRad - oR)).toFixed(2)}" stroke="${black}" stroke-width="0.55"/>`;
+  }
+  for (let k = 0; k < 5; k++) {
+    const a = -Math.PI / 2 + (k * 2 * Math.PI) / 5;
+    seams += `<line x1="${(Math.cos(a) * oRad).toFixed(2)}" y1="${(Math.sin(a) * oRad).toFixed(2)}" x2="${(Math.cos(a) * R).toFixed(2)}" y2="${(Math.sin(a) * R).toFixed(2)}" stroke="${black}" stroke-width="0.55"/>`;
+  }
+  let panels = `<polygon points="${pent(0, 0, cR, -Math.PI / 2)}" fill="${black}"/>`;
+  for (let k = 0; k < 5; k++) {
+    const a = -Math.PI / 2 + Math.PI / 5 + (k * 2 * Math.PI) / 5;
+    panels += `<polygon points="${pent(Math.cos(a) * oRad, Math.sin(a) * oRad, oR, a)}" fill="${black}"/>`;
+  }
+  return `<circle cx="0" cy="0" r="${R}" fill="${white}" stroke="${black}" stroke-width="1.2"/>${seams}${panels}`;
 }
 
 // Sprite-backed preview: the PNG flat-tinted to the body color via an SVG

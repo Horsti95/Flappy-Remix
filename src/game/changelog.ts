@@ -8,7 +8,7 @@
  * Bump APP_VERSION + prepend an entry when shipping notable changes.
  */
 
-export const APP_VERSION = "0.12.1";
+export const APP_VERSION = "0.12.2";
 
 export interface ChangeEntry {
   version: string;
@@ -19,6 +19,15 @@ export interface ChangeEntry {
 
 // Newest first.
 export const CHANGELOG: ChangeEntry[] = [
+  {
+    version: "0.12.2",
+    date: "2026-06-02",
+    title: "Match-day polish",
+    notes: [
+      "Football redrawn as the classic 1960s black-and-white panel ball (no more smiley).",
+      "New stadium pillar style — goal-net mesh (score 40 to unlock).",
+    ],
+  },
   {
     version: "0.12.1",
     date: "2026-06-02",

@@ -482,54 +482,59 @@ function drawSubmarine(ctx: CanvasRenderingContext2D, r: number, skin: SkinColor
   ctx.fill();
 }
 
-function drawSoccerBall(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
-  outline(ctx, highContrast);
-  // Ball body (white by default).
-  ctx.fillStyle = rgbCss(skin.body);
+function drawSoccerBall(ctx: CanvasRenderingContext2D, r: number, _skin: SkinColors, highContrast: boolean): void {
+  // Minimalist 1960s "Telstar" football: white ball, black pentagon panels.
+  // Colours are fixed (not skin-tinted) so it always reads as the classic ball.
+  const white = highContrast ? "#ffffff" : "#f4f4f4";
+  const black = highContrast ? "#000000" : "#161616";
+  const cR = r * 0.3;
+  const oR = r * 0.23;
+  const oRad = r * 0.7;
+  // Ball
+  ctx.fillStyle = white;
+  ctx.strokeStyle = black;
+  ctx.lineWidth = 1.4;
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
-  // Five big patches around the rim — roughly half the ball reads as the
-  // accent (black by default). Sized to stay just inside the rim so the
-  // body shows through as the classic white seams.
-  ctx.fillStyle = rgbCss(skin.accent);
-  ctx.strokeStyle = highContrast ? "#ffffff" : "#1a1a1a";
-  ctx.lineWidth = 1;
+  // Thin seams: centre→outer (offset 36°) and gap→rim (vertex angles).
+  ctx.lineWidth = Math.max(0.6, r * 0.04);
   for (let k = 0; k < 5; k++) {
-    const ak = -Math.PI / 2 + (k * 2 * Math.PI) / 5;
-    const cx = Math.cos(ak) * r * 0.64;
-    const cy = Math.sin(ak) * r * 0.64;
-    const p = r * 0.34;
+    const a = -Math.PI / 2 + Math.PI / 5 + (k * 2 * Math.PI) / 5;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * cR * 0.95, Math.sin(a) * cR * 0.95);
+    ctx.lineTo(Math.cos(a) * (oRad - oR), Math.sin(a) * (oRad - oR));
+    ctx.stroke();
+  }
+  for (let k = 0; k < 5; k++) {
+    const a = -Math.PI / 2 + (k * 2 * Math.PI) / 5;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * oRad, Math.sin(a) * oRad);
+    ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    ctx.stroke();
+  }
+  // Panels.
+  const fillPent = (cx: number, cy: number, rad: number, rot: number): void => {
     ctx.beginPath();
     for (let j = 0; j < 5; j++) {
-      const ang = ak + (j * 2 * Math.PI) / 5;
-      const x = cx + p * Math.cos(ang);
-      const y = cy + p * Math.sin(ang);
+      const a = rot + (j * 2 * Math.PI) / 5;
+      const x = cx + rad * Math.cos(a);
+      const y = cy + rad * Math.sin(a);
       j === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     }
     ctx.closePath();
     ctx.fill();
-    ctx.stroke();
+  };
+  ctx.fillStyle = black;
+  fillPent(0, 0, cR, -Math.PI / 2);
+  for (let k = 0; k < 5; k++) {
+    const a = -Math.PI / 2 + Math.PI / 5 + (k * 2 * Math.PI) / 5;
+    fillPent(Math.cos(a) * oRad, Math.sin(a) * oRad, oR, a);
   }
-  // Smiley face in the clear centre.
-  const ink = highContrast ? "#ffffff" : "#1a1a1a";
-  ctx.fillStyle = ink;
-  ctx.beginPath();
-  ctx.arc(-r * 0.15, -r * 0.06, r * 0.085, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(r * 0.15, -r * 0.06, r * 0.085, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = ink;
-  ctx.lineWidth = r * 0.07;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.moveTo(-r * 0.22, r * 0.1);
-  ctx.quadraticCurveTo(0, r * 0.42, r * 0.22, r * 0.1);
-  ctx.stroke();
   ctx.lineWidth = 1.5;
 }
+
 
 function drawPretzel(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
   // Twisted dough drawn as thick rounded strokes; salt grains in the accent.

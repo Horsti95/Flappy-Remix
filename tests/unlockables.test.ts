@@ -13,6 +13,7 @@ import { THEMES } from "../src/game/themes";
 const FRESH: UnlockStats = {
   totalGames: 0,
   bestScore: 0,
+  totalScore: 0,
   streakDays: 0,
   bestScoreDaily: 0,
   hardDailyBest: 0,
@@ -29,6 +30,7 @@ const FRESH: UnlockStats = {
 const MAXED: UnlockStats = {
   totalGames: 100000,
   bestScore: 100000,
+  totalScore: 100000000,
   streakDays: 10000,
   bestScoreDaily: 100000,
   hardDailyBest: 100000,

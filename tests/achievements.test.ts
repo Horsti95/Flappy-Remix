@@ -10,6 +10,7 @@ import {
 const EMPTY: AchievementStats = {
   totalGames: 0,
   bestScore: 0,
+  totalScore: 0,
   streakDays: 0,
   bestScoreDaily: 0,
   hardDailyBest: 0,

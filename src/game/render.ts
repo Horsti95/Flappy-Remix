@@ -488,9 +488,13 @@ export class Renderer {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(tilt);
-    // Glow: a soft accent-tinted halo behind the player's shape. Player-only
-    // (never the ghost), off under reduced-motion/high-contrast. Cosmetic.
-    if (isPlayer && this.options.glow && !this.options.highContrast && !this.options.reducedMotion) {
+    // Glow: a soft accent-tinted halo behind the player's shape. We used to
+    // show this for every legendary skin, but the disc-behind-the-plane read
+    // as a bug on dark skins (e.g. the black/pink legendary). Now it's gated
+    // to the ocean theme only, where it reads naturally as a diver's light.
+    // Player-only (never the ghost), off under reduced-motion/high-contrast.
+    if (isPlayer && this.options.glow && this.options.theme === "ocean"
+        && !this.options.highContrast && !this.options.reducedMotion) {
       ctx.save();
       ctx.shadowColor = `rgb(${skin.accent.join(",")})`;
       ctx.shadowBlur = r * 1.2;

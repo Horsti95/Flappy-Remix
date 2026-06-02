@@ -10,6 +10,7 @@ import type { AchievementStats } from "../src/game/achievements";
 const MAXED: AchievementStats = {
   totalGames: 100000,
   bestScore: 100000,
+  totalScore: 100000000,
   streakDays: 10000,
   bestScoreDaily: 100000,
   hardDailyBest: 100000,

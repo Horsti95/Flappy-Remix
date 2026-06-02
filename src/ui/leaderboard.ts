@@ -43,6 +43,9 @@ export function renderLeaderboard(
   let period: LeaderboardPeriod = "weekly";
   let mode: LeaderboardMode = "all";
   let cancelled = false;
+  // Monotonic token so a slow in-flight fetch can't render under a tab the
+  // user has since switched away from (rapid tab taps would otherwise race).
+  let loadSeq = 0;
 
   const close = () => {
     cancelled = true;
@@ -94,10 +97,12 @@ export function renderLeaderboard(
   );
 
   async function load(): Promise<void> {
+    const seq = ++loadSeq;
     const list = wrap.querySelector("[data-list]") as HTMLDivElement;
     list.innerHTML = `<div class="text-center text-xs opacity-60 mt-12">loading…</div>`;
     const rows = await fetchLeaderboard(scope, period, mode, 100);
-    if (cancelled) return;
+    // Drop the result if closed, or if a newer load has started since.
+    if (cancelled || seq !== loadSeq) return;
     if (rows.length === 0) {
       const hint = scope === "friends"
         ? "add friends and play to fill this board."

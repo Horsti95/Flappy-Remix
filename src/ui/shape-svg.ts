@@ -85,6 +85,12 @@ export function shapeSvgInner(
               <ellipse cx="4" cy="-2" rx="1.8" ry="2.4" fill="${a}"/>`;
     case "crane":
       return spritePreview("crane", body);
+    case "submarine":
+      return `<ellipse cx="0" cy="0" rx="13" ry="6.5" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+              <polygon points="-12,0 -16,-5 -16,5" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
+              <polygon points="-3,-6 -1,-11 3,-11 4,-6" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
+              <line x1="0.5" y1="-11" x2="0.5" y2="-15" stroke="#1a1a1a" stroke-width="0.8"/><line x1="0.5" y1="-15" x2="4" y2="-15" stroke="#1a1a1a" stroke-width="0.8"/>
+              <circle cx="5" cy="0" r="2.2" fill="#1a1a1a"/>`;
   }
 }
 

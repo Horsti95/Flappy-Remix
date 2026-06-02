@@ -47,7 +47,7 @@ import { renderRankedPanel } from "./ui/ranked";
 import { playFlap, playCheer, setSoundLabMode } from "./game/sfx";
 import { clearParticles, getActiveFlapFx, setFxLabMode, spawnFlapFx } from "./game/flap-fx";
 import { type RankedMatch, createRankedChallenge } from "./social/ranked";
-import { createChallenge, fetchChallenge, ghostSkinFromChallenge, fetchUnseenChallengeCount, type FetchedChallenge } from "./social/challenges";
+import { createChallenge, fetchChallenge, fetchBestRunChallenge, ghostSkinFromChallenge, fetchUnseenChallengeCount, type FetchedChallenge } from "./social/challenges";
 import { renderInbox } from "./ui/inbox";
 import { renderProfile } from "./ui/profile";
 import { renderWhatsNew } from "./ui/whats-new";
@@ -92,7 +92,7 @@ function pushSubView(): void {
 }
 
 type Mode = "menu" | "playing" | "paused" | "dead";
-type RunMode = "casual" | "daily" | "challenge" | "challenge-create" | "ranked" | "training";
+type RunMode = "casual" | "daily" | "challenge" | "challenge-create" | "ranked" | "training" | "race";
 
 const app = document.getElementById("app");
 if (!app) throw new Error("missing #app");
@@ -659,7 +659,7 @@ function startRun(runMode: RunMode = "casual"): void {
   // Visual overlay applies to the daily only (global, fair worldwide);
   // cleared for every other mode below.
   renderer.options.visualEffect = null;
-  if (runMode === "challenge" && activeChallenge) {
+  if ((runMode === "challenge" || runMode === "race") && activeChallenge) {
     currentSeed = activeChallenge.seed >>> 0;
     ghost = new GhostSim(currentSeed, activeChallenge.inputs, runCfg);
     renderer.options.ghostSkin = ghostSkinFromChallenge(activeChallenge);
@@ -714,6 +714,18 @@ function startRun(runMode: RunMode = "casual"): void {
           renderGameOver(overlays, score, () => startRun("training"), showMenu, {
             ticks,
             trainingMode: true,
+          });
+          return;
+        }
+        // Racing a player's best run: a local ghost race, nothing submitted.
+        // Show the head-to-head result with Play again / menu.
+        if (currentRunMode === "race" && activeChallenge) {
+          const them = activeChallenge.creator_score;
+          const who = activeChallenge.creator_username ?? "them";
+          announce(`Race ended. You ${score}, @${who} ${them}. Press R to play again.`);
+          renderGameOver(overlays, score, () => startRun("race"), showMenu, {
+            ticks,
+            raceContext: { creator: who, creatorScore: them },
           });
           return;
         }
@@ -940,9 +952,25 @@ function openProfile(username: string): void {
   panelOpen = true;
   // The profile card layers above whatever opened it (friends list,
   // leaderboard); closing it returns to that surface, not the menu.
-  renderProfile(overlays, username, () => {
-    /* card removed itself; nothing else to restore */
-  });
+  renderProfile(
+    overlays,
+    username,
+    () => {
+      /* card removed itself; nothing else to restore */
+    },
+    (uname) => {
+      // Race their best run: fetch it as a challenge-shaped ghost, then start
+      // a local race. Offline / no scoring run → quietly do nothing.
+      void (async () => {
+        const best = await fetchBestRunChallenge(uname);
+        if (!best) return;
+        activeChallenge = best;
+        overlays.innerHTML = "";
+        panelOpen = false;
+        startRun("race");
+      })();
+    },
+  );
 }
 
 function openRankedPanel(): void {
@@ -999,9 +1027,12 @@ async function trySubmit(sim: { score: number; dieTick: number }): Promise<Submi
     score: sim.score,
     ticks: sim.dieTick,
     inputs: loop.getRecordedInputs(),
-    // training never reaches here (it returns before trySubmit), but map it
-    // to casual so the submit payload type stays valid.
-    mode: currentRunMode === "challenge-create" || currentRunMode === "training" ? "casual" : currentRunMode,
+    // training/race never reach here (they return before trySubmit), but map
+    // them to casual so the submit payload type stays valid.
+    mode:
+      currentRunMode === "challenge-create" || currentRunMode === "training" || currentRunMode === "race"
+        ? "casual"
+        : currentRunMode,
     dailyDate: currentRunMode === "daily" ? dailyInfo?.date : undefined,
     challengeShortId: currentRunMode === "challenge" ? activeChallenge?.short_id : undefined,
     rankedMatchId: currentRunMode === "ranked" ? activeRanked?.match.id : undefined,

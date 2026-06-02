@@ -2,6 +2,7 @@ import { listOwnedSkins, type SkinRow } from "../social/skins";
 import { unlockProgress } from "../game/unlockables";
 import { RARITY_COLOR, rarityRank } from "../game/rarity";
 import { SHAPES, type ShapeId, type ShapeMeta } from "../game/shapes";
+import { soccerBallSvg } from "./shape-svg";
 import { DEFAULT_SKIN } from "../game/skin";
 import {
   ACHIEVEMENTS,
@@ -629,28 +630,8 @@ function shapeSvgWithColors(
          <line x1="-12" y1="0" x2="12" y2="0" stroke="#1a1a1a" stroke-width="0.4" opacity="0.5"/>
          <line x1="0" y1="-13" x2="0" y2="13" stroke="#1a1a1a" stroke-width="0.4" opacity="0.5"/>`,
       );
-    case "soccer-ball": {
-      const R = 14;
-      let patches = "";
-      for (let k = 0; k < 5; k++) {
-        const ak = -Math.PI / 2 + (k * 2 * Math.PI) / 5;
-        const cx = Math.cos(ak) * R * 0.64;
-        const cy = Math.sin(ak) * R * 0.64;
-        const pts: string[] = [];
-        for (let j = 0; j < 5; j++) {
-          const ang = ak + (j * 2 * Math.PI) / 5;
-          pts.push(`${(cx + R * 0.34 * Math.cos(ang)).toFixed(1)},${(cy + R * 0.34 * Math.sin(ang)).toFixed(1)}`);
-        }
-        patches += `<polygon points="${pts.join(" ")}" fill="${a}" stroke="#1a1a1a" stroke-width="0.5"/>`;
-      }
-      return svg(
-        `<circle cx="0" cy="0" r="${R}" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
-         ${patches}
-         <circle cx="${(-R * 0.15).toFixed(1)}" cy="${(-R * 0.06).toFixed(1)}" r="${(R * 0.085).toFixed(1)}" fill="#1a1a1a"/>
-         <circle cx="${(R * 0.15).toFixed(1)}" cy="${(-R * 0.06).toFixed(1)}" r="${(R * 0.085).toFixed(1)}" fill="#1a1a1a"/>
-         <path d="M ${(-R * 0.22).toFixed(1)},${(R * 0.1).toFixed(1)} Q 0,${(R * 0.42).toFixed(1)} ${(R * 0.22).toFixed(1)},${(R * 0.1).toFixed(1)}" fill="none" stroke="#1a1a1a" stroke-width="1" stroke-linecap="round"/>`,
-      );
-    }
+    case "soccer-ball":
+      return svg(soccerBallSvg());
     case "pretzel":
       return svg(
         `<g fill="none" stroke="${b}" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">

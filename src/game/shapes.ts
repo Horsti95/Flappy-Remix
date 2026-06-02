@@ -204,25 +204,27 @@ function drawCyberPlane(ctx: CanvasRenderingContext2D, r: number, skin: SkinColo
 
 function drawKite(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
   outline(ctx, highContrast);
-  // Diamond body
-  ctx.fillStyle = rgbCss(skin.body);
-  ctx.beginPath();
-  ctx.moveTo(0, -r * 0.95);
-  ctx.lineTo(r * 0.9, 0);
-  ctx.lineTo(0, r * 0.95);
-  ctx.lineTo(-r * 0.9, 0);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-  // Center fold (the back half)
-  ctx.fillStyle = rgbCss(skin.accent);
-  ctx.beginPath();
-  ctx.moveTo(0, -r * 0.95);
-  ctx.lineTo(0, r * 0.95);
-  ctx.lineTo(-r * 0.9, 0);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
+  // Four triangular panels alternating body/accent (a-b-a-b pinwheel) so the
+  // two colors interleave around the diamond instead of splitting it in half.
+  const top = -r * 0.95, bot = r * 0.95, right = r * 0.9, left = -r * 0.9;
+  const body = rgbCss(skin.body);
+  const accent = rgbCss(skin.accent);
+  // Each panel is the triangle (apex)→(center)→(side).
+  const panel = (apexY: number, sideX: number, fill: string): void => {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.moveTo(0, apexY);
+    ctx.lineTo(0, 0);
+    ctx.lineTo(sideX, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  };
+  // TL=accent, TR=body, BR=accent, BL=body (clockwise a-b-a-b).
+  panel(top, left, accent);  // top-left
+  panel(top, right, body);   // top-right
+  panel(bot, right, accent); // bottom-right
+  panel(bot, left, body);    // bottom-left
   // Cross spar (decorative)
   ctx.strokeStyle = highContrast ? "#ffffff" : "#1a1a1a";
   ctx.globalAlpha = 0.45;

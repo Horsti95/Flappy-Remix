@@ -619,10 +619,15 @@ function shapeSvgWithColors(
          <rect x="3" y="-5" width="2" height="2" fill="#1a1a1a"/>`,
       );
     case "kite":
+      // Four triangular panels alternating body/accent (a-b-a-b pinwheel),
+      // not split down the middle (which read as a-a-b-b).
       return svg(
-        `<polygon points="0,-13 12,0 0,13 -12,0" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
-         <polygon points="0,-13 0,13 -12,0" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
-         <line x1="-12" y1="0" x2="12" y2="0" stroke="#1a1a1a" stroke-width="0.4" opacity="0.5"/>`,
+        `<polygon points="0,-13 0,0 -12,0" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <polygon points="0,-13 0,0 12,0" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <polygon points="0,13 0,0 12,0" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <polygon points="0,13 0,0 -12,0" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <line x1="-12" y1="0" x2="12" y2="0" stroke="#1a1a1a" stroke-width="0.4" opacity="0.5"/>
+         <line x1="0" y1="-13" x2="0" y2="13" stroke="#1a1a1a" stroke-width="0.4" opacity="0.5"/>`,
       );
     case "cyber-plane":
       return svg(

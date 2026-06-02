@@ -484,33 +484,50 @@ function drawSubmarine(ctx: CanvasRenderingContext2D, r: number, skin: SkinColor
 
 function drawSoccerBall(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
   outline(ctx, highContrast);
-  // Ball body
+  // Ball body (white by default).
   ctx.fillStyle = rgbCss(skin.body);
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
-  // Central pentagon + seams radiating to the rim — the classic football look.
-  const verts: Array<[number, number]> = [];
-  for (let k = 0; k < 5; k++) {
-    const ang = -Math.PI / 2 + (k * 2 * Math.PI) / 5;
-    verts.push([Math.cos(ang) * r * 0.42, Math.sin(ang) * r * 0.42]);
-  }
+  // Five big patches around the rim — roughly half the ball reads as the
+  // accent (black by default). Sized to stay just inside the rim so the
+  // body shows through as the classic white seams.
   ctx.fillStyle = rgbCss(skin.accent);
-  ctx.beginPath();
-  verts.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
   ctx.strokeStyle = highContrast ? "#ffffff" : "#1a1a1a";
   ctx.lineWidth = 1;
   for (let k = 0; k < 5; k++) {
-    const ang = -Math.PI / 2 + (k * 2 * Math.PI) / 5;
+    const ak = -Math.PI / 2 + (k * 2 * Math.PI) / 5;
+    const cx = Math.cos(ak) * r * 0.64;
+    const cy = Math.sin(ak) * r * 0.64;
+    const p = r * 0.34;
     ctx.beginPath();
-    ctx.moveTo(verts[k][0], verts[k][1]);
-    ctx.lineTo(Math.cos(ang) * r, Math.sin(ang) * r);
+    for (let j = 0; j < 5; j++) {
+      const ang = ak + (j * 2 * Math.PI) / 5;
+      const x = cx + p * Math.cos(ang);
+      const y = cy + p * Math.sin(ang);
+      j === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
     ctx.stroke();
   }
+  // Smiley face in the clear centre.
+  const ink = highContrast ? "#ffffff" : "#1a1a1a";
+  ctx.fillStyle = ink;
+  ctx.beginPath();
+  ctx.arc(-r * 0.15, -r * 0.06, r * 0.085, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(r * 0.15, -r * 0.06, r * 0.085, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = ink;
+  ctx.lineWidth = r * 0.07;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.22, r * 0.1);
+  ctx.quadraticCurveTo(0, r * 0.42, r * 0.22, r * 0.1);
+  ctx.stroke();
   ctx.lineWidth = 1.5;
 }
 

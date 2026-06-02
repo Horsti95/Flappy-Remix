@@ -631,21 +631,24 @@ function shapeSvgWithColors(
       );
     case "soccer-ball": {
       const R = 14;
-      const pts: string[] = [];
-      const seams: string[] = [];
+      let patches = "";
       for (let k = 0; k < 5; k++) {
-        const ang = -Math.PI / 2 + (k * 2 * Math.PI) / 5;
-        const px = (Math.cos(ang) * R * 0.42).toFixed(1);
-        const py = (Math.sin(ang) * R * 0.42).toFixed(1);
-        pts.push(`${px},${py}`);
-        seams.push(
-          `<line x1="${px}" y1="${py}" x2="${(Math.cos(ang) * R).toFixed(1)}" y2="${(Math.sin(ang) * R).toFixed(1)}" stroke="#1a1a1a" stroke-width="0.7"/>`,
-        );
+        const ak = -Math.PI / 2 + (k * 2 * Math.PI) / 5;
+        const cx = Math.cos(ak) * R * 0.64;
+        const cy = Math.sin(ak) * R * 0.64;
+        const pts: string[] = [];
+        for (let j = 0; j < 5; j++) {
+          const ang = ak + (j * 2 * Math.PI) / 5;
+          pts.push(`${(cx + R * 0.34 * Math.cos(ang)).toFixed(1)},${(cy + R * 0.34 * Math.sin(ang)).toFixed(1)}`);
+        }
+        patches += `<polygon points="${pts.join(" ")}" fill="${a}" stroke="#1a1a1a" stroke-width="0.5"/>`;
       }
       return svg(
         `<circle cx="0" cy="0" r="${R}" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
-         <polygon points="${pts.join(" ")}" fill="${a}" stroke="#1a1a1a" stroke-width="0.7"/>
-         ${seams.join("")}`,
+         ${patches}
+         <circle cx="${(-R * 0.15).toFixed(1)}" cy="${(-R * 0.06).toFixed(1)}" r="${(R * 0.085).toFixed(1)}" fill="#1a1a1a"/>
+         <circle cx="${(R * 0.15).toFixed(1)}" cy="${(-R * 0.06).toFixed(1)}" r="${(R * 0.085).toFixed(1)}" fill="#1a1a1a"/>
+         <path d="M ${(-R * 0.22).toFixed(1)},${(R * 0.1).toFixed(1)} Q 0,${(R * 0.42).toFixed(1)} ${(R * 0.22).toFixed(1)},${(R * 0.1).toFixed(1)}" fill="none" stroke="#1a1a1a" stroke-width="1" stroke-linecap="round"/>`,
       );
     }
     case "pretzel":

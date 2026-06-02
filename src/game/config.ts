@@ -16,13 +16,6 @@ export interface SimConfig {
   speedScale: number;
   gapShrinkPerStep: number;
   difficultyStep: number;
-  /** Seeded +/- variance (px) on each gap's height, for run-to-run variety. */
-  gapJitter: number;
-  /** Max px the gap CENTER may step from the previous gap (keeps the path
-   *  fair — no brutal top↔bottom zigzag). */
-  maxGapStep: number;
-  /** 1-in-N chance a gap ignores the step limit and jumps anywhere (variety). */
-  maxGapJumpRarity: number;
 }
 
 export const DEFAULT_CONFIG: SimConfig = {
@@ -43,7 +36,4 @@ export const DEFAULT_CONFIG: SimConfig = {
   speedScale: 1.04,
   gapShrinkPerStep: 8,
   difficultyStep: 10,
-  gapJitter: 14,
-  maxGapStep: 150,
-  maxGapJumpRarity: 35,
 };

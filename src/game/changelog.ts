@@ -8,7 +8,7 @@
  * Bump APP_VERSION + prepend an entry when shipping notable changes.
  */
 
-export const APP_VERSION = "0.12.2";
+export const APP_VERSION = "0.12.3";
 
 export interface ChangeEntry {
   version: string;
@@ -19,6 +19,15 @@ export interface ChangeEntry {
 
 // Newest first.
 export const CHANGELOG: ChangeEntry[] = [
+  {
+    version: "0.12.3",
+    date: "2026-06-02",
+    title: "World-gen back to basics",
+    notes: [
+      "Gap tightness is again fully determined by score — same score, same difficulty, so it's learnable.",
+      "Gap position is fully random again (no more drifting near the last gap) — more varied and less predictable.",
+    ],
+  },
   {
     version: "0.12.2",
     date: "2026-06-02",

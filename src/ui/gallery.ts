@@ -121,11 +121,39 @@ export function renderGallery(
     close();
   });
 
+  // Unlocked / total across every collectible in a group, summed from each
+  // sub-tab's own registry. Counts only client-known unlockables — server
+  // skins and season badges aren't tallied here (they need async fetches).
+  function groupProgress(id: string): { unlocked: number; total: number } {
+    const s = loadAchievementStats();
+    let unlocked = 0;
+    let total = 0;
+    const add = (u: number, t: number): void => { unlocked += u; total += t; };
+    if (id === "plane") {
+      const granted = new Set(getGrantedShapesLocal());
+      add(SHAPES.filter((sh) => granted.has(sh.id) || sh.unlock(s).unlocked).length, SHAPES.length);
+      const pal = unlockProgress("palette", s);
+      const ach = unlockProgress("achievement-color", s);
+      add(pal.unlocked + ach.unlocked, pal.total + ach.total);
+      add(FLAP_FX_OPTIONS.filter((o) => flapFxUnlock(o.id, s).unlocked).length, FLAP_FX_OPTIONS.length);
+      add(FLAP_SOUND_OPTIONS.filter((o) => flapSoundUnlock(o.id, s).unlocked).length, FLAP_SOUND_OPTIONS.length);
+    } else if (id === "world") {
+      const th = unlockProgress("theme", s);
+      add(th.unlocked, th.total);
+      add(PILLAR_STYLES.filter((p) => p.unlock(s).unlocked).length, PILLAR_STYLES.length);
+    } else if (id === "progress") {
+      const results = evaluateCriteria(s);
+      add(results.filter((r) => r.unlocked).length, results.length);
+    }
+    return { unlocked, total };
+  }
+
   function renderNav(): void {
     const nav = wrap.querySelector("[data-nav]") as HTMLDivElement;
     nav.innerHTML = "";
     for (const g of GROUPS) {
       const isOpen = g.id === openGroup;
+      const prog = groupProgress(g.id);
       const header = document.createElement("button");
       header.className =
         "w-full flex items-center justify-between rounded-2xl px-4 py-2 transition " +
@@ -138,7 +166,10 @@ export function renderGallery(
           <span class="text-sm font-bold">${g.label}</span>
           <span class="text-[10px] opacity-50 font-normal truncate">${subtitle}</span>
         </span>
-        <span class="text-xs opacity-60 shrink-0">${isOpen ? "▾" : "▸"}</span>`;
+        <span class="flex items-center gap-2 shrink-0">
+          <span class="text-[11px] tabular-nums opacity-80 bg-white/10 rounded-full px-2 py-0.5">${prog.unlocked}/${prog.total}</span>
+          <span class="text-xs opacity-60">${isOpen ? "▾" : "▸"}</span>
+        </span>`;
       header.addEventListener("click", (e) => {
         e.stopPropagation();
         openGroup = isOpen ? "" : g.id;

@@ -93,6 +93,13 @@ export function shapeSvgInner(
               <circle cx="5" cy="0" r="2.2" fill="#1a1a1a"/>`;
     case "soccer-ball":
       return soccerBallSvg();
+    case "hd-rocket":
+    case "hd-eagle":
+    case "hd-ufo":
+    case "hd-comet":
+    case "hd-dragon":
+    case "hd-phoenix":
+      return hdSpritePreview(shapeId);
     case "pretzel":
       return `<g fill="none" stroke="${b}" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M -3,-8 C -19,-17 -22,3 -7,8 C -2,10 2,10 7,8 C 22,3 19,-17 3,-8"/>
@@ -138,6 +145,14 @@ export function soccerBallSvg(): string {
     panels += `<polygon points="${pent(Math.cos(a) * oRad, Math.sin(a) * oRad, oR, a)}" fill="${black}"/>`;
   }
   return `<circle cx="0" cy="0" r="${R}" fill="${white}" stroke="${black}" stroke-width="1.2"/>${seams}${panels}`;
+}
+
+// Fixed-colour HD sprite preview — drawn as-is (full art, no tint). Left-
+// facing art is mirrored to face right, matching the in-game renderer.
+const HD_FACES_LEFT = new Set(["hd-comet", "hd-eagle", "hd-rocket", "hd-ufo"]);
+function hdSpritePreview(id: string): string {
+  const flip = HD_FACES_LEFT.has(id) ? ` transform="scale(-1,1)"` : "";
+  return `<image href="/sprites/${id}.webp" x="-19" y="-19" width="38" height="38"${flip}/>`;
 }
 
 // Sprite-backed preview: the PNG flat-tinted to the body color via an SVG

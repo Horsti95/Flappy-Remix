@@ -721,7 +721,22 @@ function shapeSvgWithColors(
          <polygon points="-3,-6 -1,-11 3,-11 4,-6" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
          <circle cx="5" cy="0" r="2.2" fill="#1a1a1a"/>`,
       );
+    case "hd-rocket":
+    case "hd-eagle":
+    case "hd-ufo":
+    case "hd-comet":
+    case "hd-dragon":
+    case "hd-phoenix":
+      return hdSwatch(shapeId);
   }
+}
+
+// Fixed-colour HD sprite swatch — drawn raw (full art, no tint). Mirrors the
+// left-facing art so it faces right like in-game.
+const HD_LEFT = new Set(["hd-comet", "hd-eagle", "hd-rocket", "hd-ufo"]);
+function hdSwatch(id: string): string {
+  const flip = HD_LEFT.has(id) ? ` transform="scale(-1,1)"` : "";
+  return svg(`<image href="/sprites/${id}.webp" x="-15" y="-15" width="30" height="30"${flip}/>`);
 }
 
 // Sprite-backed gallery swatch: PNG flat-tinted to the body color, unique

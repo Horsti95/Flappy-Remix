@@ -22,7 +22,35 @@ interface SpriteEntry {
 
 const sources: Record<string, string> = {
   crane: "/sprites/crane.png",
+  // HD fixed-colour sprites (full-art, NOT tinted to the skin). Drawn as-is.
+  "hd-comet": "/sprites/hd-comet.webp",
+  "hd-dragon": "/sprites/hd-dragon.webp",
+  "hd-rocket": "/sprites/hd-rocket.webp",
+  "hd-ufo": "/sprites/hd-ufo.webp",
+  "hd-phoenix": "/sprites/hd-phoenix.webp",
+  "hd-eagle": "/sprites/hd-eagle.webp",
 };
+
+/** Fixed-colour sprites are drawn raw (no skin tint). */
+const FIXED = new Set(["hd-comet", "hd-dragon", "hd-rocket", "hd-ufo", "hd-phoenix", "hd-eagle"]);
+
+/** Sprites whose source art faces LEFT — flipped horizontally at draw time so
+ *  they fly facing RIGHT like everything else. One-line toggle per sprite. */
+const FLIP = new Set(["comet", "eagle", "rocket", "ufo"].map((n) => `hd-${n}`));
+
+export function isFixedSprite(id: string): boolean {
+  return FIXED.has(id);
+}
+
+export function spriteFacesLeft(id: string): boolean {
+  return FLIP.has(id);
+}
+
+/** The raw loaded sprite image (no tint), or null if not yet available. */
+export function getRawSprite(id: string): HTMLImageElement | null {
+  const e = sprites.get(id);
+  return e && e.loaded ? e.img : null;
+}
 
 const sprites = new Map<string, SpriteEntry>();
 const tintCache = new Map<string, HTMLCanvasElement>();

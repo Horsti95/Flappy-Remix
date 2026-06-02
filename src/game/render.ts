@@ -6,7 +6,7 @@ import { DEFAULT_THEME_ID, getTheme, type ThemeId } from "./themes";
 import { DEFAULT_SHAPE_ID, getShape, type ShapeId } from "./shapes";
 import { getParticles, tickParticles } from "./flap-fx";
 import { type VisualEffect } from "./daily-twist";
-import { preloadSprites, hasSprite, getTintedSprite } from "./sprites";
+import { preloadSprites, hasSprite, getTintedSprite, getRawSprite, isFixedSprite, spriteFacesLeft } from "./sprites";
 import { getPillarStyle, type PillarStyleId } from "./pillars";
 import { zoneFor } from "./depth-zones";
 import { preloadBackgrounds, hasBackgroundImage, getBackgroundImage } from "./backgrounds";
@@ -518,16 +518,20 @@ export class Renderer {
       ctx.fill();
       ctx.restore();
     }
-    // Sprite-backed shapes draw a tinted bitmap when it's loaded; otherwise
-    // (offline / pre-load / high-contrast) fall back to the polygon draw.
-    const tinted = !this.options.highContrast && hasSprite(shapeId)
-      ? getTintedSprite(shapeId, skin)
+    // Sprite-backed shapes draw a bitmap when loaded; otherwise (offline /
+    // pre-load / high-contrast) fall back to the polygon draw. Fixed-colour HD
+    // sprites are drawn raw (no skin tint); the rest are tinted to the skin.
+    const fixed = hasSprite(shapeId) && isFixedSprite(shapeId);
+    const sprite = !this.options.highContrast && hasSprite(shapeId)
+      ? (fixed ? getRawSprite(shapeId) : getTintedSprite(shapeId, skin))
       : null;
-    if (tinted) {
-      // The sprite art faces right; size it to ~the collision diameter so it
-      // sits where the polygon would. Cosmetic only — hitbox is unchanged.
+    if (sprite) {
+      // Sized to ~the collision diameter so it sits where the polygon would.
+      // Cosmetic only — hitbox is unchanged. Left-facing art is mirrored so it
+      // flies facing right.
       const size = r * 3.0;
-      ctx.drawImage(tinted, -size / 2, -size / 2, size, size);
+      if (fixed && spriteFacesLeft(shapeId)) ctx.scale(-1, 1);
+      ctx.drawImage(sprite, -size / 2, -size / 2, size, size);
     } else {
       getShape(shapeId).draw(ctx, r, skin, this.options.highContrast);
     }

@@ -157,14 +157,15 @@ export function renderGallery(
       const prog = groupProgress(g.id);
       const header = document.createElement("button");
       header.className =
-        "w-full flex items-center justify-between rounded-2xl px-4 py-2 transition " +
+        "w-full flex items-center justify-between rounded-2xl px-4 py-1.5 transition " +
         (isOpen ? "bg-white/10 text-paper" : "bg-white/5 text-paper/80");
       // Subtitle previews what's inside the group (its sub-tabs) so the
-      // collapsed row still tells you where to find each unlockable.
+      // collapsed row still tells you where to find each unlockable. Kept on
+      // ONE line beside the label (smaller) to save vertical space.
       const subtitle = g.tabs.map((t) => t.label).join(" · ");
       header.innerHTML = `
-        <span class="flex flex-col items-start min-w-0">
-          <span class="text-sm font-bold">${g.label}</span>
+        <span class="flex items-baseline gap-2 min-w-0">
+          <span class="text-sm font-bold shrink-0">${g.label}</span>
           <span class="text-[10px] opacity-50 font-normal truncate">${subtitle}</span>
         </span>
         <span class="flex items-center gap-2 shrink-0">

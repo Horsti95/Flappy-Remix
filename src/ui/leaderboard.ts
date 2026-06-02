@@ -3,6 +3,7 @@ import { authState } from "../social/auth";
 import { RARITY_COLOR, type Rarity } from "../game/rarity";
 import { shapeSvgInner } from "./shape-svg";
 import { DEFAULT_SHAPE_ID, type ShapeId } from "../game/shapes";
+import { DEFAULT_SKIN } from "../game/skin";
 
 export function renderLeaderboard(
   host: HTMLElement,
@@ -126,9 +127,12 @@ export function renderLeaderboard(
         isMe ? "bg-paper/15 ring-1 ring-paper/50" : podium ? "bg-white/[0.07]" : "bg-white/5",
       ].join(" ");
       const rarityColor = row.skin_rarity ? RARITY_COLOR[row.skin_rarity as Rarity] : "#9ca3af";
-      const plane = row.body && row.accent
-        ? `<svg viewBox="-20 -20 40 40" class="w-7 h-7 shrink-0">${shapeSvgInner((row.shape ?? DEFAULT_SHAPE_ID) as ShapeId, row.body, row.accent)}</svg>`
-        : `<div class="w-7 h-7 rounded-full bg-white/10 shrink-0"></div>`;
+      // Fall back to the default shape + skin so runs recorded without an
+      // equipped skin (older / anonymous) still show a plane, not a blank disc.
+      const body = row.body ?? DEFAULT_SKIN.body;
+      const accent = row.accent ?? DEFAULT_SKIN.accent;
+      const shapeId = (row.shape ?? DEFAULT_SHAPE_ID) as ShapeId;
+      const plane = `<svg viewBox="-20 -20 40 40" class="w-7 h-7 shrink-0">${shapeSvgInner(shapeId, body, accent)}</svg>`;
       const meChip = isMe
         ? `<span class="text-[9px] uppercase tracking-wider bg-paper text-ink rounded px-1 py-0.5 font-bold">you</span>`
         : "";

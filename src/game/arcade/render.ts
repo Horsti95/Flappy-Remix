@@ -1,5 +1,5 @@
 import { type ArcadeConfig } from "./config";
-import { ArcadeSim, type PowerUpKind } from "./sim";
+import { ArcadeSim, EVENT_LABEL, type PowerUpKind } from "./sim";
 import { DEFAULT_SKIN, type SkinColors } from "../skin";
 import { DEFAULT_SHAPE_ID, getShape, type ShapeId } from "../shapes";
 import { DEFAULT_THEME_ID, getTheme, type ThemeId } from "../themes";
@@ -13,22 +13,25 @@ export interface ArcadeRenderOptions {
 }
 
 /** Per-power-up colour + glyph, shared by the world token and the HUD. */
-const POWERUP_STYLE: Record<PowerUpKind, { color: string; glyph: string; label: string }> = {
-  shield: { color: "#4fc3f7", glyph: "🛡", label: "shield" },
-  "slow-time": { color: "#b39ddb", glyph: "⏱", label: "slow-mo" },
-  magnet: { color: "#ff8a65", glyph: "🧲", label: "magnet" },
-  mini: { color: "#81d4fa", glyph: "▾", label: "mini" },
-  "second-life": { color: "#69f0ae", glyph: "❤", label: "1-up" },
-  "gravity-flip": { color: "#f48fb1", glyph: "⇅", label: "flip" },
-  rocket: { color: "#ffd54f", glyph: "🚀", label: "rocket" },
+const POWERUP_STYLE: Record<PowerUpKind, { color: string; glyph: string }> = {
+  shield: { color: "#4fc3f7", glyph: "🛡" },
+  "slow-time": { color: "#b39ddb", glyph: "⏱" },
+  magnet: { color: "#ff8a65", glyph: "🧲" },
+  mini: { color: "#81d4fa", glyph: "▾" },
+  giant: { color: "#ffab40", glyph: "▴" },
+  "second-life": { color: "#69f0ae", glyph: "❤" },
+  "gravity-flip": { color: "#f48fb1", glyph: "⇅" },
+  rocket: { color: "#ffd54f", glyph: "🚀" },
+  ghost: { color: "#e0f7fa", glyph: "👻" },
+  frenzy: { color: "#ffee58", glyph: "2x" },
 };
 
 /**
  * Standalone renderer for Arcade Mode. Intentionally NOT the shared `Renderer`
  * (which is coupled to the deterministic `Sim` and its cosmetics) — Arcade owns
- * its own draw layers for coins, saws, power-ups and the combo HUD so the core
- * renderer stays focused and untouched. Reuses the shared sky/theme + shape
- * drawing for a familiar look.
+ * its own draw layers for coins, saws, portals, power-ups and the combo HUD so
+ * the core renderer stays focused and untouched. Reuses the shared sky/theme +
+ * shape drawing for a familiar look.
  */
 export class ArcadeRenderer {
   private ctx: CanvasRenderingContext2D;
@@ -86,31 +89,48 @@ export class ArcadeRenderer {
     ctx.fillStyle = grd;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Full-screen effect washes so active power-ups read instantly.
+    // Full-screen effect washes so active power-ups/events read instantly.
     if (!this.options.highContrast) {
-      if (sim.slowTimeRemaining > 0) {
-        ctx.fillStyle = "rgba(120,90,200,0.16)";
-        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-      }
-      if (sim.gravityFlipRemaining > 0) {
-        ctx.fillStyle = "rgba(244,143,177,0.12)";
-        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-      }
+      if (sim.slowTimeRemaining > 0) this.wash("rgba(120,90,200,0.16)");
+      if (sim.gravityFlipRemaining > 0) this.wash("rgba(244,143,177,0.12)");
+      if (sim.frenzyRemaining > 0) this.wash("rgba(255,238,88,0.10)");
+      if (sim.activeEvent === "low-gravity") this.wash("rgba(120,200,255,0.10)");
+      if (sim.activeEvent === "coin-rush") this.wash("rgba(255,213,79,0.08)");
     }
 
     ctx.translate(this.offsetX, this.offsetY);
     ctx.scale(this.scale, this.scale);
 
-    // Pipes.
+    // Pipes (solid segments include the double-gate mid bar).
     for (const p of sim.pipes) {
       const prev = sim.prevPipeXs.get(p.id);
       const x = prev !== undefined ? prev + (p.x - prev) * alpha : p.x;
-      ctx.fillStyle = palette.pipeBody;
-      ctx.fillRect(x, 0, cfg.pipeWidth, p.gapY);
-      ctx.fillRect(x, p.gapY + p.gapH, cfg.pipeWidth, cfg.worldHeight - (p.gapY + p.gapH));
-      ctx.fillStyle = palette.pipeCap;
-      ctx.fillRect(x - 2, p.gapY - 10, cfg.pipeWidth + 4, 10);
-      ctx.fillRect(x - 2, p.gapY + p.gapH, cfg.pipeWidth + 4, 10);
+      for (const seg of sim.solidSegments(p)) {
+        ctx.fillStyle = palette.pipeBody;
+        ctx.fillRect(x, seg.y0, cfg.pipeWidth, seg.y1 - seg.y0);
+        ctx.fillStyle = palette.pipeCap;
+        ctx.fillRect(x - 2, seg.y0, cfg.pipeWidth + 4, 6);
+        ctx.fillRect(x - 2, seg.y1 - 6, cfg.pipeWidth + 4, 6);
+      }
+    }
+
+    // Portals — swirled ring; linked pairs share a hue.
+    for (const pt of sim.portals) {
+      if (pt.used) continue;
+      ctx.save();
+      ctx.translate(pt.x, pt.y);
+      const rot = this.options.reducedMotion ? 0 : (performance.now() / 400) % (Math.PI * 2);
+      ctx.rotate(rot);
+      ctx.strokeStyle = pt.hue;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, cfg.portalRadius * 0.6, cfg.portalRadius, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 0.5;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, cfg.portalRadius * 0.3, cfg.portalRadius * 0.6, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
     }
 
     // Coins.
@@ -142,14 +162,14 @@ export class ArcadeRenderer {
       ctx.fill();
       ctx.stroke();
       ctx.fillStyle = "#fff";
-      ctx.font = "bold 15px system-ui,sans-serif";
+      ctx.font = "bold 14px system-ui,sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(style.glyph, 0, 1);
       ctx.restore();
     }
 
-    // Saws — a spinning toothed disc.
+    // Saws.
     for (const s of sim.saws) {
       ctx.save();
       ctx.translate(s.x, s.y);
@@ -181,10 +201,8 @@ export class ArcadeRenderer {
     // Bird.
     const by = sim.alive ? sim.prevBirdY + (sim.birdY - sim.prevBirdY) * alpha : sim.birdY;
     const r = sim.effectiveRadius();
-    // Tilt tracks actual vertical velocity in screen space (+y is down).
     const tilt = this.options.reducedMotion ? 0 : Math.max(-0.6, Math.min(1.0, sim.birdVY / 600));
 
-    // Magnet aura.
     if (sim.magnetRemaining > 0 && !this.options.reducedMotion) {
       ctx.save();
       ctx.strokeStyle = "rgba(255,138,101,0.35)";
@@ -194,7 +212,6 @@ export class ArcadeRenderer {
       ctx.stroke();
       ctx.restore();
     }
-    // Shield / second-life ring.
     if (sim.hasShield || sim.hasSecondLife) {
       ctx.save();
       ctx.strokeStyle = sim.hasShield ? "rgba(79,195,247,0.9)" : "rgba(105,240,174,0.9)";
@@ -204,8 +221,6 @@ export class ArcadeRenderer {
       ctx.stroke();
       ctx.restore();
     }
-
-    // Rocket flame behind the bird.
     if (sim.rocketRemaining > 0 && !this.options.reducedMotion) {
       ctx.save();
       ctx.translate(cfg.birdX - r, by);
@@ -219,17 +234,18 @@ export class ArcadeRenderer {
       ctx.restore();
     }
 
-    // Invuln (post-revive) blink.
+    // Invuln (post-revive / post-warp) blink, plus ghost translucency.
     const blink = sim.invulnRemaining > 0 && Math.floor(performance.now() / 100) % 2 === 0;
     if (!blink) {
       ctx.save();
       ctx.translate(cfg.birdX, by);
       ctx.rotate(tilt);
+      if (sim.ghostRemaining > 0) ctx.globalAlpha = 0.45;
       getShape(this.options.shape).draw(ctx, r, this.options.skin, this.options.highContrast);
       ctx.restore();
     }
 
-    // Floating text (perfect / pickups).
+    // Floating text.
     if (!this.options.reducedMotion) {
       ctx.save();
       ctx.textAlign = "center";
@@ -248,6 +264,11 @@ export class ArcadeRenderer {
     this.drawHud(sim);
   }
 
+  private wash(color: string): void {
+    this.ctx.fillStyle = color;
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+  }
+
   private drawHud(sim: ArcadeSim): void {
     const ctx = this.ctx;
     const cfg = this.cfg;
@@ -257,7 +278,6 @@ export class ArcadeRenderer {
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    // Score (center).
     const cx = this.offsetX + (cfg.worldWidth / 2) * s;
     ctx.font = `bold ${Math.round(34 * s)}px system-ui,sans-serif`;
     ctx.textAlign = "center";
@@ -267,6 +287,15 @@ export class ArcadeRenderer {
     ctx.fillStyle = this.options.highContrast ? "#fff" : "#f4ead5";
     ctx.strokeText(String(sim.score), cx, top);
     ctx.fillText(String(sim.score), cx, top);
+
+    // Event banner under the score.
+    if (sim.activeEvent) {
+      ctx.font = `bold ${Math.round(15 * s)}px system-ui,sans-serif`;
+      ctx.fillStyle = "#fff";
+      const label = `${EVENT_LABEL[sim.activeEvent]} · ${sim.eventRemaining.toFixed(0)}s`;
+      ctx.strokeText(label, cx, top + 40 * s);
+      ctx.fillText(label, cx, top + 40 * s);
+    }
 
     // Coins + combo (top-left).
     ctx.textAlign = "left";
@@ -283,23 +312,26 @@ export class ArcadeRenderer {
       ctx.fillText(comboLine, left, my);
     }
 
-    // Active effects (top-right), one line each with a countdown.
+    // Active effects (top-right).
     ctx.textAlign = "right";
     const right = this.offsetX + (cfg.worldWidth - 12) * s;
     let ey = top;
-    const effLine = (color: string, text: string): void => {
-      ctx.fillStyle = color;
+    const eff = (kind: PowerUpKind, text: string): void => {
+      ctx.fillStyle = POWERUP_STYLE[kind].color;
       ctx.strokeText(text, right, ey);
       ctx.fillText(text, right, ey);
       ey += 22 * s;
     };
-    if (sim.hasShield) effLine(POWERUP_STYLE.shield.color, "🛡 shield");
-    if (sim.hasSecondLife) effLine(POWERUP_STYLE["second-life"].color, "❤ 1-up");
-    if (sim.slowTimeRemaining > 0) effLine(POWERUP_STYLE["slow-time"].color, `⏱ ${sim.slowTimeRemaining.toFixed(1)}`);
-    if (sim.magnetRemaining > 0) effLine(POWERUP_STYLE.magnet.color, `🧲 ${sim.magnetRemaining.toFixed(1)}`);
-    if (sim.miniRemaining > 0) effLine(POWERUP_STYLE.mini.color, `▾ ${sim.miniRemaining.toFixed(1)}`);
-    if (sim.gravityFlipRemaining > 0) effLine(POWERUP_STYLE["gravity-flip"].color, `⇅ ${sim.gravityFlipRemaining.toFixed(1)}`);
-    if (sim.rocketRemaining > 0) effLine(POWERUP_STYLE.rocket.color, `🚀 ${sim.rocketRemaining.toFixed(1)}`);
+    if (sim.hasShield) eff("shield", "🛡 shield");
+    if (sim.hasSecondLife) eff("second-life", "❤ 1-up");
+    if (sim.slowTimeRemaining > 0) eff("slow-time", `⏱ ${sim.slowTimeRemaining.toFixed(1)}`);
+    if (sim.magnetRemaining > 0) eff("magnet", `🧲 ${sim.magnetRemaining.toFixed(1)}`);
+    if (sim.miniRemaining > 0) eff("mini", `▾ ${sim.miniRemaining.toFixed(1)}`);
+    if (sim.giantRemaining > 0) eff("giant", `▴ ${sim.giantRemaining.toFixed(1)}`);
+    if (sim.gravityFlipRemaining > 0) eff("gravity-flip", `⇅ ${sim.gravityFlipRemaining.toFixed(1)}`);
+    if (sim.rocketRemaining > 0) eff("rocket", `🚀 ${sim.rocketRemaining.toFixed(1)}`);
+    if (sim.ghostRemaining > 0) eff("ghost", `👻 ${sim.ghostRemaining.toFixed(1)}`);
+    if (sim.frenzyRemaining > 0) eff("frenzy", `2x ${sim.frenzyRemaining.toFixed(1)}`);
 
     if (sim.startGrace && sim.alive) {
       ctx.textAlign = "center";

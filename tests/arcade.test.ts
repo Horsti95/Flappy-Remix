@@ -119,6 +119,91 @@ describe("arcade sim", () => {
     expect(sim.coins[0].x).toBeLessThan(before);
   });
 
+  it("ghost phases through an otherwise-lethal pipe", () => {
+    const lethalPipe = () => ({
+      id: 1,
+      x: ARCADE_CONFIG.birdX - ARCADE_CONFIG.pipeWidth / 2,
+      gapY: 0,
+      gapH: 10, // tiny gap at the very top → bird at 300 is buried in the wall
+      baseGapY: 0,
+      bobAmp: 0,
+      bobPhase: 0,
+      midBar: null,
+      passed: true,
+    });
+    const ghosting = new ArcadeSim(1, ARCADE_CONFIG);
+    ghosting.startGrace = false;
+    ghosting.ghostRemaining = ARCADE_CONFIG.ghostDuration;
+    ghosting.pipes = [lethalPipe()];
+    ghosting.step();
+    expect(ghosting.alive).toBe(true);
+
+    const solid = new ArcadeSim(1, ARCADE_CONFIG);
+    solid.startGrace = false;
+    solid.pipes = [lethalPipe()];
+    solid.step();
+    expect(solid.alive).toBe(false);
+  });
+
+  it("giant smashes a saw for points instead of dying", () => {
+    const sim = new ArcadeSim(1, ARCADE_CONFIG);
+    sim.startGrace = false;
+    sim.giantRemaining = ARCADE_CONFIG.giantDuration;
+    sim.saws = [{ id: 5, x: ARCADE_CONFIG.birdX, baseY: sim.birdY, y: sim.birdY, phase: 0, spin: 0 }];
+    sim.step();
+    expect(sim.alive).toBe(true);
+    expect(sim.saws.length).toBe(0);
+    expect(sim.score).toBeGreaterThan(0);
+  });
+
+  it("frenzy doubles score gains", () => {
+    const sim = new ArcadeSim(1, ARCADE_CONFIG);
+    sim.startGrace = false;
+    sim.frenzyRemaining = ARCADE_CONFIG.frenzyDuration;
+    sim.coins = [{ id: 1, x: ARCADE_CONFIG.birdX, y: sim.birdY, collected: false }];
+    sim.step();
+    expect(sim.coinBalance).toBe(1);
+    expect(sim.score).toBe(ARCADE_CONFIG.coinScore * 2); // mult 1 × frenzy 2
+  });
+
+  it("a portal warps the bird to its partner's mouth", () => {
+    const sim = new ArcadeSim(1, ARCADE_CONFIG);
+    sim.startGrace = false;
+    const exitY = 120;
+    sim.portals = [
+      { id: 1, pairId: 0, x: ARCADE_CONFIG.birdX, y: sim.birdY, used: false, hue: "#fff" },
+      { id: 2, pairId: 0, x: ARCADE_CONFIG.birdX + 400, y: exitY, used: false, hue: "#fff" },
+    ];
+    sim.step();
+    expect(sim.birdY).toBeCloseTo(exitY, 5);
+    expect(sim.invulnRemaining).toBeGreaterThan(0);
+    expect(sim.portals.every((p) => p.used)).toBe(true);
+  });
+
+  it("double-gate pillars expose three solid segments", () => {
+    const sim = new ArcadeSim(1, ARCADE_CONFIG);
+    const gate = {
+      id: 1,
+      x: 100,
+      gapY: 200,
+      gapH: 240,
+      baseGapY: 200,
+      bobAmp: 0,
+      bobPhase: 0,
+      midBar: { y0: 300, y1: 346 },
+      passed: false,
+    };
+    expect(sim.solidSegments(gate).length).toBe(3);
+  });
+
+  it("a special event eventually triggers and clears", () => {
+    const sim = new ArcadeSim(1, ARCADE_CONFIG);
+    // Bird stays in grace (holds position) so it survives while we tick time.
+    (sim as unknown as { nextEventIn: number }).nextEventIn = 0.001;
+    sim.step();
+    expect(sim.activeEvent).not.toBeNull();
+  });
+
   it("is reproducible for a given seed", () => {
     const run = (seed: number) => {
       const sim = new ArcadeSim(seed, ARCADE_CONFIG);

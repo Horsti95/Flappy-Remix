@@ -64,11 +64,36 @@ A second self-review caught three real bugs, all fixed + regression-tested:
 - **Tap-and-hold-to-glide**: deferred to phase 2 (keep v1 focused).
 - **Entry point**: always-visible beta link (owner's call).
 
-## Phases 2+ (planned)
+## Phase 2 — world variety (shipped on this branch)
 
-- Remaining power-ups: giant size, pipe-breaker.
-- More hazards: moving/rotating gates, lasers, bonus gates harder than normal.
+The same isolation rules hold; everything lives in `src/game/arcade/`.
+
+- **Moving pillars** — a pillar's gap oscillates vertically as it scrolls
+  (`bobAmp`/`bobPhase`, gap re-clamped to stay in-world each step).
+- **Double-gate gates** — a dividing bar splits the gap into *two smaller
+  gaps*; you pick one. Modelled generically: a pillar is now a list of solid
+  segments (top / bottom / optional mid bar), shared by collision + render, so
+  more multi-gap shapes are easy later. Threading next to *any* edge — including
+  the bar — counts as a PERFECT pass.
+- **Portals** — linked pairs (shared hue) that scroll in; fly into one and you
+  warp vertically to its partner's mouth, with a short grace so you don't clip
+  the exit.
+- **3 more power-ups** — **ghost** (phase through pipes & saws), **giant**
+  (bigger hitbox but you *smash* saws for points; mutually exclusive with mini),
+  **2× score frenzy**.
+- **Special events** — timed, periodic world states announced with a banner:
+  **Coin Rush** (coins everywhere), **Low Gravity**, **Saw Storm**, **Portal
+  Storm**. A small scheduler picks one every ~14–24s for an 8s window.
+
+That's 10 power-ups, 4 pillar/hazard types (plain / moving / double-gate / saw),
+portals, and 4 events. All seeded (reproducible in tests), all non-deterministic
+at runtime, none of it server-validated.
+
+## Phases 3+ (planned)
+
+- Remaining power-ups: pipe-breaker, freeze.
+- More hazards: lasers, rotating bars, homing drones.
 - Tap-and-hold-to-fall-slower (Arcade-only input variant).
 - Coin economy: spend coins on in-run perks or cosmetics.
 - A local-only Arcade high-score (never server-validated).
-- Sound/haptics pass for pickups and combos.
+- Sound/haptics pass for pickups, combos, and events.

@@ -20,9 +20,12 @@ export type PowerUpKind =
   | "slow-time"
   | "magnet"
   | "mini"
+  | "giant"
   | "second-life"
   | "gravity-flip"
-  | "rocket";
+  | "rocket"
+  | "ghost"
+  | "frenzy";
 
 /** Spawn weights — common defensive pickups, rarer flashy ones. */
 const POWERUP_WEIGHTS: ReadonlyArray<readonly [PowerUpKind, number]> = [
@@ -30,16 +33,44 @@ const POWERUP_WEIGHTS: ReadonlyArray<readonly [PowerUpKind, number]> = [
   ["slow-time", 4],
   ["magnet", 4],
   ["mini", 3],
+  ["giant", 2],
   ["second-life", 2],
   ["gravity-flip", 2],
   ["rocket", 2],
+  ["ghost", 2],
+  ["frenzy", 3],
 ];
+
+export type ArcadeEvent = "coin-rush" | "low-gravity" | "saw-storm" | "portal-storm";
+
+const EVENTS: readonly ArcadeEvent[] = ["coin-rush", "low-gravity", "saw-storm", "portal-storm"];
+
+export const EVENT_LABEL: Record<ArcadeEvent, string> = {
+  "coin-rush": "COIN RUSH",
+  "low-gravity": "LOW GRAVITY",
+  "saw-storm": "SAW STORM",
+  "portal-storm": "PORTAL STORM",
+};
+
+/** A solid vertical span of a pillar (world-space y range). */
+export interface Segment {
+  y0: number;
+  y1: number;
+}
 
 export interface ArcadePipe {
   id: number;
   x: number;
+  /** Live top of the primary gap (updated each step for movers). */
   gapY: number;
   gapH: number;
+  /** Bob anchor for moving pillars; equals the spawn gapY for static ones. */
+  baseGapY: number;
+  /** 0 = static pillar; >0 = moving pillar amplitude (world px). */
+  bobAmp: number;
+  bobPhase: number;
+  /** A double-gate's dividing bar (world-space), or null for a plain pipe. */
+  midBar: Segment | null;
   passed: boolean;
 }
 
@@ -53,12 +84,9 @@ export interface Coin {
 export interface Saw {
   id: number;
   x: number;
-  /** Bob anchor (gap center it oscillates around). */
   baseY: number;
-  /** Current resolved y (updated each step). */
   y: number;
   phase: number;
-  /** Visual spin angle (radians), advanced each step. */
   spin: number;
 }
 
@@ -68,6 +96,15 @@ export interface PowerUp {
   y: number;
   kind: PowerUpKind;
   collected: boolean;
+}
+
+export interface Portal {
+  id: number;
+  pairId: number;
+  x: number;
+  y: number;
+  used: boolean;
+  hue: string;
 }
 
 /** A short-lived floating label ("PERFECT", "+5") for juice. Visual only. */
@@ -86,13 +123,6 @@ export interface ArcadeSnapshot {
   coins: number;
   combo: number;
   multiplier: number;
-  shield: boolean;
-  secondLife: boolean;
-  slowTimeRemaining: number;
-  magnetRemaining: number;
-  miniRemaining: number;
-  gravityFlipRemaining: number;
-  rocketRemaining: number;
   alive: boolean;
 }
 
@@ -110,6 +140,7 @@ export class ArcadeSim {
   coins: Coin[] = [];
   saws: Saw[] = [];
   powerUps: PowerUp[] = [];
+  portals: Portal[] = [];
   floats: FloatText[] = [];
   prevPipeXs = new Map<number, number>();
 
@@ -128,10 +159,18 @@ export class ArcadeSim {
   slowTimeRemaining = 0;
   magnetRemaining = 0;
   miniRemaining = 0;
+  giantRemaining = 0;
   gravityFlipRemaining = 0;
   rocketRemaining = 0;
-  /** Post-revive grace where lethal hits are ignored. */
+  ghostRemaining = 0;
+  frenzyRemaining = 0;
+  /** Post-revive / post-warp grace where lethal hits are ignored. */
   invulnRemaining = 0;
+
+  // Special events.
+  activeEvent: ArcadeEvent | null = null;
+  eventRemaining = 0;
+  private nextEventIn: number;
 
   alive = true;
   dieTick = -1;
@@ -139,6 +178,7 @@ export class ArcadeSim {
 
   private nextPipeId = 0;
   private nextEntityId = 0;
+  private nextPortalPair = 0;
   private lastGapCenter = -1;
   private nextCoinX: number;
   private pendingFlap = false;
@@ -151,6 +191,7 @@ export class ArcadeSim {
     this.prevBirdY = cfg.birdStartY;
     this.lastGapCenter = cfg.birdStartY;
     this.nextCoinX = cfg.worldWidth + cfg.coinSpacing;
+    this.nextEventIn = cfg.eventFirstDelay;
     this.spawnInitialPipes();
   }
 
@@ -159,14 +200,27 @@ export class ArcadeSim {
     this.pendingFlap = true;
   }
 
-  /** Collision/visual radius — shrinks while the mini power-up is active. */
+  /** Collision/visual radius — shrinks with mini, grows with giant. */
   effectiveRadius(): number {
-    return this.cfg.birdRadius * (this.miniRemaining > 0 ? this.cfg.miniScale : 1);
+    let r = this.cfg.birdRadius;
+    if (this.giantRemaining > 0) r *= this.cfg.giantScale;
+    else if (this.miniRemaining > 0) r *= this.cfg.miniScale;
+    return r;
   }
 
   /** +1 while gravity is normal, -1 while flipped. */
   gravityDir(): number {
     return this.gravityFlipRemaining > 0 ? -1 : 1;
+  }
+
+  /** Solid spans of a pillar: top, bottom, and (double-gate) the mid bar. */
+  solidSegments(p: ArcadePipe): Segment[] {
+    const segs: Segment[] = [
+      { y0: 0, y1: p.gapY },
+      { y0: p.gapY + p.gapH, y1: this.cfg.worldHeight },
+    ];
+    if (p.midBar) segs.push(p.midBar);
+    return segs;
   }
 
   snapshot(): ArcadeSnapshot {
@@ -175,13 +229,6 @@ export class ArcadeSim {
       coins: this.coinBalance,
       combo: this.combo,
       multiplier: this.multiplier,
-      shield: this.hasShield,
-      secondLife: this.hasSecondLife,
-      slowTimeRemaining: this.slowTimeRemaining,
-      magnetRemaining: this.magnetRemaining,
-      miniRemaining: this.miniRemaining,
-      gravityFlipRemaining: this.gravityFlipRemaining,
-      rocketRemaining: this.rocketRemaining,
       alive: this.alive,
     };
   }
@@ -201,6 +248,7 @@ export class ArcadeSim {
     for (const p of this.pipes) this.prevPipeXs.set(p.id, p.x);
 
     const dir = this.gravityDir();
+    const gravity = this.cfg.gravity * (this.activeEvent === "low-gravity" ? this.cfg.lowGravityScale : 1);
     if (this.pendingFlap) {
       this.pendingFlap = false;
       // Flap pushes "away from the floor" — flips with gravity so the control
@@ -212,19 +260,24 @@ export class ArcadeSim {
     if (this.startGrace) {
       this.birdVY = 0;
     } else if (this.rocketRemaining > 0) {
-      // Rocket: steady thrust toward the ceiling, capped, gravity-independent.
       this.birdVY -= this.cfg.rocketThrust * dt;
       if (this.birdVY < -this.cfg.rocketMaxClimb) this.birdVY = -this.cfg.rocketMaxClimb;
       this.birdY += this.birdVY * dt;
     } else {
-      this.birdVY += this.cfg.gravity * dir * dt;
+      this.birdVY += gravity * dir * dt;
       this.birdY += this.birdVY * dt;
     }
 
     // World displacement this step (world px). `dt` already folds in slow-time,
     // so pipes and every other entity share the exact same scaled motion.
     const dx = this.currentScrollSpeed() * dt;
-    for (const p of this.pipes) p.x -= dx;
+    for (const p of this.pipes) {
+      p.x -= dx;
+      if (p.bobAmp > 0) {
+        p.bobPhase += (this.cfg.pipeBobSpeed * dt);
+        this.updateMovingPipe(p);
+      }
+    }
     this.advanceEntities(dx);
 
     // Cull + spawn pipes.
@@ -245,10 +298,12 @@ export class ArcadeSim {
       }
     }
 
+    this.checkPortals();
     if (this.magnetRemaining > 0) this.applyMagnet(baseDt);
     this.collectCoins();
     this.collectPowerUps();
 
+    this.tickEvents(baseDt);
     this.decayTimers(baseDt);
     this.tickFloats(baseDt);
 
@@ -260,9 +315,29 @@ export class ArcadeSim {
     this.slowTimeRemaining = Math.max(0, this.slowTimeRemaining - dt);
     this.magnetRemaining = Math.max(0, this.magnetRemaining - dt);
     this.miniRemaining = Math.max(0, this.miniRemaining - dt);
+    this.giantRemaining = Math.max(0, this.giantRemaining - dt);
     this.gravityFlipRemaining = Math.max(0, this.gravityFlipRemaining - dt);
     this.rocketRemaining = Math.max(0, this.rocketRemaining - dt);
+    this.ghostRemaining = Math.max(0, this.ghostRemaining - dt);
+    this.frenzyRemaining = Math.max(0, this.frenzyRemaining - dt);
     this.invulnRemaining = Math.max(0, this.invulnRemaining - dt);
+  }
+
+  private tickEvents(dt: number): void {
+    if (this.activeEvent) {
+      this.eventRemaining -= dt;
+      if (this.eventRemaining <= 0) {
+        this.activeEvent = null;
+        this.nextEventIn = this.rng.nextFloat(this.cfg.eventIntervalMin, this.cfg.eventIntervalMax);
+      }
+      return;
+    }
+    this.nextEventIn -= dt;
+    if (this.nextEventIn <= 0) {
+      this.activeEvent = EVENTS[this.rng.nextInt(0, EVENTS.length)];
+      this.eventRemaining = this.cfg.eventDuration;
+      this.spawnFloat(this.cfg.worldWidth / 2, this.cfg.worldHeight * 0.4, `${EVENT_LABEL[this.activeEvent]}!`, "#fff");
+    }
   }
 
   private currentScrollSpeed(): number {
@@ -275,13 +350,25 @@ export class ArcadeSim {
     return Math.max(this.cfg.pipeGapMin, this.cfg.pipeGapBase - level * this.cfg.gapShrinkPerStep);
   }
 
+  /** Recompute a moving pillar's live gapY (and mid bar) from its bob phase. */
+  private updateMovingPipe(p: ArcadePipe): void {
+    const minY = this.cfg.pipeMargin;
+    const maxY = this.cfg.worldHeight - this.cfg.pipeMargin - p.gapH;
+    const raw = p.baseGapY + Math.sin(p.bobPhase) * p.bobAmp;
+    p.gapY = Math.max(minY, Math.min(maxY, raw));
+    if (p.midBar) {
+      const h = p.midBar.y1 - p.midBar.y0;
+      const y0 = p.gapY + p.gapH / 2 - h / 2;
+      p.midBar = { y0, y1: y0 + h };
+    }
+  }
+
   /** Move every non-pipe entity left by `dx` world px (already time-scaled). */
   private advanceEntities(dx: number): void {
-    // Per-step "motion" is 1 at base speed/no-slow, so saw bob/spin scale with
-    // both difficulty speed-up and slow-time.
     const motion = dx / (this.cfg.scrollSpeed / this.cfg.tickHz);
     for (const c of this.coins) c.x -= dx;
     for (const pu of this.powerUps) pu.x -= dx;
+    for (const pt of this.portals) pt.x -= dx;
     for (const s of this.saws) {
       s.x -= dx;
       s.phase += (this.cfg.sawBobSpeed / this.cfg.tickHz) * motion;
@@ -290,13 +377,14 @@ export class ArcadeSim {
     }
     this.coins = this.coins.filter((c) => c.x + this.cfg.coinRadius > 0);
     this.powerUps = this.powerUps.filter((p) => p.x + this.cfg.powerUpRadius > 0);
+    this.portals = this.portals.filter((p) => p.x + this.cfg.portalRadius > 0);
     this.saws = this.saws.filter((s) => s.x + this.cfg.sawRadius > 0);
 
-    // Steady coin trickle, biased onto the flight path (around the last gap)
-    // so coins are actually reachable rather than buried inside pipe bodies.
+    // Steady coin trickle, biased onto the flight path (Coin Rush packs more in).
+    const spacing = this.cfg.coinSpacing * (this.activeEvent === "coin-rush" ? this.cfg.coinRushSpacingScale : 1);
     while (this.nextCoinX < this.cfg.worldWidth) {
       this.spawnCoin(this.cfg.worldWidth + this.cfg.coinRadius);
-      this.nextCoinX = this.cfg.worldWidth + this.cfg.coinSpacing;
+      this.nextCoinX = this.cfg.worldWidth + spacing;
     }
     this.nextCoinX -= dx;
   }
@@ -308,9 +396,16 @@ export class ArcadeSim {
   }
 
   private spawnPipe(x: number): void {
+    // Pick a pillar variant. Double-gate and moving are mutually exclusive so
+    // a split gate stays readable. The opening grace pipes stay plain.
+    const isDoubleGate = this.tick > 0 && this.rng.nextInt(0, this.cfg.doubleGateRarity) === 0;
+    const isMoving = !isDoubleGate && this.tick > 0 && this.rng.nextInt(0, this.cfg.movingPipeRarity) === 0;
+
     const baseGap = this.currentGapH();
     const jitter = this.rng.nextFloat(-this.cfg.gapJitter, this.cfg.gapJitter);
-    const gapH = Math.max(this.cfg.pipeGapMin, baseGap + jitter);
+    let gapH = Math.max(this.cfg.pipeGapMin, baseGap + jitter);
+    if (isDoubleGate) gapH = gapH * this.cfg.doubleGateGapScale;
+
     const minY = this.cfg.pipeMargin;
     const maxY = this.cfg.worldHeight - this.cfg.pipeMargin - gapH;
     const center = (lo: number, hi: number, c: number) => Math.max(lo, Math.min(hi, c));
@@ -327,11 +422,36 @@ export class ArcadeSim {
     const gapY = center(minY, maxY, gapTop);
     const gapCenter = gapY + gapH / 2;
     this.lastGapCenter = gapCenter;
-    this.pipes.push({ id: this.nextPipeId++, x, gapY, gapH, passed: false });
+
+    let midBar: Segment | null = null;
+    if (isDoubleGate) {
+      const h = this.cfg.doubleGateBarH;
+      const y0 = gapCenter - h / 2;
+      midBar = { y0, y1: y0 + h };
+    }
+
+    const pipe: ArcadePipe = {
+      id: this.nextPipeId++,
+      x,
+      gapY,
+      gapH,
+      baseGapY: gapY,
+      bobAmp: isMoving ? this.cfg.pipeBobAmplitude : 0,
+      bobPhase: isMoving ? this.rng.nextFloat(0, Math.PI * 2) : 0,
+      midBar,
+      passed: false,
+    };
+    if (pipe.bobAmp > 0) this.updateMovingPipe(pipe);
+    this.pipes.push(pipe);
 
     // Arcade extras ride in with the pipe so they cluster around the action.
-    if (this.rng.nextInt(0, this.cfg.sawRarity) === 0) {
+    const sawRarity = this.activeEvent === "saw-storm" ? this.cfg.sawStormRarity : this.cfg.sawRarity;
+    if (this.tick > 0 && this.rng.nextInt(0, sawRarity) === 0) {
       this.spawnSaw(x + this.cfg.pipeSpacing / 2, gapCenter);
+    }
+    const portalRarity = this.activeEvent === "portal-storm" ? this.cfg.portalStormRarity : this.cfg.portalRarity;
+    if (this.tick > 0 && this.rng.nextInt(0, portalRarity) === 0) {
+      this.spawnPortalPair(x, gapCenter);
     }
     if (this.rng.nextInt(0, this.cfg.powerUpRarity) === 0) {
       this.powerUps.push({
@@ -365,6 +485,16 @@ export class ArcadeSim {
     });
   }
 
+  private spawnPortalPair(x: number, entryY: number): void {
+    const pairId = this.nextPortalPair++;
+    const hue = `hsl(${this.rng.nextInt(0, 360)},85%,62%)`;
+    const margin = this.cfg.pipeMargin;
+    const exitY = this.rng.nextFloat(margin, this.cfg.worldHeight - margin);
+    // Entry rides just past the pipe; exit is further down the track.
+    this.portals.push({ id: this.nextEntityId++, pairId, x: x + this.cfg.pipeWidth + 30, y: entryY, used: false, hue });
+    this.portals.push({ id: this.nextEntityId++, pairId, x: x + this.cfg.pipeSpacing * 1.6, y: exitY, used: false, hue });
+  }
+
   private spawnCoin(x: number): void {
     const margin = this.cfg.pipeMargin;
     const spread = this.rng.nextFloat(-this.cfg.coinSpread, this.cfg.coinSpread);
@@ -374,10 +504,7 @@ export class ArcadeSim {
 
   private onPipePassed(p: ArcadePipe): void {
     let gained = 1;
-    const edgeDist = Math.min(
-      Math.abs(this.birdY - p.gapY),
-      Math.abs(p.gapY + p.gapH - this.birdY),
-    );
+    const edgeDist = this.nearestEdgeDist(p, this.birdY);
     if (edgeDist <= this.cfg.perfectPassWindow) {
       this.combo++;
       this.bestCombo = Math.max(this.bestCombo, this.combo);
@@ -389,7 +516,40 @@ export class ArcadeSim {
       this.combo = Math.max(0, this.combo - 1);
       this.multiplier = Math.min(this.cfg.maxMultiplier, 1 + Math.floor(this.combo / 2));
     }
-    this.score += gained * this.multiplier;
+    this.addScore(gained * this.multiplier);
+  }
+
+  /** Nearest distance from y to any solid edge of the pillar (rewards threading
+   *  next to a wall or the double-gate bar). */
+  private nearestEdgeDist(p: ArcadePipe, y: number): number {
+    let best = Infinity;
+    for (const seg of this.solidSegments(p)) {
+      best = Math.min(best, Math.abs(y - seg.y0), Math.abs(y - seg.y1));
+    }
+    return best;
+  }
+
+  private addScore(n: number): void {
+    this.score += n * (this.frenzyRemaining > 0 ? 2 : 1);
+  }
+
+  private checkPortals(): void {
+    const r = this.effectiveRadius();
+    for (const pt of this.portals) {
+      if (pt.used) continue;
+      const rr = r + this.cfg.portalRadius;
+      if (this.dist2(this.cfg.birdX, this.birdY, pt.x, pt.y) > rr * rr) continue;
+      const partner = this.portals.find((o) => o.pairId === pt.pairId && o.id !== pt.id);
+      if (!partner) continue;
+      // Warp vertically to the partner's mouth; brief grace so we don't clip.
+      this.birdY = partner.y;
+      this.birdVY = 0;
+      pt.used = true;
+      partner.used = true;
+      this.invulnRemaining = Math.max(this.invulnRemaining, this.cfg.portalGrace);
+      this.spawnFloat(this.cfg.birdX, this.birdY - 26, "WARP", pt.hue);
+      break;
+    }
   }
 
   private applyMagnet(dt: number): void {
@@ -414,8 +574,9 @@ export class ArcadeSim {
       if (this.dist2(this.cfg.birdX, this.birdY, c.x, c.y) <= r2) {
         c.collected = true;
         this.coinBalance++;
-        this.score += this.cfg.coinScore * this.multiplier;
-        this.spawnFloat(c.x, c.y, `+${this.cfg.coinScore * this.multiplier}`, "#ffd54f");
+        const gain = this.cfg.coinScore * this.multiplier;
+        this.addScore(gain);
+        this.spawnFloat(c.x, c.y, `+${gain * (this.frenzyRemaining > 0 ? 2 : 1)}`, "#ffd54f");
       }
     }
     this.coins = this.coins.filter((c) => !c.collected);
@@ -455,8 +616,14 @@ export class ArcadeSim {
         this.spawnFloat(x, y, "MAGNET", "#ff8a65");
         break;
       case "mini":
+        this.giantRemaining = 0;
         this.miniRemaining = this.cfg.miniDuration;
         this.spawnFloat(x, y, "MINI", "#81d4fa");
+        break;
+      case "giant":
+        this.miniRemaining = 0;
+        this.giantRemaining = this.cfg.giantDuration;
+        this.spawnFloat(x, y, "GIANT", "#ffab40");
         break;
       case "gravity-flip":
         this.gravityFlipRemaining = this.cfg.gravityFlipDuration;
@@ -467,6 +634,14 @@ export class ArcadeSim {
         this.birdVY = Math.min(this.birdVY, 0);
         this.spawnFloat(x, y, "ROCKET", "#ffd54f");
         break;
+      case "ghost":
+        this.ghostRemaining = this.cfg.ghostDuration;
+        this.spawnFloat(x, y, "GHOST", "#e0f7fa");
+        break;
+      case "frenzy":
+        this.frenzyRemaining = this.cfg.frenzyDuration;
+        this.spawnFloat(x, y, "2x SCORE", "#ffee58");
+        break;
     }
   }
 
@@ -475,53 +650,71 @@ export class ArcadeSim {
     const bx = this.cfg.birdX;
     const by = this.birdY;
 
-    // During post-revive grace, clamp inside the world but ignore hazards.
+    // During post-revive / post-warp grace, clamp inside the world but ignore
+    // hazards entirely.
     if (this.invulnRemaining > 0) {
-      if (by - r < 0) {
-        this.birdY = r;
-        if (this.birdVY < 0) this.birdVY = 0;
-      } else if (by + r > this.cfg.worldHeight) {
-        this.birdY = this.cfg.worldHeight - r;
-        if (this.birdVY > 0) this.birdVY = 0;
-      }
+      this.clampToWorld(r);
       return;
     }
 
-    // World bounds.
+    // World bounds are lethal even while ghosting.
     if (by - r < 0 || by + r > this.cfg.worldHeight) {
       if (this.resolveHit()) {
-        this.birdY = Math.max(r, Math.min(this.cfg.worldHeight - r, this.birdY));
+        this.clampToWorld(r);
         this.birdVY = 0;
       }
       return;
     }
 
-    // Pipes.
-    for (const p of this.pipes) {
-      if (p.x + this.cfg.pipeWidth < bx - r) continue;
-      if (p.x > bx + r) break;
-      const top = this.circleRect(bx, by, r, p.x, 0, this.cfg.pipeWidth, p.gapY);
-      const bottomY = p.gapY + p.gapH;
-      const bottom = this.circleRect(bx, by, r, p.x, bottomY, this.cfg.pipeWidth, this.cfg.worldHeight - bottomY);
-      if (top || bottom) {
-        if (this.resolveHit()) {
-          this.birdY = p.gapY + p.gapH / 2;
-          this.birdVY = 0;
+    const phasing = this.ghostRemaining > 0;
+
+    // Pipes (skipped while ghosting).
+    if (!phasing) {
+      for (const p of this.pipes) {
+        if (p.x + this.cfg.pipeWidth < bx - r) continue;
+        if (p.x > bx + r) break;
+        let hit = false;
+        for (const seg of this.solidSegments(p)) {
+          if (this.circleRect(bx, by, r, p.x, seg.y0, this.cfg.pipeWidth, seg.y1 - seg.y0)) {
+            hit = true;
+            break;
+          }
         }
-        return;
+        if (hit) {
+          if (this.resolveHit()) {
+            this.birdY = p.gapY + p.gapH / 2;
+            this.birdVY = 0;
+          }
+          return;
+        }
       }
     }
 
-    // Saws.
+    // Saws — giant smashes them for points; ghost phases; otherwise lethal.
     for (const s of this.saws) {
       const rr = r + this.cfg.sawRadius;
-      if (this.dist2(bx, by, s.x, s.y) <= rr * rr) {
-        if (this.resolveHit()) {
-          // Pop the saw so the save doesn't instantly re-collide.
-          this.saws = this.saws.filter((o) => o.id !== s.id);
-        }
+      if (this.dist2(bx, by, s.x, s.y) > rr * rr) continue;
+      if (this.giantRemaining > 0) {
+        this.saws = this.saws.filter((o) => o.id !== s.id);
+        this.addScore(this.cfg.sawSmashScore);
+        this.spawnFloat(s.x, s.y, "SMASH!", "#ffab40");
         return;
       }
+      if (phasing) continue;
+      if (this.resolveHit()) {
+        this.saws = this.saws.filter((o) => o.id !== s.id);
+      }
+      return;
+    }
+  }
+
+  private clampToWorld(r: number): void {
+    if (this.birdY - r < 0) {
+      this.birdY = r;
+      if (this.birdVY < 0) this.birdVY = 0;
+    } else if (this.birdY + r > this.cfg.worldHeight) {
+      this.birdY = this.cfg.worldHeight - r;
+      if (this.birdVY > 0) this.birdVY = 0;
     }
   }
 

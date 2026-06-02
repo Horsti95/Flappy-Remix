@@ -4,9 +4,11 @@
  * because Arcade never submits, unlocks, or hits a leaderboard — it's purely
  * "nice run, go again".
  */
+import { PICKUP_HINTS } from "../game/arcade/hints";
+import { type PickupKind } from "../game/arcade/sim";
+
 export interface ArcadeGameOverStats {
-  score: number;
-  coins: number;
+  gold: number;
   bestCombo: number;
 }
 
@@ -28,10 +30,9 @@ export function renderArcadeGameOver(
   wrap.innerHTML = `
     <div class="w-full max-w-xs rounded-3xl bg-ink/90 text-paper p-6 shadow-2xl text-center">
       <div class="text-[11px] uppercase tracking-widest opacity-60">Arcade · beta</div>
-      <div class="text-4xl font-black mt-1">${stats.score}</div>
-      <div class="text-[12px] opacity-70">score</div>
-      <div class="flex justify-center gap-6 mt-4 text-sm">
-        <div><div class="font-bold text-[#ffd54f]">🪙 ${stats.coins}</div><div class="text-[10px] opacity-60">coins</div></div>
+      <div class="text-4xl font-black mt-1 text-[#ffd54f]">🪙 ${stats.gold}</div>
+      <div class="text-[12px] opacity-70">gold collected</div>
+      <div class="flex justify-center mt-4 text-sm">
         <div><div class="font-bold text-[#ffe082]">🔥 ${stats.bestCombo}</div><div class="text-[10px] opacity-60">best combo</div></div>
       </div>
       <button data-action="again" class="mt-6 w-full rounded-2xl bg-paper text-ink font-bold py-3 active:scale-95 transition">Play again</button>
@@ -47,4 +48,32 @@ export function renderArcadeGameOver(
     cbs.onExit();
   });
   host.appendChild(wrap);
+}
+
+/**
+ * Non-blocking, auto-dismissing toast explaining a pickup the first time it's
+ * seen. Pointer-events are off + `data-no-flap` so it never eats a tap. Toasts
+ * stack upward and self-remove.
+ */
+export function showArcadeHint(host: HTMLElement, kind: PickupKind): void {
+  const hint = PICKUP_HINTS[kind];
+  if (!hint) return;
+  const toast = document.createElement("div");
+  toast.dataset.noFlap = "true";
+  toast.style.pointerEvents = "none";
+  toast.className =
+    "arcade-hint absolute left-1/2 -translate-x-1/2 bottom-24 w-[86%] max-w-xs rounded-2xl bg-ink/90 text-paper px-4 py-3 shadow-2xl text-center z-50";
+  toast.innerHTML = `
+    <div class="text-sm font-bold">${hint.title}</div>
+    <div class="text-[12px] opacity-80 mt-0.5 leading-snug">${hint.text}</div>
+  `;
+  host.appendChild(toast);
+  // Fade out then remove (CSS transition defined inline to avoid touching the
+  // global stylesheet).
+  toast.style.transition = "opacity 0.4s ease, transform 0.4s ease";
+  window.setTimeout(() => {
+    toast.style.opacity = "0";
+    toast.style.transform = "translate(-50%, 12px)";
+  }, 3200);
+  window.setTimeout(() => toast.remove(), 3700);
 }

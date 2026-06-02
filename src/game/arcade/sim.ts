@@ -41,6 +41,9 @@ const POWERUP_WEIGHTS: ReadonlyArray<readonly [PowerUpKind, number]> = [
   ["frenzy", 3],
 ];
 
+/** Everything a player can pick up — drives the first-time hint toasts. */
+export type PickupKind = PowerUpKind | "coin";
+
 export type ArcadeEvent = "coin-rush" | "low-gravity" | "saw-storm" | "portal-storm";
 
 const EVENTS: readonly ArcadeEvent[] = ["coin-rush", "low-gravity", "saw-storm", "portal-storm"];
@@ -119,8 +122,7 @@ export interface FloatText {
 }
 
 export interface ArcadeSnapshot {
-  score: number;
-  coins: number;
+  gold: number;
   combo: number;
   multiplier: number;
   alive: boolean;
@@ -144,11 +146,18 @@ export class ArcadeSim {
   floats: FloatText[] = [];
   prevPipeXs = new Map<number, number>();
 
-  score = 0;
-  coinBalance = 0;
+  /** The single Arcade currency + headline score: gold. Earned from coins
+   *  (× combo multiplier) plus perfect-pass bonuses — NOT from merely clearing
+   *  gates. */
+  gold = 0;
   combo = 0;
   bestCombo = 0;
   multiplier = 1;
+
+  /** Fired the first time (this run) a given pickup kind is collected, so the
+   *  UI can show a one-time explanatory hint. Persistence is the UI's job. */
+  onPickup: ((kind: PickupKind) => void) | null = null;
+  private seenThisRun = new Set<PickupKind>();
   /** Pipes cleared — drives DIFFICULTY (kept distinct from the flashy score,
    *  which coins/combos inflate, so speed ramps with distance not pickups). */
   pipesCleared = 0;
@@ -225,12 +234,17 @@ export class ArcadeSim {
 
   snapshot(): ArcadeSnapshot {
     return {
-      score: this.score,
-      coins: this.coinBalance,
+      gold: this.gold,
       combo: this.combo,
       multiplier: this.multiplier,
       alive: this.alive,
     };
+  }
+
+  private notifyPickup(kind: PickupKind): void {
+    if (this.seenThisRun.has(kind)) return;
+    this.seenThisRun.add(kind);
+    this.onPickup?.(kind);
   }
 
   step(): void {
@@ -503,20 +517,20 @@ export class ArcadeSim {
   }
 
   private onPipePassed(p: ArcadePipe): void {
-    let gained = 1;
+    // Gold comes from coins + perfect passes, never from merely clearing a
+    // gate — so the headline number reads as "gold collected".
     const edgeDist = this.nearestEdgeDist(p, this.birdY);
     if (edgeDist <= this.cfg.perfectPassWindow) {
       this.combo++;
       this.bestCombo = Math.max(this.bestCombo, this.combo);
       this.multiplier = Math.min(this.cfg.maxMultiplier, 1 + Math.floor(this.combo / 2));
-      gained += 1;
+      this.addGold(this.multiplier);
       this.spawnFloat(this.cfg.birdX, this.birdY - 26, `PERFECT x${this.multiplier}`, "#ffe082");
     } else {
       // Clean but not close — combo decays gently rather than hard-resetting.
       this.combo = Math.max(0, this.combo - 1);
       this.multiplier = Math.min(this.cfg.maxMultiplier, 1 + Math.floor(this.combo / 2));
     }
-    this.addScore(gained * this.multiplier);
   }
 
   /** Nearest distance from y to any solid edge of the pillar (rewards threading
@@ -529,8 +543,8 @@ export class ArcadeSim {
     return best;
   }
 
-  private addScore(n: number): void {
-    this.score += n * (this.frenzyRemaining > 0 ? 2 : 1);
+  private addGold(n: number): void {
+    this.gold += n * (this.frenzyRemaining > 0 ? 2 : 1);
   }
 
   private checkPortals(): void {
@@ -573,9 +587,9 @@ export class ArcadeSim {
       if (c.collected) continue;
       if (this.dist2(this.cfg.birdX, this.birdY, c.x, c.y) <= r2) {
         c.collected = true;
-        this.coinBalance++;
+        this.notifyPickup("coin");
         const gain = this.cfg.coinScore * this.multiplier;
-        this.addScore(gain);
+        this.addGold(gain);
         this.spawnFloat(c.x, c.y, `+${gain * (this.frenzyRemaining > 0 ? 2 : 1)}`, "#ffd54f");
       }
     }
@@ -596,6 +610,7 @@ export class ArcadeSim {
   }
 
   private applyPowerUp(kind: PowerUpKind): void {
+    this.notifyPickup(kind);
     const x = this.cfg.birdX;
     const y = this.birdY - 26;
     switch (kind) {
@@ -696,7 +711,7 @@ export class ArcadeSim {
       if (this.dist2(bx, by, s.x, s.y) > rr * rr) continue;
       if (this.giantRemaining > 0) {
         this.saws = this.saws.filter((o) => o.id !== s.id);
-        this.addScore(this.cfg.sawSmashScore);
+        this.addGold(this.cfg.sawSmashScore);
         this.spawnFloat(s.x, s.y, "SMASH!", "#ffab40");
         return;
       }

@@ -89,6 +89,20 @@ That's 10 power-ups, 4 pillar/hazard types (plain / moving / double-gate / saw),
 portals, and 4 events. All seeded (reproducible in tests), all non-deterministic
 at runtime, none of it server-validated.
 
+## Phase 2.1 — scoring + onboarding polish
+
+- **Gold is the score.** The headline number is now **gold collected**, shown
+  centre-stage with a 🪙. Merely clearing a gate is worth nothing — gold comes
+  from coins (× the combo multiplier) and perfect-pass bonuses. The old
+  abstract "points / gates" counter is gone; combo/multiplier moved to the
+  top-left.
+- **Power-ups feel special.** Spawn rate dialled back from 1-in-4 pipes to
+  1-in-8, so a pickup is an event rather than constant noise.
+- **First-time hints.** The first time you ever grab each pickup kind — coins
+  included — a one-line explanation toasts in (non-blocking, auto-dismiss).
+  "Seen" state persists in localStorage (`glide.arcade.seenPickups`); it's
+  purely client-side and never touches scored data.
+
 ## Phases 3+ (planned)
 
 - Remaining power-ups: pipe-breaker, freeze.

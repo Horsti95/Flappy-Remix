@@ -47,7 +47,8 @@ export interface ArcadeConfig extends SimConfig {
   portalGrace: number;
 
   // --- Power-ups ---
-  /** 1-in-N chance (per pipe spawn) that a power-up spawns in the gap. */
+  /** 1-in-N chance (per pipe spawn) that a power-up spawns in the gap. Kept
+   *  fairly rare so a pickup feels like an event, not a constant. */
   powerUpRarity: number;
   /** Radius (world px) of a floating power-up token. */
   powerUpRadius: number;
@@ -117,7 +118,7 @@ export const ARCADE_CONFIG: ArcadeConfig = {
   pipeGapMin: 130,
   pipeSpacing: 220,
   coinRadius: 9,
-  coinScore: 5,
+  coinScore: 1,
   coinSpacing: 150,
   coinSpread: 80,
   sawRadius: 18,
@@ -136,7 +137,7 @@ export const ARCADE_CONFIG: ArcadeConfig = {
   portalRadius: 20,
   portalGrace: 0.4,
 
-  powerUpRarity: 4,
+  powerUpRarity: 8,
   powerUpRadius: 14,
   slowTimeDuration: 4,
   slowTimeScale: 0.45,

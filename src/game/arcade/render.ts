@@ -278,15 +278,17 @@ export class ArcadeRenderer {
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
+    // Headline = GOLD collected (Arcade's score), centered.
     const cx = this.offsetX + (cfg.worldWidth / 2) * s;
-    ctx.font = `bold ${Math.round(34 * s)}px system-ui,sans-serif`;
+    ctx.font = `bold ${Math.round(32 * s)}px system-ui,sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     ctx.lineWidth = 4 * s;
     ctx.strokeStyle = "rgba(0,0,0,0.45)";
-    ctx.fillStyle = this.options.highContrast ? "#fff" : "#f4ead5";
-    ctx.strokeText(String(sim.score), cx, top);
-    ctx.fillText(String(sim.score), cx, top);
+    ctx.fillStyle = this.options.highContrast ? "#fff" : "#ffd54f";
+    const goldLine = `🪙 ${sim.gold}`;
+    ctx.strokeText(goldLine, cx, top);
+    ctx.fillText(goldLine, cx, top);
 
     // Event banner under the score.
     if (sim.activeEvent) {
@@ -297,19 +299,14 @@ export class ArcadeRenderer {
       ctx.fillText(label, cx, top + 40 * s);
     }
 
-    // Coins + combo (top-left).
-    ctx.textAlign = "left";
-    ctx.font = `bold ${Math.round(16 * s)}px system-ui,sans-serif`;
-    ctx.fillStyle = "#ffd54f";
-    const coinLine = `🪙 ${sim.coinBalance}`;
-    ctx.strokeText(coinLine, left, top);
-    ctx.fillText(coinLine, left, top);
+    // Combo / multiplier (top-left); gold now lives in the centre.
     if (sim.multiplier > 1) {
+      ctx.textAlign = "left";
+      ctx.font = `bold ${Math.round(16 * s)}px system-ui,sans-serif`;
       ctx.fillStyle = "#ffe082";
-      const my = top + 22 * s;
-      const comboLine = `x${sim.multiplier}  combo ${sim.combo}`;
-      ctx.strokeText(comboLine, left, my);
-      ctx.fillText(comboLine, left, my);
+      const comboLine = `🔥 x${sim.multiplier}  combo ${sim.combo}`;
+      ctx.strokeText(comboLine, left, top);
+      ctx.fillText(comboLine, left, top);
     }
 
     // Active effects (top-right).

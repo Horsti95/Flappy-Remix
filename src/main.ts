@@ -7,7 +7,8 @@ import { Renderer } from "./game/render";
 import { ArcadeLoop } from "./game/arcade/loop";
 import { ArcadeRenderer } from "./game/arcade/render";
 import { ARCADE_CONFIG } from "./game/arcade/config";
-import { renderArcadeGameOver } from "./ui/arcade";
+import { renderArcadeGameOver, showArcadeHint } from "./ui/arcade";
+import { hasSeenPickup, markPickupSeen } from "./game/arcade/hints";
 import { InputController } from "./game/input";
 import { GhostSim } from "./game/ghost";
 import { loadSettings, saveSettings, type Settings } from "./game/settings";
@@ -700,11 +701,17 @@ function startArcade(): void {
       pauseBtn.classList.add("hidden");
       renderArcadeGameOver(
         overlays,
-        { score: sim.score, coins: sim.coinBalance, bestCombo: sim.bestCombo },
+        { gold: sim.gold, bestCombo: sim.bestCombo },
         { onPlayAgain: () => startArcade(), onExit: () => showMenu() },
       );
     },
   });
+  // First-ever pickup of each kind gets a one-time explanatory toast.
+  arcadeLoop.sim.onPickup = (kind) => {
+    if (hasSeenPickup(kind)) return;
+    markPickupSeen(kind);
+    showArcadeHint(overlays, kind);
+  };
   arcadeLoop.start();
 }
 

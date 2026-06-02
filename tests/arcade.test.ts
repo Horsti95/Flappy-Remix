@@ -27,7 +27,7 @@ describe("arcade sim", () => {
     // Regression: score is inflated by coins/combos, so speed must NOT key off
     // it or the run would accelerate absurdly fast.
     const sim = new ArcadeSim(1, ARCADE_CONFIG);
-    sim.score = 9999; // huge score, but no pipes cleared yet
+    sim.gold = 9999; // huge gold, but no pipes cleared yet
     // currentScrollSpeed is private; assert via observable pipe motion instead.
     sim.startGrace = false;
     const x0 = sim.pipes[0].x;
@@ -153,17 +153,50 @@ describe("arcade sim", () => {
     sim.step();
     expect(sim.alive).toBe(true);
     expect(sim.saws.length).toBe(0);
-    expect(sim.score).toBeGreaterThan(0);
+    expect(sim.gold).toBeGreaterThan(0);
   });
 
-  it("frenzy doubles score gains", () => {
+  it("frenzy doubles gold gains", () => {
     const sim = new ArcadeSim(1, ARCADE_CONFIG);
     sim.startGrace = false;
     sim.frenzyRemaining = ARCADE_CONFIG.frenzyDuration;
     sim.coins = [{ id: 1, x: ARCADE_CONFIG.birdX, y: sim.birdY, collected: false }];
     sim.step();
-    expect(sim.coinBalance).toBe(1);
-    expect(sim.score).toBe(ARCADE_CONFIG.coinScore * 2); // mult 1 × frenzy 2
+    expect(sim.gold).toBe(ARCADE_CONFIG.coinScore * 2); // mult 1 × frenzy 2
+  });
+
+  it("clearing a gate yields no gold (only coins + perfects do)", () => {
+    const sim = new ArcadeSim(1, ARCADE_CONFIG);
+    sim.startGrace = false;
+    // Pass a pipe far from any edge (not a perfect pass): no gold awarded.
+    sim.pipes = [{
+      id: 1,
+      x: ARCADE_CONFIG.birdX - ARCADE_CONFIG.pipeWidth - 1,
+      gapY: sim.birdY - 150,
+      gapH: 300,
+      baseGapY: sim.birdY - 150,
+      bobAmp: 0,
+      bobPhase: 0,
+      midBar: null,
+      passed: false,
+    }];
+    sim.step();
+    expect(sim.pipes[0].passed).toBe(true);
+    expect(sim.gold).toBe(0);
+  });
+
+  it("fires a one-time pickup notification per kind", () => {
+    const sim = new ArcadeSim(1, ARCADE_CONFIG);
+    sim.startGrace = false;
+    const seen: string[] = [];
+    sim.onPickup = (kind) => seen.push(kind);
+    sim.coins = [
+      { id: 1, x: ARCADE_CONFIG.birdX, y: sim.birdY, collected: false },
+      { id: 2, x: ARCADE_CONFIG.birdX, y: sim.birdY, collected: false },
+    ];
+    sim.step();
+    // Two coins collected, but the "coin" hint fires only once.
+    expect(seen).toEqual(["coin"]);
   });
 
   it("a portal warps the bird to its partner's mouth", () => {
@@ -212,7 +245,7 @@ describe("arcade sim", () => {
         if (i % 20 === 0) sim.flap();
         sim.step();
       }
-      return { score: sim.score, y: sim.birdY, pipes: sim.pipes.length };
+      return { gold: sim.gold, y: sim.birdY, pipes: sim.pipes.length };
     };
     expect(run(42)).toEqual(run(42));
   });

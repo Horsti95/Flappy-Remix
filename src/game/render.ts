@@ -96,15 +96,27 @@ export class Renderer {
     ctx.fillStyle = grd;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Full-art background image (cover-fit, centered) when the theme declares
-    // one and its art has loaded. Painted over the fallback gradient; skipped
-    // under high-contrast so the a11y palette stays clean. Cosmetic.
+    // Full-art background image (CONTAIN-fit, centered) when the theme declares
+    // one and its art has loaded. A/B variant: the whole image is always
+    // visible (no cropping); any leftover space is letterboxed by sampling the
+    // image's own edge color so the bands blend in. Painted over the fallback
+    // gradient; skipped under high-contrast. Cosmetic.
     if (!this.options.highContrast && theme.backgroundImage && hasBackgroundImage(theme.backgroundImage)) {
       const img = getBackgroundImage(theme.backgroundImage);
       if (img && img.naturalWidth > 0) {
         const cw = this.canvas.width;
         const ch = this.canvas.height;
-        const scale = Math.max(cw / img.naturalWidth, ch / img.naturalHeight);
+        // Backdrop: a blurred cover-fit pass fills the whole canvas so the
+        // contain bands read as a soft vignette instead of black bars.
+        const coverScale = Math.max(cw / img.naturalWidth, ch / img.naturalHeight);
+        const bw = img.naturalWidth * coverScale;
+        const bh = img.naturalHeight * coverScale;
+        ctx.save();
+        ctx.filter = "blur(24px) brightness(0.8)";
+        ctx.drawImage(img, (cw - bw) / 2, (ch - bh) / 2, bw, bh);
+        ctx.restore();
+        // Foreground: the full image, contained (never cropped), centered.
+        const scale = Math.min(cw / img.naturalWidth, ch / img.naturalHeight);
         const dw = img.naturalWidth * scale;
         const dh = img.naturalHeight * scale;
         ctx.drawImage(img, (cw - dw) / 2, (ch - dh) / 2, dw, dh);

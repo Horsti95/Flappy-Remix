@@ -13,6 +13,7 @@
 const sources: Record<string, string> = {
   "neo-city": "/backgrounds/neo-city.png",
   "fairy-spires": "/backgrounds/fairy-spires.png",
+  "stadium": "/backgrounds/stadium.png",
 };
 
 interface Entry {

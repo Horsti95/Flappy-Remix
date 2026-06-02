@@ -13,6 +13,7 @@ import { getShowEquippedInMenu, setShowEquippedInMenu } from "../game/menu-prefs
 export interface MenuCallbacks {
   onPlay(): void;
   onTraining(): void;
+  onArcade(): void;
   onPlayDaily(): void;
   onToggleSetting(key: keyof Settings): void;
   onSetGhostOpacity(pct: number): void;
@@ -136,6 +137,7 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
           Board
         </button>
       </div>
+      <button data-action="arcade" class="block mx-auto mt-3 text-[12px] font-bold text-paper bg-paper/15 rounded-full px-4 py-1.5 hover:bg-paper/25 transition">🎮 Arcade <span class="opacity-70">(beta)</span></button>
       <button data-action="training" class="block mx-auto mt-3 text-[11px] opacity-50 hover:opacity-90 transition-opacity underline">🪶 practice mode (untracked)</button>
       ${
         SUPPORT_ENABLED
@@ -224,6 +226,10 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   wrap.querySelector('[data-action="training"]')?.addEventListener("click", (e) => {
     e.stopPropagation();
     cbs.onTraining();
+  });
+  wrap.querySelector('[data-action="arcade"]')?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    cbs.onArcade();
   });
   wrap.querySelector('[data-action="inbox"]')?.addEventListener("click", (e) => {
     e.stopPropagation();

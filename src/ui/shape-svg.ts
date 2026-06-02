@@ -91,6 +91,21 @@ export function shapeSvgInner(
               <polygon points="-3,-6 -1,-11 3,-11 4,-6" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
               <line x1="0.5" y1="-11" x2="0.5" y2="-15" stroke="#1a1a1a" stroke-width="0.8"/><line x1="0.5" y1="-15" x2="4" y2="-15" stroke="#1a1a1a" stroke-width="0.8"/>
               <circle cx="5" cy="0" r="2.2" fill="#1a1a1a"/>`;
+    case "soccer-ball":
+      return `<circle cx="0" cy="0" r="14" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+              <polygon points="0,-5.88 5.59,-1.82 3.46,4.76 -3.46,4.76 -5.59,-1.82" fill="${a}" stroke="#1a1a1a" stroke-width="0.7"/>
+              <line x1="0" y1="-5.88" x2="0" y2="-14" stroke="#1a1a1a" stroke-width="0.7"/>
+              <line x1="5.59" y1="-1.82" x2="13.31" y2="-4.33" stroke="#1a1a1a" stroke-width="0.7"/>
+              <line x1="3.46" y1="4.76" x2="8.23" y2="11.33" stroke="#1a1a1a" stroke-width="0.7"/>
+              <line x1="-3.46" y1="4.76" x2="-8.23" y2="11.33" stroke="#1a1a1a" stroke-width="0.7"/>
+              <line x1="-5.59" y1="-1.82" x2="-13.31" y2="-4.33" stroke="#1a1a1a" stroke-width="0.7"/>`;
+    case "pretzel":
+      return `<g fill="none" stroke="${b}" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M -3,-8 C -19,-17 -22,3 -7,8 C -2,10 2,10 7,8 C 22,3 19,-17 3,-8"/>
+                <path d="M -3,-8 L 7,8"/>
+                <path d="M 3,-8 L -7,8"/>
+              </g>
+              <g fill="${a}"><circle cx="-9" cy="-2" r="1"/><circle cx="9" cy="-2" r="1"/><circle cx="0" cy="9" r="1"/></g>`;
   }
 }
 

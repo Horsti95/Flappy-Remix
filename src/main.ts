@@ -44,7 +44,7 @@ import { loadAchievementStats, updateStatsAfterRun, saveAchievementStats, getNew
 import { getShowEquippedInMenu } from "./game/menu-prefs";
 import { renderDailyLanding } from "./ui/daily-landing";
 import { renderRankedPanel } from "./ui/ranked";
-import { playFlap, setSoundLabMode } from "./game/sfx";
+import { playFlap, playCheer, setSoundLabMode } from "./game/sfx";
 import { clearParticles, getActiveFlapFx, setFxLabMode, spawnFlapFx } from "./game/flap-fx";
 import { type RankedMatch, createRankedChallenge } from "./social/ranked";
 import { createChallenge, fetchChallenge, ghostSkinFromChallenge, fetchUnseenChallengeCount, type FetchedChallenge } from "./social/challenges";
@@ -695,6 +695,13 @@ function startRun(runMode: RunMode = "casual"): void {
     runCfg,
     {
       render: (sim, alpha, g) => renderer.draw(sim, alpha, g),
+      onScore: (sc) => {
+        // Stadium theme: the crowd cheers every 20 points. Audio-only,
+        // gated on the sound setting; never affects the deterministic sim.
+        if (settings.sound && equippedThemeId === "stadium" && sc > 0 && sc % 20 === 0) {
+          playCheer();
+        }
+      },
       onDeath: async (sim) => {
         mode = "dead";
         pauseBtn.classList.add("hidden");

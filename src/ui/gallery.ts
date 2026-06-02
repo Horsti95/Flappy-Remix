@@ -629,6 +629,34 @@ function shapeSvgWithColors(
          <line x1="-12" y1="0" x2="12" y2="0" stroke="#1a1a1a" stroke-width="0.4" opacity="0.5"/>
          <line x1="0" y1="-13" x2="0" y2="13" stroke="#1a1a1a" stroke-width="0.4" opacity="0.5"/>`,
       );
+    case "soccer-ball": {
+      const R = 14;
+      const pts: string[] = [];
+      const seams: string[] = [];
+      for (let k = 0; k < 5; k++) {
+        const ang = -Math.PI / 2 + (k * 2 * Math.PI) / 5;
+        const px = (Math.cos(ang) * R * 0.42).toFixed(1);
+        const py = (Math.sin(ang) * R * 0.42).toFixed(1);
+        pts.push(`${px},${py}`);
+        seams.push(
+          `<line x1="${px}" y1="${py}" x2="${(Math.cos(ang) * R).toFixed(1)}" y2="${(Math.sin(ang) * R).toFixed(1)}" stroke="#1a1a1a" stroke-width="0.7"/>`,
+        );
+      }
+      return svg(
+        `<circle cx="0" cy="0" r="${R}" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <polygon points="${pts.join(" ")}" fill="${a}" stroke="#1a1a1a" stroke-width="0.7"/>
+         ${seams.join("")}`,
+      );
+    }
+    case "pretzel":
+      return svg(
+        `<g fill="none" stroke="${b}" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+           <path d="M -3,-8 C -19,-17 -22,3 -7,8 C -2,10 2,10 7,8 C 22,3 19,-17 3,-8"/>
+           <path d="M -3,-8 L 7,8"/>
+           <path d="M 3,-8 L -7,8"/>
+         </g>
+         <g fill="${a}"><circle cx="-9" cy="-2" r="1"/><circle cx="9" cy="-2" r="1"/><circle cx="0" cy="9" r="1"/></g>`,
+      );
     case "cyber-plane":
       return svg(
         `<polygon points="14,0 2,-6 -11,-3 -13,0 -11,3 2,6" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>

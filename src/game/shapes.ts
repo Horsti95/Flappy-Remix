@@ -29,7 +29,9 @@ export type ShapeId =
   | "lightning"
   | "ghost"
   | "crane"
-  | "submarine";
+  | "submarine"
+  | "soccer-ball"
+  | "pretzel";
 
 export interface ShapeUnlock {
   // Computed unlock state for the current player.
@@ -480,6 +482,78 @@ function drawSubmarine(ctx: CanvasRenderingContext2D, r: number, skin: SkinColor
   ctx.fill();
 }
 
+function drawSoccerBall(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
+  outline(ctx, highContrast);
+  // Ball body
+  ctx.fillStyle = rgbCss(skin.body);
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  // Central pentagon + seams radiating to the rim — the classic football look.
+  const verts: Array<[number, number]> = [];
+  for (let k = 0; k < 5; k++) {
+    const ang = -Math.PI / 2 + (k * 2 * Math.PI) / 5;
+    verts.push([Math.cos(ang) * r * 0.42, Math.sin(ang) * r * 0.42]);
+  }
+  ctx.fillStyle = rgbCss(skin.accent);
+  ctx.beginPath();
+  verts.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = highContrast ? "#ffffff" : "#1a1a1a";
+  ctx.lineWidth = 1;
+  for (let k = 0; k < 5; k++) {
+    const ang = -Math.PI / 2 + (k * 2 * Math.PI) / 5;
+    ctx.beginPath();
+    ctx.moveTo(verts[k][0], verts[k][1]);
+    ctx.lineTo(Math.cos(ang) * r, Math.sin(ang) * r);
+    ctx.stroke();
+  }
+  ctx.lineWidth = 1.5;
+}
+
+function drawPretzel(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
+  // Twisted dough drawn as thick rounded strokes; salt grains in the accent.
+  ctx.strokeStyle = rgbCss(skin.body);
+  ctx.lineWidth = r * 0.42;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  const s = r / 14; // the path below was authored at r≈14
+  const px = (x: number): number => x * s;
+  ctx.beginPath();
+  ctx.moveTo(px(-3), px(-8));
+  ctx.bezierCurveTo(px(-19), px(-17), px(-22), px(3), px(-7), px(8));
+  ctx.bezierCurveTo(px(-2), px(10), px(2), px(10), px(7), px(8));
+  ctx.bezierCurveTo(px(22), px(3), px(19), px(-17), px(3), px(-8));
+  ctx.stroke();
+  // The two crossing strands at the top knot.
+  ctx.beginPath();
+  ctx.moveTo(px(-3), px(-8));
+  ctx.lineTo(px(7), px(8));
+  ctx.moveTo(px(3), px(-8));
+  ctx.lineTo(px(-7), px(8));
+  ctx.stroke();
+  // Thin dark outline pass for definition.
+  ctx.strokeStyle = highContrast ? "#ffffff" : "#1a1a1a";
+  ctx.lineWidth = r * 0.08;
+  ctx.beginPath();
+  ctx.moveTo(px(-3), px(-8));
+  ctx.bezierCurveTo(px(-19), px(-17), px(-22), px(3), px(-7), px(8));
+  ctx.bezierCurveTo(px(-2), px(10), px(2), px(10), px(7), px(8));
+  ctx.bezierCurveTo(px(22), px(3), px(19), px(-17), px(3), px(-8));
+  ctx.stroke();
+  // Salt.
+  ctx.fillStyle = rgbCss(skin.accent);
+  for (const [dx, dy] of [[-9, -2], [9, -2], [0, 9], [-4, 3], [4, 3]] as Array<[number, number]>) {
+    ctx.beginPath();
+    ctx.arc(px(dx), px(dy), r * 0.07, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.lineWidth = 1.5;
+}
+
 function drawGhost(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
   outline(ctx, highContrast);
   const top = -r * 1.1;
@@ -757,6 +831,26 @@ export const SHAPES: ShapeMeta[] = [
       hint: "play 60 games",
     }),
     draw: drawSubmarine,
+  },
+  {
+    id: "soccer-ball",
+    name: "football",
+    blurb: "world-cup ready — score a goal.",
+    unlock: ({ bestScore }) => ({
+      unlocked: bestScore >= 20,
+      hint: "score 20 in a single run",
+    }),
+    draw: drawSoccerBall,
+  },
+  {
+    id: "pretzel",
+    name: "pretzel",
+    blurb: "Brezel — a taste of Germany.",
+    unlock: ({ totalGames }) => ({
+      unlocked: totalGames >= 30,
+      hint: "play 30 games",
+    }),
+    draw: drawPretzel,
   },
 ];
 

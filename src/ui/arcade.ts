@@ -32,7 +32,7 @@ export function renderArcadeGameOver(
       <div class="text-[12px] opacity-70">score</div>
       <div class="flex justify-center gap-6 mt-4 text-sm">
         <div><div class="font-bold text-[#ffd54f]">🪙 ${stats.coins}</div><div class="text-[10px] opacity-60">coins</div></div>
-        <div><div class="font-bold text-[#ffe082]">x combo ${stats.bestCombo}</div><div class="text-[10px] opacity-60">best combo</div></div>
+        <div><div class="font-bold text-[#ffe082]">🔥 ${stats.bestCombo}</div><div class="text-[10px] opacity-60">best combo</div></div>
       </div>
       <button data-action="again" class="mt-6 w-full rounded-2xl bg-paper text-ink font-bold py-3 active:scale-95 transition">Play again</button>
       <button data-action="exit" class="mt-3 w-full rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-sm active:scale-95 transition">Back to menu</button>

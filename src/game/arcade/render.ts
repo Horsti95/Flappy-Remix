@@ -1,5 +1,5 @@
 import { type ArcadeConfig } from "./config";
-import { ArcadeSim } from "./sim";
+import { ArcadeSim, type PowerUpKind } from "./sim";
 import { DEFAULT_SKIN, type SkinColors } from "../skin";
 import { DEFAULT_SHAPE_ID, getShape, type ShapeId } from "../shapes";
 import { DEFAULT_THEME_ID, getTheme, type ThemeId } from "../themes";
@@ -11,6 +11,17 @@ export interface ArcadeRenderOptions {
   highContrast: boolean;
   reducedMotion: boolean;
 }
+
+/** Per-power-up colour + glyph, shared by the world token and the HUD. */
+const POWERUP_STYLE: Record<PowerUpKind, { color: string; glyph: string; label: string }> = {
+  shield: { color: "#4fc3f7", glyph: "🛡", label: "shield" },
+  "slow-time": { color: "#b39ddb", glyph: "⏱", label: "slow-mo" },
+  magnet: { color: "#ff8a65", glyph: "🧲", label: "magnet" },
+  mini: { color: "#81d4fa", glyph: "▾", label: "mini" },
+  "second-life": { color: "#69f0ae", glyph: "❤", label: "1-up" },
+  "gravity-flip": { color: "#f48fb1", glyph: "⇅", label: "flip" },
+  rocket: { color: "#ffd54f", glyph: "🚀", label: "rocket" },
+};
 
 /**
  * Standalone renderer for Arcade Mode. Intentionally NOT the shared `Renderer`
@@ -75,10 +86,16 @@ export class ArcadeRenderer {
     ctx.fillStyle = grd;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Slow-time wash — a cool tint so the effect reads instantly.
-    if (sim.slowTimeRemaining > 0 && !this.options.highContrast) {
-      ctx.fillStyle = "rgba(120,90,200,0.16)";
-      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    // Full-screen effect washes so active power-ups read instantly.
+    if (!this.options.highContrast) {
+      if (sim.slowTimeRemaining > 0) {
+        ctx.fillStyle = "rgba(120,90,200,0.16)";
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      }
+      if (sim.gravityFlipRemaining > 0) {
+        ctx.fillStyle = "rgba(244,143,177,0.12)";
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      }
     }
 
     ctx.translate(this.offsetX, this.offsetY);
@@ -98,9 +115,8 @@ export class ArcadeRenderer {
 
     // Coins.
     for (const c of sim.coins) {
-      const x = c.x;
       ctx.save();
-      ctx.translate(x, c.y);
+      ctx.translate(c.x, c.y);
       ctx.fillStyle = "#ffd54f";
       ctx.strokeStyle = "#f9a825";
       ctx.lineWidth = 2;
@@ -115,10 +131,10 @@ export class ArcadeRenderer {
 
     // Power-ups.
     for (const pu of sim.powerUps) {
+      const style = POWERUP_STYLE[pu.kind];
       ctx.save();
       ctx.translate(pu.x, pu.y);
-      const color = pu.kind === "shield" ? "#4fc3f7" : "#b39ddb";
-      ctx.fillStyle = color;
+      ctx.fillStyle = style.color;
       ctx.strokeStyle = "rgba(255,255,255,0.85)";
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -126,10 +142,10 @@ export class ArcadeRenderer {
       ctx.fill();
       ctx.stroke();
       ctx.fillStyle = "#fff";
-      ctx.font = "bold 16px system-ui,sans-serif";
+      ctx.font = "bold 15px system-ui,sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(pu.kind === "shield" ? "🛡" : "⏱", 0, 1);
+      ctx.fillText(style.glyph, 0, 1);
       ctx.restore();
     }
 
@@ -162,23 +178,56 @@ export class ArcadeRenderer {
       ctx.restore();
     }
 
-    // Bird (with shield ring if held).
+    // Bird.
     const by = sim.alive ? sim.prevBirdY + (sim.birdY - sim.prevBirdY) * alpha : sim.birdY;
+    const r = sim.effectiveRadius();
+    // Tilt tracks actual vertical velocity in screen space (+y is down).
     const tilt = this.options.reducedMotion ? 0 : Math.max(-0.6, Math.min(1.0, sim.birdVY / 600));
-    if (sim.hasShield) {
+
+    // Magnet aura.
+    if (sim.magnetRemaining > 0 && !this.options.reducedMotion) {
       ctx.save();
-      ctx.strokeStyle = "rgba(79,195,247,0.9)";
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(255,138,101,0.35)";
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(cfg.birdX, by, cfg.birdRadius + 7, 0, Math.PI * 2);
+      ctx.arc(cfg.birdX, by, cfg.magnetRange, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
-    ctx.save();
-    ctx.translate(cfg.birdX, by);
-    ctx.rotate(tilt);
-    getShape(this.options.shape).draw(ctx, cfg.birdRadius, this.options.skin, this.options.highContrast);
-    ctx.restore();
+    // Shield / second-life ring.
+    if (sim.hasShield || sim.hasSecondLife) {
+      ctx.save();
+      ctx.strokeStyle = sim.hasShield ? "rgba(79,195,247,0.9)" : "rgba(105,240,174,0.9)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(cfg.birdX, by, r + 7, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Rocket flame behind the bird.
+    if (sim.rocketRemaining > 0 && !this.options.reducedMotion) {
+      ctx.save();
+      ctx.translate(cfg.birdX - r, by);
+      ctx.fillStyle = "rgba(255,179,0,0.9)";
+      ctx.beginPath();
+      ctx.moveTo(0, -5);
+      ctx.lineTo(-12 - Math.random() * 8, 0);
+      ctx.lineTo(0, 5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Invuln (post-revive) blink.
+    const blink = sim.invulnRemaining > 0 && Math.floor(performance.now() / 100) % 2 === 0;
+    if (!blink) {
+      ctx.save();
+      ctx.translate(cfg.birdX, by);
+      ctx.rotate(tilt);
+      getShape(this.options.shape).draw(ctx, r, this.options.skin, this.options.highContrast);
+      ctx.restore();
+    }
 
     // Floating text (perfect / pickups).
     if (!this.options.reducedMotion) {
@@ -202,56 +251,61 @@ export class ArcadeRenderer {
   private drawHud(sim: ArcadeSim): void {
     const ctx = this.ctx;
     const cfg = this.cfg;
-    const left = this.offsetX + 12 * this.scale;
-    const top = this.offsetY + 12 * this.scale;
+    const s = this.scale;
+    const left = this.offsetX + 12 * s;
+    const top = this.offsetY + 12 * s;
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    // Score (center pill).
-    const cx = this.offsetX + (cfg.worldWidth / 2) * this.scale;
-    ctx.font = `bold ${Math.round(34 * this.scale)}px system-ui,sans-serif`;
+    // Score (center).
+    const cx = this.offsetX + (cfg.worldWidth / 2) * s;
+    ctx.font = `bold ${Math.round(34 * s)}px system-ui,sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
-    ctx.fillStyle = this.options.highContrast ? "#fff" : "#f4ead5";
+    ctx.lineWidth = 4 * s;
     ctx.strokeStyle = "rgba(0,0,0,0.45)";
-    ctx.lineWidth = 4 * this.scale;
+    ctx.fillStyle = this.options.highContrast ? "#fff" : "#f4ead5";
     ctx.strokeText(String(sim.score), cx, top);
     ctx.fillText(String(sim.score), cx, top);
 
     // Coins + combo (top-left).
     ctx.textAlign = "left";
-    ctx.font = `bold ${Math.round(16 * this.scale)}px system-ui,sans-serif`;
+    ctx.font = `bold ${Math.round(16 * s)}px system-ui,sans-serif`;
     ctx.fillStyle = "#ffd54f";
-    ctx.strokeText(`🪙 ${sim.coinBalance}`, left, top);
-    ctx.fillText(`🪙 ${sim.coinBalance}`, left, top);
+    const coinLine = `🪙 ${sim.coinBalance}`;
+    ctx.strokeText(coinLine, left, top);
+    ctx.fillText(coinLine, left, top);
     if (sim.multiplier > 1) {
       ctx.fillStyle = "#ffe082";
-      const my = top + 22 * this.scale;
-      ctx.strokeText(`x${sim.multiplier}  combo ${sim.combo}`, left, my);
-      ctx.fillText(`x${sim.multiplier}  combo ${sim.combo}`, left, my);
+      const my = top + 22 * s;
+      const comboLine = `x${sim.multiplier}  combo ${sim.combo}`;
+      ctx.strokeText(comboLine, left, my);
+      ctx.fillText(comboLine, left, my);
     }
 
-    // Active effects (top-right).
+    // Active effects (top-right), one line each with a countdown.
     ctx.textAlign = "right";
-    const right = this.offsetX + (cfg.worldWidth - 12) * this.scale;
+    const right = this.offsetX + (cfg.worldWidth - 12) * s;
     let ey = top;
-    if (sim.hasShield) {
-      ctx.fillStyle = "#4fc3f7";
-      ctx.strokeText("🛡 shield", right, ey);
-      ctx.fillText("🛡 shield", right, ey);
-      ey += 22 * this.scale;
-    }
-    if (sim.slowTimeRemaining > 0) {
-      ctx.fillStyle = "#b39ddb";
-      ctx.strokeText(`⏱ ${sim.slowTimeRemaining.toFixed(1)}s`, right, ey);
-      ctx.fillText(`⏱ ${sim.slowTimeRemaining.toFixed(1)}s`, right, ey);
-    }
+    const effLine = (color: string, text: string): void => {
+      ctx.fillStyle = color;
+      ctx.strokeText(text, right, ey);
+      ctx.fillText(text, right, ey);
+      ey += 22 * s;
+    };
+    if (sim.hasShield) effLine(POWERUP_STYLE.shield.color, "🛡 shield");
+    if (sim.hasSecondLife) effLine(POWERUP_STYLE["second-life"].color, "❤ 1-up");
+    if (sim.slowTimeRemaining > 0) effLine(POWERUP_STYLE["slow-time"].color, `⏱ ${sim.slowTimeRemaining.toFixed(1)}`);
+    if (sim.magnetRemaining > 0) effLine(POWERUP_STYLE.magnet.color, `🧲 ${sim.magnetRemaining.toFixed(1)}`);
+    if (sim.miniRemaining > 0) effLine(POWERUP_STYLE.mini.color, `▾ ${sim.miniRemaining.toFixed(1)}`);
+    if (sim.gravityFlipRemaining > 0) effLine(POWERUP_STYLE["gravity-flip"].color, `⇅ ${sim.gravityFlipRemaining.toFixed(1)}`);
+    if (sim.rocketRemaining > 0) effLine(POWERUP_STYLE.rocket.color, `🚀 ${sim.rocketRemaining.toFixed(1)}`);
 
     if (sim.startGrace && sim.alive) {
       ctx.textAlign = "center";
-      ctx.font = `${Math.round(16 * this.scale)}px system-ui,sans-serif`;
+      ctx.font = `${Math.round(16 * s)}px system-ui,sans-serif`;
       ctx.fillStyle = this.options.highContrast ? "#fff" : "#1a1a1a";
-      ctx.fillText("tap to lift", cx, this.offsetY + cfg.worldHeight * 0.62 * this.scale);
+      ctx.fillText("tap to lift", cx, this.offsetY + cfg.worldHeight * 0.62 * s);
     }
 
     ctx.restore();

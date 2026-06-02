@@ -15,7 +15,25 @@ import { type ArcadeConfig } from "./config";
  * from the wall clock.
  */
 
-export type PowerUpKind = "shield" | "slow-time";
+export type PowerUpKind =
+  | "shield"
+  | "slow-time"
+  | "magnet"
+  | "mini"
+  | "second-life"
+  | "gravity-flip"
+  | "rocket";
+
+/** Spawn weights — common defensive pickups, rarer flashy ones. */
+const POWERUP_WEIGHTS: ReadonlyArray<readonly [PowerUpKind, number]> = [
+  ["shield", 5],
+  ["slow-time", 4],
+  ["magnet", 4],
+  ["mini", 3],
+  ["second-life", 2],
+  ["gravity-flip", 2],
+  ["rocket", 2],
+];
 
 export interface ArcadePipe {
   id: number;
@@ -69,7 +87,12 @@ export interface ArcadeSnapshot {
   combo: number;
   multiplier: number;
   shield: boolean;
+  secondLife: boolean;
   slowTimeRemaining: number;
+  magnetRemaining: number;
+  miniRemaining: number;
+  gravityFlipRemaining: number;
+  rocketRemaining: number;
   alive: boolean;
 }
 
@@ -93,12 +116,22 @@ export class ArcadeSim {
   score = 0;
   coinBalance = 0;
   combo = 0;
+  bestCombo = 0;
   multiplier = 1;
+  /** Pipes cleared — drives DIFFICULTY (kept distinct from the flashy score,
+   *  which coins/combos inflate, so speed ramps with distance not pickups). */
+  pipesCleared = 0;
 
-  /** One free hit. Consumed instead of dying on the next lethal collision. */
+  // Active effects.
   hasShield = false;
-  /** Seconds remaining of the slow-time effect (0 = inactive). */
+  hasSecondLife = false;
   slowTimeRemaining = 0;
+  magnetRemaining = 0;
+  miniRemaining = 0;
+  gravityFlipRemaining = 0;
+  rocketRemaining = 0;
+  /** Post-revive grace where lethal hits are ignored. */
+  invulnRemaining = 0;
 
   alive = true;
   dieTick = -1;
@@ -116,6 +149,7 @@ export class ArcadeSim {
     this.rng = new Rng(this.seed);
     this.birdY = cfg.birdStartY;
     this.prevBirdY = cfg.birdStartY;
+    this.lastGapCenter = cfg.birdStartY;
     this.nextCoinX = cfg.worldWidth + cfg.coinSpacing;
     this.spawnInitialPipes();
   }
@@ -125,6 +159,16 @@ export class ArcadeSim {
     this.pendingFlap = true;
   }
 
+  /** Collision/visual radius — shrinks while the mini power-up is active. */
+  effectiveRadius(): number {
+    return this.cfg.birdRadius * (this.miniRemaining > 0 ? this.cfg.miniScale : 1);
+  }
+
+  /** +1 while gravity is normal, -1 while flipped. */
+  gravityDir(): number {
+    return this.gravityFlipRemaining > 0 ? -1 : 1;
+  }
+
   snapshot(): ArcadeSnapshot {
     return {
       score: this.score,
@@ -132,7 +176,12 @@ export class ArcadeSim {
       combo: this.combo,
       multiplier: this.multiplier,
       shield: this.hasShield,
+      secondLife: this.hasSecondLife,
       slowTimeRemaining: this.slowTimeRemaining,
+      magnetRemaining: this.magnetRemaining,
+      miniRemaining: this.miniRemaining,
+      gravityFlipRemaining: this.gravityFlipRemaining,
+      rocketRemaining: this.rocketRemaining,
       alive: this.alive,
     };
   }
@@ -140,8 +189,10 @@ export class ArcadeSim {
   step(): void {
     if (!this.alive) return;
     const baseDt = 1 / this.cfg.tickHz;
-    // Slow-time scales the WORLD, not the input — the bird still responds
-    // crisply while pipes/saws/coins crawl. Pure arcade juice.
+    // Slow-time is true bullet-time: it scales the WORLD *and* the bird equally,
+    // so the player gets more reaction time (flap impulses, being velocities,
+    // still land instantly). Scaling only the world would make slow-time HARDER
+    // vertically — the opposite of the intent.
     const timeScale = this.slowTimeRemaining > 0 ? this.cfg.slowTimeScale : 1;
     const dt = baseDt * timeScale;
 
@@ -149,25 +200,30 @@ export class ArcadeSim {
     this.prevPipeXs.clear();
     for (const p of this.pipes) this.prevPipeXs.set(p.id, p.x);
 
+    const dir = this.gravityDir();
     if (this.pendingFlap) {
       this.pendingFlap = false;
-      this.birdVY = -this.cfg.flapImpulse;
+      // Flap pushes "away from the floor" — flips with gravity so the control
+      // stays intuitive (tap to escape whichever way you're falling).
+      this.birdVY = -this.cfg.flapImpulse * dir;
       this.startGrace = false;
     }
 
     if (this.startGrace) {
       this.birdVY = 0;
+    } else if (this.rocketRemaining > 0) {
+      // Rocket: steady thrust toward the ceiling, capped, gravity-independent.
+      this.birdVY -= this.cfg.rocketThrust * dt;
+      if (this.birdVY < -this.cfg.rocketMaxClimb) this.birdVY = -this.cfg.rocketMaxClimb;
+      this.birdY += this.birdVY * dt;
     } else {
-      // Gravity uses the unscaled dt so the bird's arc feels the same; only
-      // its forward progress through the world slows under slow-time.
-      this.birdVY += this.cfg.gravity * baseDt;
-      this.birdY += this.birdVY * baseDt;
+      this.birdVY += this.cfg.gravity * dir * dt;
+      this.birdY += this.birdVY * dt;
     }
 
     // World displacement this step (world px). `dt` already folds in slow-time,
     // so pipes and every other entity share the exact same scaled motion.
-    const speed = this.currentScrollSpeed();
-    const dx = speed * dt;
+    const dx = this.currentScrollSpeed() * dt;
     for (const p of this.pipes) p.x -= dx;
     this.advanceEntities(dx);
 
@@ -184,35 +240,45 @@ export class ArcadeSim {
     for (const p of this.pipes) {
       if (!p.passed && p.x + this.cfg.pipeWidth < this.cfg.birdX) {
         p.passed = true;
+        this.pipesCleared++;
         this.onPipePassed(p);
       }
     }
 
+    if (this.magnetRemaining > 0) this.applyMagnet(baseDt);
     this.collectCoins();
     this.collectPowerUps();
 
-    if (this.slowTimeRemaining > 0) {
-      this.slowTimeRemaining = Math.max(0, this.slowTimeRemaining - baseDt);
-    }
+    this.decayTimers(baseDt);
     this.tickFloats(baseDt);
 
     this.checkCollisions();
     this.tick++;
   }
 
+  private decayTimers(dt: number): void {
+    this.slowTimeRemaining = Math.max(0, this.slowTimeRemaining - dt);
+    this.magnetRemaining = Math.max(0, this.magnetRemaining - dt);
+    this.miniRemaining = Math.max(0, this.miniRemaining - dt);
+    this.gravityFlipRemaining = Math.max(0, this.gravityFlipRemaining - dt);
+    this.rocketRemaining = Math.max(0, this.rocketRemaining - dt);
+    this.invulnRemaining = Math.max(0, this.invulnRemaining - dt);
+  }
+
   private currentScrollSpeed(): number {
-    const level = Math.floor(this.score / this.cfg.difficultyStep);
+    const level = Math.floor(this.pipesCleared / this.cfg.difficultyStep);
     return this.cfg.scrollSpeed * Math.pow(this.cfg.speedScale, level);
   }
 
   private currentGapH(): number {
-    const level = Math.floor(this.score / this.cfg.difficultyStep);
+    const level = Math.floor(this.pipesCleared / this.cfg.difficultyStep);
     return Math.max(this.cfg.pipeGapMin, this.cfg.pipeGapBase - level * this.cfg.gapShrinkPerStep);
   }
 
   /** Move every non-pipe entity left by `dx` world px (already time-scaled). */
   private advanceEntities(dx: number): void {
-    // Saw bob/spin advance is tied to dx so slow-time also slows their motion.
+    // Per-step "motion" is 1 at base speed/no-slow, so saw bob/spin scale with
+    // both difficulty speed-up and slow-time.
     const motion = dx / (this.cfg.scrollSpeed / this.cfg.tickHz);
     for (const c of this.coins) c.x -= dx;
     for (const pu of this.powerUps) pu.x -= dx;
@@ -222,12 +288,12 @@ export class ArcadeSim {
       s.y = s.baseY + Math.sin(s.phase) * this.cfg.sawBobAmplitude;
       s.spin += 0.35 * motion;
     }
-    // Cull off-screen entities.
     this.coins = this.coins.filter((c) => c.x + this.cfg.coinRadius > 0);
     this.powerUps = this.powerUps.filter((p) => p.x + this.cfg.powerUpRadius > 0);
     this.saws = this.saws.filter((s) => s.x + this.cfg.sawRadius > 0);
 
-    // Spawn a steady trickle of coins across the world, biased into open sky.
+    // Steady coin trickle, biased onto the flight path (around the last gap)
+    // so coins are actually reachable rather than buried inside pipe bodies.
     while (this.nextCoinX < this.cfg.worldWidth) {
       this.spawnCoin(this.cfg.worldWidth + this.cfg.coinRadius);
       this.nextCoinX = this.cfg.worldWidth + this.cfg.coinSpacing;
@@ -268,15 +334,24 @@ export class ArcadeSim {
       this.spawnSaw(x + this.cfg.pipeSpacing / 2, gapCenter);
     }
     if (this.rng.nextInt(0, this.cfg.powerUpRarity) === 0) {
-      const kind: PowerUpKind = this.rng.next() < 0.5 ? "shield" : "slow-time";
       this.powerUps.push({
         id: this.nextEntityId++,
         x: x + this.cfg.pipeWidth / 2,
         y: gapCenter,
-        kind,
+        kind: this.pickPowerUp(),
         collected: false,
       });
     }
+  }
+
+  private pickPowerUp(): PowerUpKind {
+    const total = POWERUP_WEIGHTS.reduce((s, [, w]) => s + w, 0);
+    let roll = this.rng.nextFloat(0, total);
+    for (const [kind, w] of POWERUP_WEIGHTS) {
+      roll -= w;
+      if (roll < 0) return kind;
+    }
+    return "shield";
   }
 
   private spawnSaw(x: number, gapCenter: number): void {
@@ -292,20 +367,20 @@ export class ArcadeSim {
 
   private spawnCoin(x: number): void {
     const margin = this.cfg.pipeMargin;
-    const y = this.rng.nextFloat(margin, this.cfg.worldHeight - margin);
+    const spread = this.rng.nextFloat(-this.cfg.coinSpread, this.cfg.coinSpread);
+    const y = Math.max(margin, Math.min(this.cfg.worldHeight - margin, this.lastGapCenter + spread));
     this.coins.push({ id: this.nextEntityId++, x, y, collected: false });
   }
 
   private onPipePassed(p: ArcadePipe): void {
-    // Base point for the pass.
     let gained = 1;
     const edgeDist = Math.min(
       Math.abs(this.birdY - p.gapY),
       Math.abs(p.gapY + p.gapH - this.birdY),
     );
     if (edgeDist <= this.cfg.perfectPassWindow) {
-      // Threaded the needle — bump combo + multiplier, award bonus.
       this.combo++;
+      this.bestCombo = Math.max(this.bestCombo, this.combo);
       this.multiplier = Math.min(this.cfg.maxMultiplier, 1 + Math.floor(this.combo / 2));
       gained += 1;
       this.spawnFloat(this.cfg.birdX, this.birdY - 26, `PERFECT x${this.multiplier}`, "#ffe082");
@@ -317,11 +392,26 @@ export class ArcadeSim {
     this.score += gained * this.multiplier;
   }
 
+  private applyMagnet(dt: number): void {
+    const range2 = this.cfg.magnetRange * this.cfg.magnetRange;
+    const pull = this.cfg.magnetPull * dt;
+    for (const c of this.coins) {
+      const dx = this.cfg.birdX - c.x;
+      const dy = this.birdY - c.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 > range2 || d2 < 1) continue;
+      const d = Math.sqrt(d2);
+      c.x += (dx / d) * pull;
+      c.y += (dy / d) * pull;
+    }
+  }
+
   private collectCoins(): void {
-    const r = this.cfg.birdRadius + this.cfg.coinRadius;
+    const r = this.effectiveRadius() + this.cfg.coinRadius;
+    const r2 = r * r;
     for (const c of this.coins) {
       if (c.collected) continue;
-      if (this.dist2(this.cfg.birdX, this.birdY, c.x, c.y) <= r * r) {
+      if (this.dist2(this.cfg.birdX, this.birdY, c.x, c.y) <= r2) {
         c.collected = true;
         this.coinBalance++;
         this.score += this.cfg.coinScore * this.multiplier;
@@ -332,10 +422,11 @@ export class ArcadeSim {
   }
 
   private collectPowerUps(): void {
-    const r = this.cfg.birdRadius + this.cfg.powerUpRadius;
+    const r = this.effectiveRadius() + this.cfg.powerUpRadius;
+    const r2 = r * r;
     for (const pu of this.powerUps) {
       if (pu.collected) continue;
-      if (this.dist2(this.cfg.birdX, this.birdY, pu.x, pu.y) <= r * r) {
+      if (this.dist2(this.cfg.birdX, this.birdY, pu.x, pu.y) <= r2) {
         pu.collected = true;
         this.applyPowerUp(pu.kind);
       }
@@ -344,31 +435,68 @@ export class ArcadeSim {
   }
 
   private applyPowerUp(kind: PowerUpKind): void {
-    if (kind === "shield") {
-      this.hasShield = true;
-      this.spawnFloat(this.cfg.birdX, this.birdY - 26, "SHIELD", "#4fc3f7");
-    } else {
-      this.slowTimeRemaining = this.cfg.slowTimeDuration;
-      this.spawnFloat(this.cfg.birdX, this.birdY - 26, "SLOW-MO", "#b39ddb");
+    const x = this.cfg.birdX;
+    const y = this.birdY - 26;
+    switch (kind) {
+      case "shield":
+        this.hasShield = true;
+        this.spawnFloat(x, y, "SHIELD", "#4fc3f7");
+        break;
+      case "second-life":
+        this.hasSecondLife = true;
+        this.spawnFloat(x, y, "1-UP", "#69f0ae");
+        break;
+      case "slow-time":
+        this.slowTimeRemaining = this.cfg.slowTimeDuration;
+        this.spawnFloat(x, y, "SLOW-MO", "#b39ddb");
+        break;
+      case "magnet":
+        this.magnetRemaining = this.cfg.magnetDuration;
+        this.spawnFloat(x, y, "MAGNET", "#ff8a65");
+        break;
+      case "mini":
+        this.miniRemaining = this.cfg.miniDuration;
+        this.spawnFloat(x, y, "MINI", "#81d4fa");
+        break;
+      case "gravity-flip":
+        this.gravityFlipRemaining = this.cfg.gravityFlipDuration;
+        this.spawnFloat(x, y, "FLIP!", "#f48fb1");
+        break;
+      case "rocket":
+        this.rocketRemaining = this.cfg.rocketDuration;
+        this.birdVY = Math.min(this.birdVY, 0);
+        this.spawnFloat(x, y, "ROCKET", "#ffd54f");
+        break;
     }
   }
 
   private checkCollisions(): void {
-    const r = this.cfg.birdRadius;
-    // World bounds.
-    if (this.birdY - r < 0 || this.birdY + r > this.cfg.worldHeight) {
-      if (!this.consumeShield()) {
-        this.kill();
-        return;
-      }
-      // Bounce back into bounds so the shield save reads cleanly.
-      this.birdY = Math.max(r, Math.min(this.cfg.worldHeight - r, this.birdY));
-      this.birdVY = 0;
-    }
-
+    const r = this.effectiveRadius();
     const bx = this.cfg.birdX;
     const by = this.birdY;
 
+    // During post-revive grace, clamp inside the world but ignore hazards.
+    if (this.invulnRemaining > 0) {
+      if (by - r < 0) {
+        this.birdY = r;
+        if (this.birdVY < 0) this.birdVY = 0;
+      } else if (by + r > this.cfg.worldHeight) {
+        this.birdY = this.cfg.worldHeight - r;
+        if (this.birdVY > 0) this.birdVY = 0;
+      }
+      return;
+    }
+
+    // World bounds.
+    if (by - r < 0 || by + r > this.cfg.worldHeight) {
+      if (this.resolveHit()) {
+        this.birdY = Math.max(r, Math.min(this.cfg.worldHeight - r, this.birdY));
+        this.birdVY = 0;
+      }
+      return;
+    }
+
+    // Pipes.
     for (const p of this.pipes) {
       if (p.x + this.cfg.pipeWidth < bx - r) continue;
       if (p.x > bx + r) break;
@@ -376,39 +504,56 @@ export class ArcadeSim {
       const bottomY = p.gapY + p.gapH;
       const bottom = this.circleRect(bx, by, r, p.x, bottomY, this.cfg.pipeWidth, this.cfg.worldHeight - bottomY);
       if (top || bottom) {
-        if (!this.consumeShield()) {
-          this.kill();
-          return;
+        if (this.resolveHit()) {
+          this.birdY = p.gapY + p.gapH / 2;
+          this.birdVY = 0;
         }
-        // Nudge the bird to the gap center so it survives the frame.
-        this.birdY = p.gapY + p.gapH / 2;
-        this.birdVY = 0;
         return;
       }
     }
 
+    // Saws.
     for (const s of this.saws) {
       const rr = r + this.cfg.sawRadius;
       if (this.dist2(bx, by, s.x, s.y) <= rr * rr) {
-        if (!this.consumeShield()) {
-          this.kill();
-          return;
+        if (this.resolveHit()) {
+          // Pop the saw so the save doesn't instantly re-collide.
+          this.saws = this.saws.filter((o) => o.id !== s.id);
         }
-        // Shield pops the saw so we don't instantly re-collide.
-        this.saws = this.saws.filter((o) => o.id !== s.id);
         return;
       }
     }
   }
 
-  /** Spend the shield if held; returns true if a hit was absorbed. */
-  private consumeShield(): boolean {
-    if (!this.hasShield) return false;
-    this.hasShield = false;
+  /**
+   * Resolve a lethal collision. Returns true if the bird SURVIVED (caller then
+   * repositions it to safety), false if it died. Priority: shield → second-life
+   * → death. Either save resets the combo.
+   */
+  private resolveHit(): boolean {
+    if (this.hasShield) {
+      this.hasShield = false;
+      this.resetCombo();
+      this.spawnFloat(this.cfg.birdX, this.birdY - 26, "BLOCKED!", "#4fc3f7");
+      return true;
+    }
+    if (this.hasSecondLife) {
+      this.hasSecondLife = false;
+      this.resetCombo();
+      this.birdY = this.cfg.worldHeight / 2;
+      this.birdVY = 0;
+      this.invulnRemaining = this.cfg.reviveInvuln;
+      this.gravityFlipRemaining = 0;
+      this.spawnFloat(this.cfg.birdX, this.birdY - 26, "REVIVE!", "#69f0ae");
+      return true;
+    }
+    this.kill();
+    return false;
+  }
+
+  private resetCombo(): void {
     this.combo = 0;
     this.multiplier = 1;
-    this.spawnFloat(this.cfg.birdX, this.birdY - 26, "BLOCKED!", "#4fc3f7");
-    return true;
   }
 
   private spawnFloat(x: number, y: number, text: string, color: string): void {

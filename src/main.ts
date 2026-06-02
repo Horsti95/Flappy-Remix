@@ -107,7 +107,6 @@ let loop: GameLoop | null = null;
 // scored path is never touched. Active only while `arcadeLoop` is non-null.
 let arcadeLoop: ArcadeLoop | null = null;
 let arcadeRenderer: ArcadeRenderer | null = null;
-let arcadeBestCombo = 0;
 let currentSeed = 0;
 let currentRunMode: RunMode = "casual";
 let equippedSkin: SkinRow | null = null;
@@ -282,22 +281,22 @@ subscribeAuth(async () => {
   // Don't tear down an open panel (account, gallery, leaderboard, …)
   // when supabase fires an auth refresh — that was wiping the gallery
   // mid-browse.
-  if (mode === "menu" && !panelOpen) showMenu();
+  if (mode === "menu" && !panelOpen && !arcadeLoop) showMenu();
 });
 
 async function refreshInboxBadge(): Promise<void> {
   const n = await fetchUnseenChallengeCount();
   if (n === inboxUnseen) return;
   inboxUnseen = n;
-  if (mode === "menu" && !panelOpen) showMenu();
+  if (mode === "menu" && !panelOpen && !arcadeLoop) showMenu();
 }
 
 if (typeof window !== "undefined") {
   window.addEventListener("online", () => {
-    if (mode === "menu" && !panelOpen) showMenu();
+    if (mode === "menu" && !panelOpen && !arcadeLoop) showMenu();
   });
   window.addEventListener("offline", () => {
-    if (mode === "menu" && !panelOpen) showMenu();
+    if (mode === "menu" && !panelOpen && !arcadeLoop) showMenu();
   });
   window.addEventListener("popstate", () => {
     if (mode !== "menu" || overlays.children.length > 0) {
@@ -371,7 +370,7 @@ async function refreshDaily(): Promise<void> {
   // not while a panel (gallery, friends, account, …) is open on top
   // of it. The 60s daily-refresh interval was calling showMenu() and
   // wiping whatever panel the player was browsing.
-  if (mode === "menu" && !panelOpen) showMenu();
+  if (mode === "menu" && !panelOpen && !arcadeLoop) showMenu();
 }
 
 async function loadEquippedSkin(): Promise<void> {
@@ -672,7 +671,6 @@ function startArcade(): void {
   loop?.stop();
   loop = null;
   clearParticles();
-  arcadeBestCombo = 0;
   setBannerVisible(true);
   pauseBtn.classList.remove("hidden");
 
@@ -696,14 +694,13 @@ function startArcade(): void {
   arcadeLoop?.stop();
   arcadeLoop = new ArcadeLoop(Date.now() >>> 0, ARCADE_CONFIG, {
     render: (sim, alpha) => {
-      arcadeBestCombo = Math.max(arcadeBestCombo, sim.combo);
       arcadeRenderer?.draw(sim, alpha);
     },
     onDeath: (sim) => {
       pauseBtn.classList.add("hidden");
       renderArcadeGameOver(
         overlays,
-        { score: sim.score, coins: sim.coinBalance, bestCombo: arcadeBestCombo },
+        { score: sim.score, coins: sim.coinBalance, bestCombo: sim.bestCombo },
         { onPlayAgain: () => startArcade(), onExit: () => showMenu() },
       );
     },

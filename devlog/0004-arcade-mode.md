@@ -19,18 +19,35 @@ in `src/game/arcade/`:
 - **`ArcadeRenderer`** — standalone draw layers for the arcade-only entities,
   reusing the shared sky/theme + shape drawing for a familiar look.
 
-Mechanics in v1:
+Mechanics:
 
-- **Coins** — spawn across the world (often in risky spots); a coin balance,
-  and each pickup feeds the score (times the current multiplier).
-- **Power-ups** — **shield** (absorbs one otherwise-fatal hit) and **slow-time**
-  (the world crawls for a few seconds while the bird stays crisp).
+- **Coins** — trickle in along the flight path (around the gap centre, so
+  they're reachable, with spread into riskier spots); a coin balance, and each
+  pickup feeds the score (× the current multiplier).
+- **Power-ups** (7) — **shield** (absorbs one fatal hit), **second-life**
+  (revives once on death with brief invulnerability), **slow-time** (true
+  bullet-time), **magnet** (pulls nearby coins in), **mini** (shrinks the
+  hitbox), **gravity-flip** (inverts gravity + flap), **rocket** (timed climb).
 - **Saws** — spinning, vertically-bobbing hazards that ride in with pipes.
 - **Combo / multiplier** — threading a pipe gap edge counts as a *PERFECT pass*:
   combo climbs, multiplier rises (capped), bonus points. Taking a hit (even a
-  shielded one) resets the combo.
-- **Juice** — floating `+score` / `PERFECT` / `BLOCKED!` labels, a slow-time
-  sky wash, a shield ring around the bird.
+  saved one) resets the combo.
+- **Juice** — floating labels (`+score` / `PERFECT` / `BLOCKED!` / `REVIVE!`),
+  per-effect sky washes, magnet aura, shield/1-up ring, rocket flame, invuln
+  blink, and a live effects HUD with countdowns.
+
+## Smarter-model review pass (fixes folded into v1)
+
+A second self-review caught three real bugs, all fixed + regression-tested:
+
+1. **Difficulty ramped off `score`** — but Arcade inflates score with
+   coins/combos, so speed exploded within seconds. Now keyed off a separate
+   `pipesCleared` counter (distance), like the core game.
+2. **Slow-time slowed the world but not the bird** — making it *harder*
+   vertically, the opposite of the intent. Now it's true bullet-time: world
+   *and* bird scale together (flap impulses still land instantly).
+3. **Coins spawned uniformly across full height** — often buried unreachable
+   inside pipe bodies. Now biased onto the flight path with spread.
 
 ## Guardrails
 
@@ -49,9 +66,8 @@ Mechanics in v1:
 
 ## Phases 2+ (planned)
 
-- More power-ups: gravity flip, mini/giant size, coin magnet, second life,
-  pipe-breaker, rocket boost.
-- More hazards: moving/rotating gates, bonus gates harder than normal.
+- Remaining power-ups: giant size, pipe-breaker.
+- More hazards: moving/rotating gates, lasers, bonus gates harder than normal.
 - Tap-and-hold-to-fall-slower (Arcade-only input variant).
 - Coin economy: spend coins on in-run perks or cosmetics.
 - A local-only Arcade high-score (never server-validated).

@@ -43,6 +43,22 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     check: (s) => s.totalGames >= 1,
   },
   {
+    id: "back_for_more",
+    name: "back for more",
+    blurb: "play your 2nd game",
+    category: "score",
+    reward: { type: "color", body: [255, 209, 102], accent: [90, 60, 10] },
+    check: (s) => s.totalGames >= 2,
+  },
+  {
+    id: "hooked",
+    name: "hooked",
+    blurb: "play your 3rd game — you've got the hang of it!",
+    category: "score",
+    reward: { type: "color", body: [6, 214, 160], accent: [10, 60, 50] },
+    check: (s) => s.totalGames >= 3,
+  },
+  {
     id: "bronze_pilot",
     name: "bronze pilot",
     blurb: "score 50+ in a single run",

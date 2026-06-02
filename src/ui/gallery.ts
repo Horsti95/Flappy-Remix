@@ -25,10 +25,13 @@ import { evaluateCriteria, isEventActive, type CriterionDef } from "../game/unlo
 import { PILLAR_STYLES, getEquippedPillarLocal, setEquippedPillarLocal, type PillarStyle } from "../game/pillars";
 import {
   FLAP_FX_OPTIONS,
+  FX_COLORS,
   flapFxUnlock,
   getActiveFlapFx,
+  getFlapFxColor,
   isFxLabMode,
   setActiveFlapFx,
+  setFlapFxColor,
   spawnFlapFx,
   type FlapFxId,
 } from "../game/flap-fx";
@@ -84,7 +87,7 @@ export function renderGallery(
       <button data-tab="skins" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">colors</button>
       <button data-tab="backgrounds" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">backgrounds</button>
       <button data-tab="effects" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">effects</button>
-      <button data-tab="quests" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">quests</button>
+      <button data-tab="quests" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">goals</button>
       <button data-tab="pillars" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">pillars</button>
       <button data-tab="badges" class="rounded-full px-3 py-1 bg-white/5 opacity-60 whitespace-nowrap">badges</button>
     </div>
@@ -224,29 +227,68 @@ export function renderGallery(
       }));
     }
     body.appendChild(fxList);
+
+    // FX colour picker — tints whichever effect is active. Hidden when "off".
+    if (activeFx !== "off") {
+      const colHeader = document.createElement("div");
+      colHeader.className = "px-3 mt-4 mb-2 text-[10px] uppercase tracking-wider opacity-60 font-bold";
+      colHeader.textContent = "effect colour";
+      body.appendChild(colHeader);
+      const colDesc = document.createElement("div");
+      colDesc.className = "px-2 mb-2 text-[10px] opacity-60";
+      colDesc.textContent = "tint your flap effect — pick a swatch or keep the default.";
+      body.appendChild(colDesc);
+      const swatches = document.createElement("div");
+      swatches.className = "flex flex-wrap gap-2 px-2";
+      const activeColor = getFlapFxColor();
+      for (const c of FX_COLORS) {
+        const sw = document.createElement("button");
+        const isActive = c.id === activeColor;
+        sw.className =
+          "h-7 w-7 rounded-full border transition " +
+          (isActive ? "border-white ring-2 ring-white/60 scale-110" : "border-white/20 hover:border-white/50");
+        sw.style.background =
+          c.id === "default"
+            ? "linear-gradient(135deg, #888 0 50%, #ddd 50% 100%)"
+            : `rgb(${c.rgb[0]},${c.rgb[1]},${c.rgb[2]})`;
+        sw.title = c.name;
+        sw.setAttribute("aria-label", c.name);
+        sw.addEventListener("click", () => {
+          setFlapFxColor(c.id);
+          renderEffects();
+        });
+        swatches.appendChild(sw);
+      }
+      body.appendChild(swatches);
+    }
   }
 
   function renderQuestsTab(): void {
     const body = wrap.querySelector("[data-body]") as HTMLDivElement;
-    body.innerHTML = `<div class="text-[11px] opacity-70 px-2 mb-3">multi-step chains that unlock content as you play.</div><div data-quests-body class="space-y-3 px-2"></div>`;
+    body.innerHTML = `<div data-quests-body class="space-y-3 px-2 pb-2"></div>`;
     const questsBody = body.querySelector("[data-quests-body]") as HTMLDivElement;
-    const views = getChainViews();
-    for (const v of views) questsBody.appendChild(chainCard(v.chain, v.activeIndex, v.complete));
 
-    // Goals catalog — the wider set of unlock criteria (rewards still TBA in
-    // dev). Shows what's earnable and how, with secret ones hidden until done.
+    // Goals catalog leads — the single, unified place for things to chase.
     const achStats = loadAchievementStats();
     const results = evaluateCriteria(achStats);
     const got = results.filter((r) => r.unlocked).length;
     questsBody.appendChild(headerLabel(`goals — ${got} / ${results.length}`));
     const intro = document.createElement("div");
     intro.className = "text-[10px] opacity-60 px-2 mb-2";
-    intro.textContent = "challenges to chase. rewards are still in the works (TBA) — the goal is live.";
+    intro.textContent = "challenges to chase — finish them to unlock shapes, colors, worlds & more.";
     questsBody.appendChild(intro);
     const grid = document.createElement("div");
     grid.className = "grid grid-cols-1 gap-2";
     for (const { def, unlocked } of results) grid.appendChild(criterionCard(def, unlocked));
     questsBody.appendChild(grid);
+
+    // The legacy guided chains live below as "starter paths" — they still
+    // grant their rewards (handled in main.ts), kept as a gentle intro.
+    const views = getChainViews();
+    if (views.length > 0) {
+      questsBody.appendChild(headerLabel("starter paths"));
+      for (const v of views) questsBody.appendChild(chainCard(v.chain, v.activeIndex, v.complete));
+    }
   }
 
   function renderBackgrounds(): void {

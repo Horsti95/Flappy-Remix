@@ -91,14 +91,26 @@ export function shapeSvgInner(
               <polygon points="-3,-6 -1,-11 3,-11 4,-6" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
               <line x1="0.5" y1="-11" x2="0.5" y2="-15" stroke="#1a1a1a" stroke-width="0.8"/><line x1="0.5" y1="-15" x2="4" y2="-15" stroke="#1a1a1a" stroke-width="0.8"/>
               <circle cx="5" cy="0" r="2.2" fill="#1a1a1a"/>`;
-    case "soccer-ball":
-      return `<circle cx="0" cy="0" r="14" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
-              <polygon points="0,-5.88 5.59,-1.82 3.46,4.76 -3.46,4.76 -5.59,-1.82" fill="${a}" stroke="#1a1a1a" stroke-width="0.7"/>
-              <line x1="0" y1="-5.88" x2="0" y2="-14" stroke="#1a1a1a" stroke-width="0.7"/>
-              <line x1="5.59" y1="-1.82" x2="13.31" y2="-4.33" stroke="#1a1a1a" stroke-width="0.7"/>
-              <line x1="3.46" y1="4.76" x2="8.23" y2="11.33" stroke="#1a1a1a" stroke-width="0.7"/>
-              <line x1="-3.46" y1="4.76" x2="-8.23" y2="11.33" stroke="#1a1a1a" stroke-width="0.7"/>
-              <line x1="-5.59" y1="-1.82" x2="-13.31" y2="-4.33" stroke="#1a1a1a" stroke-width="0.7"/>`;
+    case "soccer-ball": {
+      const R = 14;
+      let patches = "";
+      for (let k = 0; k < 5; k++) {
+        const ak = -Math.PI / 2 + (k * 2 * Math.PI) / 5;
+        const cx = Math.cos(ak) * R * 0.64;
+        const cy = Math.sin(ak) * R * 0.64;
+        const pts: string[] = [];
+        for (let j = 0; j < 5; j++) {
+          const ang = ak + (j * 2 * Math.PI) / 5;
+          pts.push(`${(cx + R * 0.34 * Math.cos(ang)).toFixed(1)},${(cy + R * 0.34 * Math.sin(ang)).toFixed(1)}`);
+        }
+        patches += `<polygon points="${pts.join(" ")}" fill="${a}" stroke="#1a1a1a" stroke-width="0.5"/>`;
+      }
+      return `<circle cx="0" cy="0" r="${R}" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+              ${patches}
+              <circle cx="${(-R * 0.15).toFixed(1)}" cy="${(-R * 0.06).toFixed(1)}" r="${(R * 0.085).toFixed(1)}" fill="#1a1a1a"/>
+              <circle cx="${(R * 0.15).toFixed(1)}" cy="${(-R * 0.06).toFixed(1)}" r="${(R * 0.085).toFixed(1)}" fill="#1a1a1a"/>
+              <path d="M ${(-R * 0.22).toFixed(1)},${(R * 0.1).toFixed(1)} Q 0,${(R * 0.42).toFixed(1)} ${(R * 0.22).toFixed(1)},${(R * 0.1).toFixed(1)}" fill="none" stroke="#1a1a1a" stroke-width="1" stroke-linecap="round"/>`;
+    }
     case "pretzel":
       return `<g fill="none" stroke="${b}" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M -3,-8 C -19,-17 -22,3 -7,8 C -2,10 2,10 7,8 C 22,3 19,-17 3,-8"/>

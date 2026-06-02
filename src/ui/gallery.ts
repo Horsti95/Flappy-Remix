@@ -1,5 +1,6 @@
 import { listOwnedSkins, type SkinRow } from "../social/skins";
 import { unlockProgress } from "../game/unlockables";
+import { tierForUnlock, tierRank, TIER_COLOR, TIER_LABEL, type Tier } from "../game/tiers";
 import { RARITY_COLOR, rarityRank } from "../game/rarity";
 import { SHAPES, type ShapeId, type ShapeMeta } from "../game/shapes";
 import { soccerBallSvg } from "./shape-svg";
@@ -83,10 +84,37 @@ export function renderGallery(
       <button data-close class="text-sm underline opacity-70">close</button>
     </div>
     <div class="px-5 pb-2 text-[11px] opacity-60">collection ${collection.unlocked} / ${collection.total} unlocked</div>
+    <div data-next class="px-5 pb-2"></div>
     <div data-nav class="px-5 space-y-1.5"></div>
     <div data-body class="mt-3 px-3 flex-1 overflow-y-auto pb-28"></div>
   `;
   host.appendChild(wrap);
+
+  // "What's next" — the 3 nearest locked cosmetics (easiest tier first), so the
+  // gallery points you at an attainable goal instead of a wall of locks.
+  (() => {
+    const aStats = loadAchievementStats();
+    const granted = new Set(getGrantedShapesLocal());
+    const next: { name: string; hint: string; tier: Tier }[] = [];
+    const add = (name: string, u: { unlocked: boolean; hint?: string | null }, unlock: (s: never) => { unlocked: boolean }, already = false): void => {
+      if (!already && !u.unlocked && u.hint) next.push({ name, hint: u.hint, tier: tierForUnlock(unlock) });
+    };
+    for (const sh of SHAPES) add(sh.name, sh.unlock(aStats), sh.unlock, granted.has(sh.id));
+    for (const t of THEMES) add(t.name, t.unlock(aStats), t.unlock);
+    for (const p of PILLAR_STYLES) add(p.name, p.unlock(aStats), p.unlock);
+    next.sort((a, b) => tierRank(a.tier) - tierRank(b.tier));
+    const top = next.slice(0, 3);
+    const el = wrap.querySelector("[data-next]") as HTMLDivElement;
+    if (top.length === 0) { el.remove(); return; }
+    el.innerHTML =
+      `<div class="text-[10px] uppercase tracking-wider opacity-50 mb-1">what's next</div>` +
+      top
+        .map(
+          (n) =>
+            `<div class="flex items-center gap-2 text-[11px] py-0.5"><span class="text-[8px] uppercase tracking-wider rounded px-1 py-0.5 font-bold shrink-0" style="background:${TIER_COLOR[n.tier]}22;color:${TIER_COLOR[n.tier]}">${n.tier}</span><span class="font-bold shrink-0">${escapeHtml(n.name)}</span><span class="opacity-50 truncate">— ${escapeHtml(n.hint)}</span></div>`,
+        )
+        .join("");
+  })();
 
   type Tab = "shapes" | "skins" | "backgrounds" | "effects" | "quests" | "badges" | "pillars";
   // Collapsible accordion: three big groups, each expands on click to reveal
@@ -219,14 +247,15 @@ export function renderGallery(
     const grid = body.querySelector("[data-pillar-grid]") as HTMLDivElement;
     const stats = loadAchievementStats();
     const equippedPillar = getEquippedPillarLocal();
-    for (const style of PILLAR_STYLES) {
+    const sorted = byTier(PILLAR_STYLES, (p) => p.unlock(stats).unlocked, (p) => tierForUnlock(p.unlock));
+    for (const style of sorted) {
       const st = style.unlock(stats);
       grid.appendChild(
         pillarCard(style, equippedPillar === style.id, st.unlocked, st.hint, () => {
           if (!st.unlocked) return;
           setEquippedPillarLocal(style.id);
           renderPillars();
-        }),
+        }, tierForUnlock(style.unlock)),
       );
     }
   }
@@ -373,14 +402,16 @@ export function renderGallery(
     const body = wrap.querySelector("[data-body]") as HTMLDivElement;
     body.innerHTML = `<div class="grid grid-cols-2 gap-4 px-2 pt-1"></div>`;
     const grid = body.firstElementChild as HTMLDivElement;
-    for (const theme of THEMES) {
+    const themeUnlocked = (t: Theme): boolean => isThemesLabMode() || t.unlock(stats).unlocked;
+    const sorted = byTier(THEMES, themeUnlocked, (t) => tierForUnlock(t.unlock));
+    for (const theme of sorted) {
       grid.appendChild(
         themeCard(theme, currentEquipped.themeId === theme.id, stats, () => {
-          if (!isThemesLabMode() && !theme.unlock(stats).unlocked) return;
+          if (!themeUnlocked(theme)) return;
           currentEquipped.themeId = theme.id;
           cbs.onEquipTheme(theme.id);
           renderBackgrounds();
-        }),
+        }, tierForUnlock(theme.unlock)),
       );
     }
   }
@@ -390,15 +421,17 @@ export function renderGallery(
     body.innerHTML = `<div class="grid grid-cols-2 gap-4 px-2 pt-1"></div>`;
     const grid = body.firstElementChild as HTMLDivElement;
     const granted = new Set(getGrantedShapesLocal());
-    for (const shape of SHAPES) {
-      const unlocked = granted.has(shape.id) || shape.unlock(stats).unlocked;
+    const isUnlocked = (sh: ShapeMeta): boolean => granted.has(sh.id) || sh.unlock(stats).unlocked;
+    const sorted = byTier(SHAPES, isUnlocked, (sh) => tierForUnlock(sh.unlock));
+    for (const shape of sorted) {
+      const unlocked = isUnlocked(shape);
       grid.appendChild(
         shapeCard(shape, currentEquipped.shapeId === shape.id, stats, () => {
           if (!unlocked) return;
           currentEquipped.shapeId = shape.id;
           cbs.onEquipShape(shape.id);
           renderShapes();
-        }, unlocked),
+        }, unlocked, tierForUnlock(shape.unlock)),
       );
     }
   }
@@ -492,12 +525,28 @@ export function renderGallery(
   };
 }
 
+/** A small tier badge (top-left of a card). */
+function tierChip(tier: Tier): string {
+  return `<div class="absolute top-1 left-1 text-[8px] uppercase tracking-wider rounded px-1 py-0.5 font-bold" style="background:${TIER_COLOR[tier]}22;color:${TIER_COLOR[tier]}">${TIER_LABEL[tier]}</div>`;
+}
+
+/** Sort a list unlocked-first, then easiest tier first. Stable on ties. */
+function byTier<T>(items: T[], unlockedOf: (t: T) => boolean, tierOf: (t: T) => Tier): T[] {
+  return items
+    .map((item, i) => ({ item, i, unlocked: unlockedOf(item), tier: tierOf(item) }))
+    .sort((a, b) =>
+      a.unlocked !== b.unlocked ? (a.unlocked ? -1 : 1) : tierRank(a.tier) - tierRank(b.tier) || a.i - b.i,
+    )
+    .map((x) => x.item);
+}
+
 function shapeCard(
   shape: ShapeMeta,
   equipped: boolean,
   stats: GalleryStats,
   onTap: () => void,
   unlockedOverride?: boolean,
+  tier?: Tier,
 ): HTMLElement {
   const state = shape.unlock(stats);
   const unlocked = unlockedOverride ?? state.unlocked;
@@ -514,6 +563,7 @@ function shapeCard(
     <div class="opacity-60 text-[10px] text-center leading-tight">${
       unlocked ? shape.blurb : (state.hint ?? "locked")
     }</div>
+    ${tier ? tierChip(tier) : ""}
     ${
       equipped
         ? `<div class="absolute top-1 right-1 text-[9px] bg-paper text-ink rounded-full px-1.5 py-0.5">equipped</div>`
@@ -751,7 +801,7 @@ function headerLabel(text: string): HTMLElement {
   return el;
 }
 
-function themeCard(theme: Theme, equipped: boolean, stats: GalleryStats, onTap: () => void): HTMLElement {
+function themeCard(theme: Theme, equipped: boolean, stats: GalleryStats, onTap: () => void, tier?: Tier): HTMLElement {
   const realState = theme.unlock(stats);
   const state = isThemesLabMode() ? { unlocked: true, hint: realState.hint } : realState;
   const el = document.createElement("button");
@@ -772,6 +822,7 @@ function themeCard(theme: Theme, equipped: boolean, stats: GalleryStats, onTap: 
     </div>
     <div class="font-bold flex items-center gap-1">${escapeHtml(theme.name)}${hasZones(theme.id) || theme.backgroundStages ? `<span class="text-[8px] uppercase tracking-wider rounded px-1 py-0.5" style="background:#a855f733;color:#c79bff">interactive</span>` : ""}</div>
     <div class="opacity-60 text-[10px] text-center leading-tight">${state.unlocked ? escapeHtml(theme.blurb) : escapeHtml(state.hint ?? "locked")}</div>
+    ${tier ? tierChip(tier) : ""}
     ${
       equipped
         ? `<div class="absolute top-1 right-1 text-[9px] bg-paper text-ink rounded-full px-1.5 py-0.5">equipped</div>`
@@ -1099,6 +1150,7 @@ function pillarCard(
   unlocked: boolean,
   hint: string | undefined,
   onTap: () => void,
+  tier?: Tier,
 ): HTMLElement {
   const el = document.createElement("button");
   el.dataset.noFlap = "true";
@@ -1141,6 +1193,11 @@ function pillarCard(
     chip.className = "text-[9px] uppercase tracking-wider text-amber-300";
     chip.textContent = "harder daily";
     el.appendChild(chip);
+  }
+  if (tier) {
+    const t = document.createElement("div");
+    t.innerHTML = tierChip(tier);
+    el.appendChild(t.firstElementChild!);
   }
   if (equipped) {
     const eq = document.createElement("div");

@@ -16,6 +16,8 @@ export interface SimConfig {
   speedScale: number;
   gapShrinkPerStep: number;
   difficultyStep: number;
+  /** Seeded +/- variance (px) on each gap's height, for run-to-run variety. */
+  gapJitter: number;
 }
 
 export const DEFAULT_CONFIG: SimConfig = {
@@ -36,4 +38,5 @@ export const DEFAULT_CONFIG: SimConfig = {
   speedScale: 1.04,
   gapShrinkPerStep: 8,
   difficultyStep: 10,
+  gapJitter: 14,
 };

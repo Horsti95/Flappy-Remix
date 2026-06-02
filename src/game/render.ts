@@ -339,7 +339,8 @@ export class Renderer {
       const t = this.options.reducedMotion ? 0 : (performance.now() % 6000) / 6000;
       ctx.save();
       if (this.options.theme === "ocean") {
-        ctx.fillStyle = "rgba(255,255,255,0.22)";
+        // Warm yellow motes — read as shafts of sunlight filtering down.
+        ctx.fillStyle = "rgba(255,224,130,0.28)";
         for (let i = 0; i < 18; i++) {
           const ph = (i * 0.6180339) % 1;
           const x = (ph * W + i * 13) % W;

@@ -243,6 +243,10 @@ function drawKite(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, hi
 }
 
 function drawButterfly(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
+  // The butterfly is drawn top-down/symmetric; tilt it ~40° clockwise so it
+  // reads as flying forward-right rather than facing the camera.
+  ctx.save();
+  ctx.rotate(Math.PI * 0.22); // ~40°
   outline(ctx, highContrast);
   // Antennae
   ctx.strokeStyle = highContrast ? "#ffffff" : "#3a3a3a";
@@ -293,6 +297,7 @@ function drawButterfly(ctx: CanvasRenderingContext2D, r: number, skin: SkinColor
   ctx.ellipse(0, -r * 0.05, r * 0.09, r * 0.62, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
+  ctx.restore();
 }
 
 function drawFlower(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {

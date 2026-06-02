@@ -8,7 +8,7 @@
  * Bump APP_VERSION + prepend an entry when shipping notable changes.
  */
 
-export const APP_VERSION = "0.14.0";
+export const APP_VERSION = "0.15.0";
 
 export interface ChangeEntry {
   version: string;
@@ -19,6 +19,16 @@ export interface ChangeEntry {
 
 // Newest first.
 export const CHANGELOG: ChangeEntry[] = [
+  {
+    version: "0.15.0",
+    date: "2026-06-02",
+    title: "Tiers & what's next",
+    notes: [
+      "Every cosmetic now shows a Bronze / Silver / Gold / Legendary tier.",
+      "The gallery sorts what you can equip to the top, then easiest-to-hardest.",
+      "New “what’s next” strip points you at your 3 nearest unlocks.",
+    ],
+  },
   {
     version: "0.14.0",
     date: "2026-06-02",

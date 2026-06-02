@@ -17,19 +17,20 @@ export function renderLeaderboard(
       <h2 class="text-xl font-bold">leaderboard</h2>
       <button data-close class="text-sm underline opacity-70">close</button>
     </div>
-    <div data-scopes class="px-5 flex gap-2 text-[12px] justify-center">
+    <div data-scopes class="px-5 grid grid-cols-2 gap-2 text-[12px]">
       ${seg("scope", "global", "global", true)}
       ${seg("scope", "friends", "friends", false)}
     </div>
-    <div data-periods class="px-5 mt-2 flex gap-2 text-[12px] overflow-x-auto justify-center">
-      ${seg("period", "daily", "today", false)}
-      ${seg("period", "weekly", "week", true)}
-      ${seg("period", "monthly", "month", false)}
+    <div data-periods class="px-5 mt-2 grid grid-cols-4 gap-2 text-[12px]">
       ${seg("period", "total", "all-time", false)}
+      ${seg("period", "monthly", "month", false)}
+      ${seg("period", "weekly", "week", true)}
+      ${seg("period", "daily", "daily", false)}
     </div>
-    <div data-modes class="px-5 mt-2 flex gap-2 text-[12px] overflow-x-auto justify-center">
-      ${seg("mode", "all", "both", true)}
+    <div data-modes class="px-5 mt-2 grid grid-cols-4 gap-2 text-[12px]">
+      ${seg("mode", "all", "all", true)}
       ${seg("mode", "casual", "casual", false)}
+      ${seg("mode", "ranked", "ranked", false)}
       ${seg("mode", "daily", "daily", false)}
     </div>
     <div data-list class="mt-3 px-3 flex-1 overflow-y-auto pb-6">
@@ -177,7 +178,8 @@ function rankBadge(rank: number): string {
 }
 
 function seg(attr: "scope" | "period" | "mode", id: string, label: string, active: boolean): string {
-  return `<button data-${attr}="${id}" class="rounded-full px-3 py-1 whitespace-nowrap ${
+  // Full-width segmented control: each button stretches to fill its grid cell.
+  return `<button data-${attr}="${id}" class="w-full text-center rounded-full px-2 py-1 whitespace-nowrap ${
     active ? "bg-paper text-ink" : "bg-white/5 text-paper opacity-60"
   }">${label}</button>`;
 }

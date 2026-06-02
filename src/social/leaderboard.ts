@@ -3,7 +3,7 @@ import { getSupabase } from "../lib/supabase";
 // Three independent axes: who (scope) × when (period) × how (mode).
 export type LeaderboardScope = "global" | "friends";
 export type LeaderboardPeriod = "daily" | "weekly" | "monthly" | "total";
-export type LeaderboardMode = "all" | "casual" | "daily";
+export type LeaderboardMode = "all" | "casual" | "ranked" | "daily";
 
 export interface LeaderboardRow {
   run_id: string;

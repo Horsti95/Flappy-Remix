@@ -21,7 +21,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   const profile = await admin
     .from("profiles")
-    .select("username, friend_code, equipped_skin_id")
+    .select("username, equipped_skin_id")
     .eq("user_id", ch.data.creator_id as string)
     .maybeSingle();
 
@@ -52,7 +52,6 @@ export default async function handler(req: Request): Promise<Response> {
     inputs: ch.data.inputs,
     creator_score: ch.data.creator_score,
     creator_username: (profile.data?.username as string | null | undefined) ?? null,
-    creator_friend_code: (profile.data?.friend_code as string | null | undefined) ?? null,
     creator_skin: skin,
     creator_shape: (ch.data.creator_shape as string | null | undefined) ?? null,
     creator_theme: (ch.data.creator_theme as string | null | undefined) ?? null,

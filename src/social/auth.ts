@@ -9,7 +9,6 @@ export interface Profile {
   streak_days: number;
   last_play_at: string | null;
   equipped_skin_id: string | null;
-  friend_code: string | null;
 }
 
 export interface AuthState {
@@ -80,7 +79,7 @@ export async function refreshProfile(): Promise<Profile | null> {
   if (!sb || !state.user) return null;
   const { data, error } = await sb
     .from("profiles")
-    .select("user_id, username, total_games, streak_days, last_play_at, equipped_skin_id, friend_code")
+    .select("user_id, username, total_games, streak_days, last_play_at, equipped_skin_id")
     .eq("user_id", state.user.id)
     .maybeSingle();
   if (error) {

@@ -51,6 +51,7 @@ import { createChallenge, fetchChallenge, ghostSkinFromChallenge, fetchUnseenCha
 import { renderInbox } from "./ui/inbox";
 import { renderProfile } from "./ui/profile";
 import { renderWhatsNew } from "./ui/whats-new";
+import { renderTutorial, tutorialSeen } from "./ui/tutorial";
 import { isFirstRun, markChangelogSeen, unseenChanges, CHANGELOG } from "./game/changelog";
 import { renderQuests } from "./ui/quests";
 import { evaluateRun, type QuestCompletion } from "./game/quests";
@@ -319,7 +320,15 @@ loadEquippedSkin().then(async () => {
   }
   showMenu();
   hideSplash();
-  maybeShowWhatsNew();
+  // Brand-new players get the onboarding tutorial first; returning players
+  // see the "what's new" modal after an update. Never both at once.
+  if (!tutorialSeen()) {
+    pushSubView();
+    panelOpen = true;
+    renderTutorial(overlays, { onClose: () => showMenu(), onPractice: () => startRun("training") });
+  } else {
+    maybeShowWhatsNew();
+  }
 });
 
 // Show the "what's new" modal once after an update. First-time players are
@@ -417,6 +426,7 @@ function showMenu(): void {
         renderer.options.ghostOpacity = pct;
       },
       onShowChangelog: () => { pushSubView(); panelOpen = true; renderWhatsNew(overlays, CHANGELOG, () => showMenu()); },
+      onHowToPlay: () => { pushSubView(); panelOpen = true; renderTutorial(overlays, { onClose: () => showMenu(), onPractice: () => startRun("training") }); },
       onOpenAccount: () => { pushSubView(); panelOpen = true; renderAccountPanel(overlays, () => showMenu(), (username) => openProfile(username)); },
       onOpenSkins: () => {
         pushSubView();

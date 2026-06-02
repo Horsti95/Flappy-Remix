@@ -39,6 +39,8 @@ import {
 } from "../game/flap-fx";
 import { getChainViews, type QuestChain, type QuestStep } from "../game/quests";
 import { listMyBadges, type SeasonBadge } from "../social/badges";
+import { authState } from "../social/auth";
+import { isPlaytester } from "../game/playtester";
 
 export interface GalleryCallbacks {
   onEquipSkin(skinId: string | null): void;
@@ -266,23 +268,25 @@ export function renderGallery(
     const badges = await listMyBadges();
     if (cancelled || activeTab !== "badges") return;
     body.innerHTML = "";
-    if (badges.length === 0) {
+    const playtester = isPlaytester(authState().profile?.created_at);
+    if (badges.length === 0 && !playtester) {
       const empty = document.createElement("div");
       empty.className = "px-4 mt-8 text-center text-[12px] opacity-60 leading-relaxed";
       empty.textContent =
-        "No season placements yet — finish top-100 in a ranked season to earn a badge.";
+        "No badges yet — finish top-100 in a ranked season to earn one.";
       body.appendChild(empty);
       return;
     }
     const desc = document.createElement("div");
     desc.className = "text-[11px] opacity-70 px-2 mb-3";
-    desc.textContent = "your ranked season placements — top-100 finishes.";
+    desc.textContent = "your badges — keepsakes you carry on your profile forever.";
     body.appendChild(desc);
-    const sorted = [...badges].sort((a, b) => b.season_id - a.season_id);
-    const bestRank = Math.min(...sorted.map((b) => b.rank));
     const grid = document.createElement("div");
     grid.className = "grid grid-cols-2 gap-4 px-2 pt-1";
     body.appendChild(grid);
+    if (playtester) grid.appendChild(playtesterCard());
+    const sorted = [...badges].sort((a, b) => b.season_id - a.season_id);
+    const bestRank = sorted.length ? Math.min(...sorted.map((b) => b.rank)) : 0;
     for (const badge of sorted) {
       grid.appendChild(badgeCard(badge, badge.rank === bestRank));
     }
@@ -1084,6 +1088,20 @@ function stepRow(step: QuestStep, done: boolean, active: boolean): string {
       </div>
     </div>
   `;
+}
+
+function playtesterCard(): HTMLElement {
+  const el = document.createElement("div");
+  el.dataset.noFlap = "true";
+  el.className =
+    "relative rounded-2xl p-3 flex flex-col items-center text-[11px] gap-2 border-2 border-emerald-300/50 bg-emerald-300/10";
+  el.innerHTML = `
+    <div class="w-full aspect-square flex items-center justify-center swatch-plate rounded-xl text-4xl">🧪</div>
+    <div class="font-bold">Playtester</div>
+    <div class="opacity-70 text-[12px] text-center leading-tight">here before launch</div>
+    <div class="absolute top-1 right-1 text-[9px] bg-emerald-300 text-ink rounded-full px-1.5 py-0.5">forever</div>
+  `;
+  return el;
 }
 
 function badgeCard(badge: SeasonBadge, isBest: boolean): HTMLElement {

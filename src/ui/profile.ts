@@ -2,6 +2,7 @@ import { fetchPublicProfile, type PublicProfile } from "../social/profile";
 import { RARITY_COLOR, type Rarity } from "../game/rarity";
 import { shapeSvgInner } from "./shape-svg";
 import { DEFAULT_SHAPE_ID, type ShapeId } from "../game/shapes";
+import { isPlaytester } from "../game/playtester";
 
 /**
  * Public profile inspector — a read-only stat card for any player by
@@ -90,11 +91,15 @@ function card(p: PublicProfile): string {
     ? `<div class="mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold" style="background:#facc1522;color:#facc15">🏅 top ${p.best_rank} season finish</div>`
     : "";
 
+  const playtester = isPlaytester(p.created_at)
+    ? `<div class="mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold" style="background:#34d39922;color:#34d399">🧪 Playtester</div>`
+    : "";
+
   return `
     <div class="text-center">
       ${plane}
       ${skin?.rarity ? `<div class="text-[11px] mt-1" style="color:${rarityColor}">${escapeHtml(skin.rarity)} skin</div>` : ""}
-      ${badge}
+      <div class="flex flex-wrap items-center justify-center gap-2">${badge}${playtester}</div>
     </div>
     <div class="mt-4 grid grid-cols-2 gap-2 text-center">
       ${stat("best run", String(p.best_score))}

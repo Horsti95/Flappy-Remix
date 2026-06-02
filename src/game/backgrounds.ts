@@ -60,6 +60,14 @@ export function preloadBackgrounds(): void {
   }
 }
 
+/** Kick off loading a specific set of backgrounds (e.g. an interactive theme's
+ *  stages) so they're ready before the player reaches them — avoids the blank
+ *  gradient "flash" when a stage swaps in mid-run. Idempotent. */
+export function preloadBackgroundStages(ids: string[]): void {
+  if (typeof Image === "undefined") return;
+  for (const id of ids) load(id);
+}
+
 export function hasBackgroundImage(id: string): boolean {
   return id in sources;
 }

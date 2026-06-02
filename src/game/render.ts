@@ -9,7 +9,7 @@ import { type VisualEffect } from "./daily-twist";
 import { preloadSprites, hasSprite, getTintedSprite } from "./sprites";
 import { getPillarStyle, type PillarStyleId } from "./pillars";
 import { zoneFor } from "./depth-zones";
-import { preloadBackgrounds, hasBackgroundImage, getBackgroundImage } from "./backgrounds";
+import { preloadBackgrounds, preloadBackgroundStages, hasBackgroundImage, getBackgroundImage } from "./backgrounds";
 
 export interface RenderOptions {
   highContrast: boolean;
@@ -40,6 +40,8 @@ export class Renderer {
   private offsetY = 0;
   private overscanX = 0;
   private overscanY = 0;
+  /** Interactive themes whose stage set we've already kicked off loading. */
+  private stagesKicked = new Set<string>();
   options: RenderOptions;
 
   constructor(canvas: HTMLCanvasElement, cfg: SimConfig, options?: Partial<RenderOptions>) {
@@ -103,6 +105,12 @@ export class Renderer {
     // backdrop "zooms out" as the run climbs.
     let bgId = theme.backgroundImage;
     if (theme.backgroundStages && theme.backgroundStages.length > 0) {
+      // Kick off loading ALL stages the first time this theme renders, so later
+      // stages are ready before the player climbs into them (no mid-run flash).
+      if (!this.stagesKicked.has(theme.id)) {
+        this.stagesKicked.add(theme.id);
+        preloadBackgroundStages(theme.backgroundStages.map((s) => s.image));
+      }
       let stageImg = theme.backgroundStages[0].image;
       for (const st of theme.backgroundStages) {
         if (sim.score >= st.fromScore) stageImg = st.image;

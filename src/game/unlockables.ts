@@ -128,3 +128,9 @@ export function unlockProgress(
 export function lockedUnlockables(stats: UnlockStats = loadAchievementStats()): Unlockable[] {
   return getUnlockables(stats).filter((u) => !u.unlocked);
 }
+
+/** Test/dev flag: when on, the gallery treats shapes + pillars as unlocked so
+ *  everything can be equipped for evaluation. Toggled via ?unlock=all. */
+let unlockAllLab = false;
+export function setUnlockAllLab(on: boolean): void { unlockAllLab = on; }
+export function isUnlockAllLab(): boolean { return unlockAllLab; }

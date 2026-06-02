@@ -1,5 +1,5 @@
 import { listOwnedSkins, type SkinRow } from "../social/skins";
-import { unlockProgress } from "../game/unlockables";
+import { unlockProgress, isUnlockAllLab } from "../game/unlockables";
 import { RARITY_COLOR, rarityRank } from "../game/rarity";
 import { SHAPES, type ShapeId, type ShapeMeta } from "../game/shapes";
 import { soccerBallSvg } from "./shape-svg";
@@ -220,7 +220,7 @@ export function renderGallery(
     const stats = loadAchievementStats();
     const equippedPillar = getEquippedPillarLocal();
     for (const style of PILLAR_STYLES) {
-      const st = style.unlock(stats);
+      const st = isUnlockAllLab() ? { unlocked: true, hint: undefined } : style.unlock(stats);
       grid.appendChild(
         pillarCard(style, equippedPillar === style.id, st.unlocked, st.hint, () => {
           if (!st.unlocked) return;
@@ -391,7 +391,7 @@ export function renderGallery(
     const grid = body.firstElementChild as HTMLDivElement;
     const granted = new Set(getGrantedShapesLocal());
     for (const shape of SHAPES) {
-      const unlocked = granted.has(shape.id) || shape.unlock(stats).unlocked;
+      const unlocked = isUnlockAllLab() || granted.has(shape.id) || shape.unlock(stats).unlocked;
       grid.appendChild(
         shapeCard(shape, currentEquipped.shapeId === shape.id, stats, () => {
           if (!unlocked) return;

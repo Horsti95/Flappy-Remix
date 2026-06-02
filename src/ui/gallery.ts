@@ -578,6 +578,13 @@ function shapeSvgWithColors(
       );
     case "crane":
       return spriteSwatch("crane", body);
+    case "submarine":
+      return svg(
+        `<ellipse cx="0" cy="0" rx="13" ry="6.5" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <polygon points="-12,0 -16,-5 -16,5" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <polygon points="-3,-6 -1,-11 3,-11 4,-6" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <circle cx="5" cy="0" r="2.2" fill="#1a1a1a"/>`,
+      );
   }
 }
 

@@ -28,7 +28,8 @@ export type ShapeId =
   | "leaf"
   | "lightning"
   | "ghost"
-  | "crane";
+  | "crane"
+  | "submarine";
 
 export interface ShapeUnlock {
   // Computed unlock state for the current player.
@@ -435,6 +436,48 @@ function drawToucanFallback(ctx: CanvasRenderingContext2D, r: number, skin: Skin
   ctx.fill();
 }
 
+// Submarine — a rounded hull (body) with a conning tower + porthole (accent),
+// nose to the right. Polygon-drawn, fully tintable; no sprite needed.
+function drawSubmarine(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
+  outline(ctx, highContrast);
+  // Hull
+  ctx.fillStyle = rgbCss(skin.body);
+  ctx.beginPath();
+  ctx.ellipse(0, 0, r * 1.1, r * 0.55, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  // Tail propeller fin
+  ctx.fillStyle = rgbCss(skin.accent);
+  ctx.beginPath();
+  ctx.moveTo(-r * 1.0, 0);
+  ctx.lineTo(-r * 1.35, -r * 0.4);
+  ctx.lineTo(-r * 1.35, r * 0.4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // Conning tower
+  ctx.fillStyle = rgbCss(skin.accent);
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.25, -r * 0.5);
+  ctx.lineTo(-r * 0.1, -r * 0.95);
+  ctx.lineTo(r * 0.25, -r * 0.95);
+  ctx.lineTo(r * 0.35, -r * 0.5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // Periscope
+  ctx.beginPath();
+  ctx.moveTo(r * 0.05, -r * 0.95);
+  ctx.lineTo(r * 0.05, -r * 1.25);
+  ctx.lineTo(r * 0.3, -r * 1.25);
+  ctx.stroke();
+  // Porthole
+  ctx.fillStyle = highContrast ? "#fff" : "#1a1a1a";
+  ctx.beginPath();
+  ctx.arc(r * 0.45, 0, r * 0.18, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 function drawGhost(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
   outline(ctx, highContrast);
   const top = -r * 1.1;
@@ -702,6 +745,16 @@ export const SHAPES: ShapeMeta[] = [
       hint: "5-day streak",
     }),
     draw: drawToucanFallback,
+  },
+  {
+    id: "submarine",
+    name: "submarine",
+    blurb: "dive the deep — periscope up.",
+    unlock: ({ totalGames }) => ({
+      unlocked: totalGames >= 60,
+      hint: "play 60 games",
+    }),
+    draw: drawSubmarine,
   },
 ];
 

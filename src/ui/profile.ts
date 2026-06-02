@@ -8,7 +8,12 @@ import { DEFAULT_SHAPE_ID, type ShapeId } from "../game/shapes";
  * username. Opened from the friends list, leaderboard rows, and duel
  * results. Shows only safe aggregates (see social/profile.ts).
  */
-export function renderProfile(host: HTMLElement, username: string, onClose: () => void): () => void {
+export function renderProfile(
+  host: HTMLElement,
+  username: string,
+  onClose: () => void,
+  onRaceBestRun?: (username: string) => void,
+): () => void {
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
   wrap.className =
@@ -44,6 +49,21 @@ export function renderProfile(host: HTMLElement, username: string, onClose: () =
       return;
     }
     body.innerHTML = card(profile);
+    // "Race their best" — flies you on the same seed against their best run's
+    // ghost. Only when they actually have a scoring run and the caller wired
+    // up the handler (logged-in, online).
+    if (onRaceBestRun && profile.best_score > 0) {
+      const btn = document.createElement("button");
+      btn.dataset.noFlap = "true";
+      btn.className =
+        "mt-4 w-full rounded-2xl bg-paper text-ink font-bold py-3 active:scale-95 transition";
+      btn.textContent = `🏁 race their best (${profile.best_score})`;
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        onRaceBestRun(username);
+      });
+      body.appendChild(btn);
+    }
   })();
 
   return close;

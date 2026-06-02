@@ -367,6 +367,9 @@ export interface GameOverResult {
   };
   /** Training/practice run — nothing tracked; show a lightweight game-over. */
   trainingMode?: boolean;
+  /** Racing a player's best run (ghost). Shows a "vs @them" result but is a
+   *  local race — no duel/server entanglement, just Play again / menu. */
+  raceContext?: { creator: string; creatorScore: number };
   /** Ranked round just played (0-based) of `total` — drives the
    *  "round submitted, back to match" action instead of a replay. */
   rankedRound?: { round: number; total: number };
@@ -397,6 +400,7 @@ function renderGameOverInner(
   extra?: GameOverResult,
 ): void {
   const ctx = extra?.challengeContext;
+  const race = extra?.raceContext;
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
   wrap.className = `pointer-events-auto absolute inset-x-0 bottom-0 z-10 px-4 pb-6 pt-6 bg-gradient-to-t ${ctx ? "from-black/95" : "from-black/80"} to-transparent text-paper font-display`;
@@ -420,6 +424,18 @@ function renderGameOverInner(
            score > ctx.creatorScore ? "YOU WIN 🏆" : score < ctx.creatorScore ? "YOU LOST" : "TIE"
          }</div>
          <button data-brag class="mt-2 text-[11px] underline opacity-60">share result</button>
+       </div>`
+    : "";
+  const raceVersus = race
+    ? `<div class="mt-2 rounded-2xl bg-white/10 px-4 py-3 text-left">
+         <div class="text-[10px] uppercase tracking-wider opacity-60">racing @${escapeHtml(race.creator)}'s best</div>
+         <div class="flex items-baseline justify-between mt-1">
+           <div><span class="text-2xl font-bold">${score}</span> <span class="opacity-50">you</span></div>
+           <div class="opacity-70">${race.creatorScore} <span class="opacity-50">them</span></div>
+         </div>
+         <div class="text-2xl font-bold mt-2 ${score > race.creatorScore ? "text-green-300" : score < race.creatorScore ? "text-orange-300" : "opacity-70"}">${
+           score > race.creatorScore ? "YOU WIN 🏆" : score < race.creatorScore ? "YOU LOST" : "TIE"
+         }</div>
        </div>`
     : "";
   const cbButton = ctx && ctx.canChallengeBack && extra?.onChallengeBack
@@ -466,10 +482,11 @@ function renderGameOverInner(
       <div class="text-6xl font-bold mt-1">${score}</div>
       ${acceptStatus}
       ${versus}
+      ${raceVersus}
       ${unlocksHtml}
       ${heroBtn}
       ${retryBtn}
-      ${!ctx && !cc ? `<button data-share class="mt-3 w-full rounded-2xl border border-paper/40 text-paper font-bold py-3">Share run</button>` : ""}
+      ${!ctx && !cc && !race ? `<button data-share class="mt-3 w-full rounded-2xl border border-paper/40 text-paper font-bold py-3">Share run</button>` : ""}
       ${cbButton}
       <button data-menu class="mt-3 w-full text-xs underline opacity-60 py-1">${menuLabel}</button>
     </div>

@@ -30,6 +30,66 @@ export async function fetchChallenge(shortId: string): Promise<FetchedChallenge 
   }
 }
 
+/**
+ * Build a challenge-shaped object from a player's best stored run, so it can
+ * be raced through the normal challenge flow (ghost + creator cosmetics).
+ * Reads public tables directly (runs/profiles/skins are world-readable) — no
+ * dedicated endpoint or migration needed. Returns null if the player has no
+ * scoring run yet.
+ */
+export async function fetchBestRunChallenge(username: string): Promise<FetchedChallenge | null> {
+  const sb = getSupabase();
+  if (!sb) return null;
+  const { data: prof } = await sb
+    .from("profiles")
+    .select("user_id, equipped_shape")
+    .eq("username", username)
+    .maybeSingle();
+  if (!prof) return null;
+  const p = prof as { user_id: string; equipped_shape: string | null };
+  const { data: run } = await sb
+    .from("runs")
+    .select("seed, score, inputs, equipped_skin_id")
+    .eq("user_id", p.user_id)
+    .order("score", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!run) return null;
+  const r = run as { seed: number; score: number; inputs: InputEvent[]; equipped_skin_id: string | null };
+  if (!r.score || r.score <= 0) return null;
+
+  let creator_skin: FetchedChallenge["creator_skin"] = null;
+  if (r.equipped_skin_id) {
+    const { data: sk } = await sb
+      .from("skins")
+      .select("body_r, body_g, body_b, accent_r, accent_g, accent_b, rarity")
+      .eq("id", r.equipped_skin_id)
+      .maybeSingle();
+    if (sk) {
+      const s = sk as Record<string, number | string>;
+      creator_skin = {
+        body: [s.body_r as number, s.body_g as number, s.body_b as number],
+        accent: [s.accent_r as number, s.accent_g as number, s.accent_b as number],
+        rarity: (s.rarity as string | null) ?? null,
+      };
+    }
+  }
+
+  return {
+    short_id: `best:${username}`,
+    seed: Number(r.seed) >>> 0,
+    inputs: (r.inputs ?? []) as InputEvent[],
+    creator_score: r.score,
+    creator_username: username,
+    creator_skin,
+    creator_shape: (p.equipped_shape ?? null) as ShapeId | null,
+    creator_theme: null,
+    depth: 0,
+    can_respond_again: true,
+  };
+}
+
 export interface CreateChallengeResult {
   ok: boolean;
   short_id?: string;

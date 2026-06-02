@@ -4,6 +4,10 @@ import { DEFAULT_CONFIG } from "./game/config";
 import { applyModifiers } from "./game/daily-twist";
 import { GameLoop } from "./game/loop";
 import { Renderer } from "./game/render";
+import { ArcadeLoop } from "./game/arcade/loop";
+import { ArcadeRenderer } from "./game/arcade/render";
+import { ARCADE_CONFIG } from "./game/arcade/config";
+import { renderArcadeGameOver } from "./ui/arcade";
 import { InputController } from "./game/input";
 import { GhostSim } from "./game/ghost";
 import { loadSettings, saveSettings, type Settings } from "./game/settings";
@@ -99,6 +103,11 @@ if (!app) throw new Error("missing #app");
 const settings: Settings = loadSettings();
 let mode: Mode = "menu";
 let loop: GameLoop | null = null;
+// Arcade Mode runs on its own separate sim/loop/renderer so the deterministic
+// scored path is never touched. Active only while `arcadeLoop` is non-null.
+let arcadeLoop: ArcadeLoop | null = null;
+let arcadeRenderer: ArcadeRenderer | null = null;
+let arcadeBestCombo = 0;
 let currentSeed = 0;
 let currentRunMode: RunMode = "casual";
 let equippedSkin: SkinRow | null = null;
@@ -206,11 +215,19 @@ const renderer = new Renderer(canvas, DEFAULT_CONFIG, {
   reducedMotion: settings.reducedMotion || matchMedia("(prefers-reduced-motion: reduce)").matches,
   ghostOpacity: settings.ghostOpacity,
 });
-const observer = new ResizeObserver(() => renderer.resize());
+const observer = new ResizeObserver(() => {
+  renderer.resize();
+  arcadeRenderer?.resize();
+});
 observer.observe(stage);
 
 const input = new InputController(stage, {
   onFlap: () => {
+    if (arcadeLoop) {
+      arcadeLoop.flap();
+      if (settings.sound) playFlap();
+      return;
+    }
     if (mode === "playing") {
       loop?.flap();
       if (settings.sound) playFlap();
@@ -224,10 +241,18 @@ const input = new InputController(stage, {
     }
   },
   onTogglePause: () => {
+    if (arcadeLoop) {
+      arcadeLoop.setPaused(!arcadeLoop.isPaused());
+      return;
+    }
     if (mode === "playing") setPaused(true);
     else if (mode === "paused") setPaused(false);
   },
   onRestart: () => {
+    if (arcadeLoop) {
+      startArcade();
+      return;
+    }
     if (mode === "dead") startRun(currentRunMode);
   },
 });
@@ -235,6 +260,10 @@ input.attach();
 
 pauseBtn.addEventListener("click", (e) => {
   e.stopPropagation();
+  if (arcadeLoop) {
+    arcadeLoop.setPaused(!arcadeLoop.isPaused());
+    return;
+  }
   if (mode === "playing") setPaused(true);
   else if (mode === "paused") setPaused(false);
 });
@@ -394,6 +423,8 @@ function showMenu(): void {
   pauseBtn.classList.add("hidden");
   loop?.stop();
   loop = null;
+  arcadeLoop?.stop();
+  arcadeLoop = null;
   activeChallenge = null;
   pendingChallengeTarget = null;
   renderer.options.ghostSkin = undefined;
@@ -409,6 +440,7 @@ function showMenu(): void {
     {
       onPlay: () => { pushSubView(); startRun("casual"); },
       onTraining: () => { pushSubView(); startRun("training"); },
+      onArcade: () => { pushSubView(); startArcade(); },
       onPlayDaily: () => { pushSubView(); openDailyLanding(); },
       onToggleSetting,
       onSetGhostOpacity: (pct: number) => {
@@ -629,8 +661,60 @@ function onToggleSetting(key: keyof Settings): void {
   showMenu();
 }
 
+/**
+ * Launch an Arcade Mode run. Arcade is a self-contained, non-deterministic,
+ * non-leaderboard sandbox — its own sim/loop/renderer, never submitted. We keep
+ * the global `mode` as-is and gate everything on `arcadeLoop` being non-null so
+ * none of the scored-mode plumbing is disturbed.
+ */
+function startArcade(): void {
+  overlays.innerHTML = "";
+  loop?.stop();
+  loop = null;
+  clearParticles();
+  arcadeBestCombo = 0;
+  setBannerVisible(true);
+  pauseBtn.classList.remove("hidden");
+
+  if (!arcadeRenderer) {
+    arcadeRenderer = new ArcadeRenderer(canvas, ARCADE_CONFIG, {
+      skin: renderer.options.skin,
+      shape: equippedShapeId,
+      theme: equippedThemeId,
+      highContrast: settings.highContrast,
+      reducedMotion: renderer.options.reducedMotion,
+    });
+  } else {
+    arcadeRenderer.options.skin = renderer.options.skin;
+    arcadeRenderer.options.shape = equippedShapeId;
+    arcadeRenderer.options.theme = equippedThemeId;
+    arcadeRenderer.options.highContrast = settings.highContrast;
+    arcadeRenderer.options.reducedMotion = renderer.options.reducedMotion;
+  }
+  arcadeRenderer.resize();
+
+  arcadeLoop?.stop();
+  arcadeLoop = new ArcadeLoop(Date.now() >>> 0, ARCADE_CONFIG, {
+    render: (sim, alpha) => {
+      arcadeBestCombo = Math.max(arcadeBestCombo, sim.combo);
+      arcadeRenderer?.draw(sim, alpha);
+    },
+    onDeath: (sim) => {
+      pauseBtn.classList.add("hidden");
+      renderArcadeGameOver(
+        overlays,
+        { score: sim.score, coins: sim.coinBalance, bestCombo: arcadeBestCombo },
+        { onPlayAgain: () => startArcade(), onExit: () => showMenu() },
+      );
+    },
+  });
+  arcadeLoop.start();
+}
+
 function startRun(runMode: RunMode = "casual"): void {
   overlays.innerHTML = "";
+  arcadeLoop?.stop();
+  arcadeLoop = null;
   mode = "playing";
   currentRunMode = runMode;
   renderer.options.pillarStyle = getEquippedPillarLocal();

@@ -32,6 +32,9 @@ export class Sim {
   birdVY = 0;
   pipes: Pipe[] = [];
   private nextPipeId = 0;
+  /** Center of the previous gap, so the next one biases near it (avoids the
+   *  brutal top→bottom→top zigzag); -1 = none yet. Seeded → replay-safe. */
+  private lastGapCenter = -1;
   private inputs: InputEvent[] = [];
   private inputIdx = 0;
   score = 0;
@@ -146,7 +149,23 @@ export class Sim {
     const gapH = Math.max(this.cfg.pipeGapMin, baseGap + jitter);
     const minY = this.cfg.pipeMargin;
     const maxY = this.cfg.worldHeight - this.cfg.pipeMargin - gapH;
-    const gapY = this.rng.nextFloat(minY, maxY);
+    // Gap position: usually drift NEAR the previous gap (bounded step), so the
+    // path is fair; occasionally (~1 in maxGapJumpRarity) allow a full random
+    // jump for variety. Keeps the punishing top↔bottom zigzag rare but possible.
+    let gapTop: number;
+    const center = (lo: number, hi: number, c: number) => Math.max(lo, Math.min(hi, c));
+    const fullJump = this.lastGapCenter < 0 || this.rng.nextInt(0, this.cfg.maxGapJumpRarity) === 0;
+    if (fullJump) {
+      gapTop = this.rng.nextFloat(minY, maxY);
+    } else {
+      // Step the gap CENTER by a bounded amount around the last center.
+      const step = this.cfg.maxGapStep;
+      const targetCenter = this.lastGapCenter + this.rng.nextFloat(-step, step);
+      const clampedCenter = center(minY + gapH / 2, maxY + gapH / 2, targetCenter);
+      gapTop = clampedCenter - gapH / 2;
+    }
+    const gapY = center(minY, maxY, gapTop);
+    this.lastGapCenter = gapY + gapH / 2;
     this.pipes.push({ id: this.nextPipeId++, x, gapY, gapH, passed: false });
   }
 

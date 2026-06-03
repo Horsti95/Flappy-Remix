@@ -32,6 +32,7 @@ import { DEFAULT_SHAPE_ID, type ShapeId } from "./game/shapes";
 import { getEquippedThemeLocal, setEquippedThemeLocal, setThemesLabMode, type ThemeId } from "./game/themes";
 import { getEquippedPresetLocal, setEquippedPresetLocal, getPreset, setPresetLabMode } from "./game/preset-skins";
 import { getEquippedPillarLocal, getPillarStyle } from "./game/pillars";
+import { getEquippedPillarColorLocal } from "./game/pillar-colors";
 import { type SubmitResult } from "./social/runs";
 import { installFlushHooks, pendingCount, submitOrEnqueue } from "./social/offline-queue";
 import { fetchDaily, type DailyInfo } from "./social/daily";
@@ -645,6 +646,7 @@ function startRun(runMode: RunMode = "casual"): void {
   mode = "playing";
   currentRunMode = runMode;
   renderer.options.pillarStyle = getEquippedPillarLocal();
+  renderer.options.pillarColor = getEquippedPillarColorLocal();
   // Banner stays visible during gameplay too (consistent everywhere); the
   // offset shrinks the stage below it, so the pause button isn't covered.
   setBannerVisible(true);

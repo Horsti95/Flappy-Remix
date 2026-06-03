@@ -8,7 +8,7 @@
  * Bump APP_VERSION + prepend an entry when shipping notable changes.
  */
 
-export const APP_VERSION = "0.15.0";
+export const APP_VERSION = "0.16.0";
 
 export interface ChangeEntry {
   version: string;
@@ -19,6 +19,16 @@ export interface ChangeEntry {
 
 // Newest first.
 export const CHANGELOG: ChangeEntry[] = [
+  {
+    version: "0.16.0",
+    date: "2026-06-03",
+    title: "Pillar colours & clearer goals",
+    notes: [
+      "New pillar colour picker — recolour your pillars (candy red/white, Germany, mint…) or keep the theme's.",
+      "“What’s next” now shows where to find each unlock and your progress (e.g. 6/7).",
+      "Achievements & goals are now one “Goals” surface.",
+    ],
+  },
   {
     version: "0.15.0",
     date: "2026-06-02",

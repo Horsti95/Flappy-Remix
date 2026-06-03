@@ -73,6 +73,7 @@ export function playUnlockSound(rarity: Rarity): void {
       tone(ac, master, { freq: 1567.98, startAt: t + 0.28, duration: 0.5, type: "sine", peak: 0.12 });
       break;
     }
+    case "red":
     case "legendary": {
       const arp = [523.25, 659.25, 783.99, 1046.5, 1318.51];
       arp.forEach((f, i) => tone(ac, master, { freq: f, startAt: t + i * 0.055, duration: 0.4, peak: 0.22 }));
@@ -462,6 +463,7 @@ const HAPTIC: Record<Rarity, number | number[]> = {
   rare: [12, 30, 18, 30, 25],
   epic: [15, 25, 20, 25, 30, 25, 40],
   legendary: [20, 20, 25, 20, 30, 20, 40, 30, 60],
+  red: [25, 20, 30, 20, 35, 20, 45, 30, 60, 40, 80],
 };
 
 export function triggerUnlockHaptic(rarity: Rarity): void {

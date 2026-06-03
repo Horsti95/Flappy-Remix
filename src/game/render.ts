@@ -285,7 +285,10 @@ export class Renderer {
         gy,
         0,
         this.options.ghostSkin ?? { body: [200, 200, 200], accent: [80, 80, 80] },
-        this.options.ghostShape ?? this.options.shape,
+        // The ghost is the OTHER player. When their shape is unknown (legacy
+        // challenge with no stored cosmetics) fall back to the default plane —
+        // NOT the viewer's own shape, which made the rival look like "me".
+        this.options.ghostShape ?? DEFAULT_SHAPE_ID,
         sim.cfg.birdRadius,
       );
       ctx.globalAlpha = 1;

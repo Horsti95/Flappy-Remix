@@ -3,6 +3,7 @@ import { RARITY_COLOR, type Rarity } from "../game/rarity";
 import { TIER_COLOR, TIER_LABEL, type Tier } from "../game/daily-twist";
 import { DEFAULT_SHAPE_ID, getShape, type ShapeId } from "../game/shapes";
 import { DEFAULT_THEME_ID, getTheme, type ThemeId } from "../game/themes";
+import { hasBackgroundImage, getBackgroundImage } from "../game/backgrounds";
 
 export interface ShareCardData {
   shape?: ShapeId;
@@ -48,8 +49,24 @@ export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData): v
   grad.addColorStop(1, theme.colors.skyBottom);
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
-  // Dark overlay so text stays legible against any sky.
-  ctx.fillStyle = "rgba(10,10,20,0.55)";
+  // If the theme has full-art backdrop loaded, paint it (cover-fit) so the
+  // share actually looks like the world the player flew — gradient is the
+  // fallback for image themes whose art hasn't loaded. Interactive themes use
+  // a representative middle stage.
+  const bgId =
+    theme.backgroundImage ??
+    theme.backgroundStages?.[Math.floor((theme.backgroundStages.length - 1) / 2)]?.image;
+  if (bgId && hasBackgroundImage(bgId)) {
+    const img = getBackgroundImage(bgId);
+    if (img && img.naturalWidth > 0) {
+      const scale = Math.max(W / img.naturalWidth, H / img.naturalHeight);
+      const dw = img.naturalWidth * scale;
+      const dh = img.naturalHeight * scale;
+      ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    }
+  }
+  // Dark overlay so text stays legible against any sky/art.
+  ctx.fillStyle = "rgba(10,10,20,0.45)";
   ctx.fillRect(0, 0, W, H);
 
   // Soft horizon arc

@@ -8,6 +8,7 @@ import { getParticles, tickParticles } from "./flap-fx";
 import { type VisualEffect } from "./daily-twist";
 import { preloadSprites, hasSprite, getTintedSprite } from "./sprites";
 import { getPillarStyle, type PillarStyleId } from "./pillars";
+import { getPillarColor } from "./pillar-colors";
 import { zoneFor } from "./depth-zones";
 import { preloadBackgrounds, preloadBackgroundStages, hasBackgroundImage, getBackgroundImage } from "./backgrounds";
 
@@ -27,6 +28,8 @@ export interface RenderOptions {
   glow?: boolean;
   /** Player-picked pillar style (solid / glass / neon / stone). */
   pillarStyle?: PillarStyleId;
+  /** Optional pillar colour id overriding the theme's pipe colours. */
+  pillarColor?: string;
   /** Challenge-ghost opacity, 0..100 (%). */
   ghostOpacity?: number;
 }
@@ -252,6 +255,10 @@ export class Renderer {
     // collision + determinism are unchanged.
     const over = this.overscanY;
     const pillarStyle = getPillarStyle(this.options.pillarStyle);
+    // Optional player colour override (ignored under high-contrast for a11y).
+    const pc = this.options.highContrast ? null : getPillarColor(this.options.pillarColor);
+    const pillarBody = pc ? pc.body : palette.pipeBody;
+    const pillarCap = pc ? pc.cap : palette.pipeCap;
     for (const p of sim.pipes) {
       const prev = sim.prevPipeXs.get(p.id);
       const x = prev !== undefined ? prev + (p.x - prev) * alpha : p.x;
@@ -263,8 +270,8 @@ export class Renderer {
         worldHeight: cfg.worldHeight,
         pipeWidth: cfg.pipeWidth,
         over,
-        bodyColor: palette.pipeBody,
-        capColor: palette.pipeCap,
+        bodyColor: pillarBody,
+        capColor: pillarCap,
         highContrast: this.options.highContrast,
       });
     }

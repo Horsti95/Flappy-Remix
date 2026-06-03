@@ -25,6 +25,7 @@ import { getGrantedShapesLocal } from "../social/grants";
 import { PRESET_SKINS, presetUnlock, type PresetSkin } from "../game/preset-skins";
 import { evaluateCriteria, isEventActive, type CriterionDef } from "../game/unlock-criteria";
 import { PILLAR_STYLES, getEquippedPillarLocal, setEquippedPillarLocal, type PillarStyle } from "../game/pillars";
+import { PILLAR_COLORS, getPillarColor, getEquippedPillarColorLocal, setEquippedPillarColorLocal } from "../game/pillar-colors";
 import {
   FLAP_FX_OPTIONS,
   FX_COLORS,
@@ -97,13 +98,14 @@ export function renderGallery(
   (() => {
     const aStats = loadAchievementStats();
     const granted = new Set(getGrantedShapesLocal());
-    const next: { name: string; hint: string; tier: Tier }[] = [];
-    const add = (name: string, u: { unlocked: boolean; hint?: string | null }, unlock: (s: never) => { unlocked: boolean }, already = false): void => {
-      if (!already && !u.unlocked && u.hint) next.push({ name, hint: u.hint, tier: tierForUnlock(unlock) });
+    type Next = { name: string; where: string; hint: string; tier: Tier };
+    const next: Next[] = [];
+    const add = (name: string, where: string, u: { unlocked: boolean; hint?: string | null }, unlock: (s: never) => { unlocked: boolean }, already = false): void => {
+      if (!already && !u.unlocked && u.hint) next.push({ name, where, hint: u.hint, tier: tierForUnlock(unlock) });
     };
-    for (const sh of SHAPES) add(sh.name, sh.unlock(aStats), sh.unlock, granted.has(sh.id));
-    for (const t of THEMES) add(t.name, t.unlock(aStats), t.unlock);
-    for (const p of PILLAR_STYLES) add(p.name, p.unlock(aStats), p.unlock);
+    for (const sh of SHAPES) add(sh.name, "Player · shape", sh.unlock(aStats), sh.unlock, granted.has(sh.id));
+    for (const t of THEMES) add(t.name, "World · backgrounds", t.unlock(aStats), t.unlock);
+    for (const p of PILLAR_STYLES) add(p.name, "World · pillars", p.unlock(aStats), p.unlock);
     next.sort((a, b) => tierRank(a.tier) - tierRank(b.tier));
     const top = next.slice(0, 3);
     const el = wrap.querySelector("[data-next]") as HTMLDivElement;
@@ -111,10 +113,17 @@ export function renderGallery(
     el.innerHTML =
       `<div class="text-[10px] uppercase tracking-wider opacity-50 mb-1">what's next</div>` +
       top
-        .map(
-          (n) =>
-            `<div class="flex items-center gap-2 text-[11px] py-0.5"><span class="text-[8px] uppercase tracking-wider rounded px-1 py-0.5 font-bold shrink-0" style="background:${TIER_COLOR[n.tier]}22;color:${TIER_COLOR[n.tier]}">${n.tier}</span><span class="font-bold shrink-0">${escapeHtml(n.name)}</span><span class="opacity-50 truncate">— ${escapeHtml(n.hint)}</span></div>`,
-        )
+        .map((n) => {
+          const prog = hintProgress(n.hint, aStats);
+          const progHtml = prog
+            ? `<span class="tabular-nums opacity-80 shrink-0">${prog.cur}/${prog.target}</span>`
+            : `<span class="opacity-50 truncate">${escapeHtml(n.hint)}</span>`;
+          return `<div class="flex items-center gap-2 text-[11px] py-0.5">
+              <span class="opacity-40 text-[10px] shrink-0">${n.where} ›</span>
+              <span class="font-bold shrink-0">${escapeHtml(n.name)}</span>
+              ${progHtml}
+            </div>`;
+        })
         .join("");
   })();
 
@@ -132,7 +141,7 @@ export function renderGallery(
       { id: "backgrounds", label: "backgrounds" },
       { id: "pillars", label: "pillars" },
     ] },
-    { id: "progress", label: "🏆  Achievements", tabs: [
+    { id: "progress", label: "🏆  Goals", tabs: [
       { id: "quests", label: "goals" },
       { id: "badges", label: "badges" },
     ] },
@@ -249,6 +258,10 @@ export function renderGallery(
     const grid = body.querySelector("[data-pillar-grid]") as HTMLDivElement;
     const stats = loadAchievementStats();
     const equippedPillar = getEquippedPillarLocal();
+    // Resolve the chosen pillar colour for the previews ("theme" → default green).
+    const pc = getPillarColor(getEquippedPillarColorLocal());
+    const previewBody = pc ? pc.body : "#3d8b58";
+    const previewCap = pc ? pc.cap : "#2b6f4d";
     const sorted = byTier(PILLAR_STYLES, (p) => p.unlock(stats).unlocked, (p) => tierForUnlock(p.unlock));
     for (const style of sorted) {
       const st = style.unlock(stats);
@@ -257,9 +270,43 @@ export function renderGallery(
           if (!st.unlocked) return;
           setEquippedPillarLocal(style.id);
           renderPillars();
-        }, tierForUnlock(style.unlock)),
+        }, tierForUnlock(style.unlock), previewBody, previewCap),
       );
     }
+
+    // Pillar colour picker — overrides the theme's pipe colours for the pillar.
+    const colHeader = document.createElement("div");
+    colHeader.className = "px-3 mt-5 mb-2 text-[10px] uppercase tracking-wider opacity-60 font-bold";
+    colHeader.textContent = "pillar colour";
+    body.appendChild(colHeader);
+    const colDesc = document.createElement("div");
+    colDesc.className = "px-2 mb-2 text-[10px] opacity-60";
+    colDesc.textContent = "recolour your pillars — or keep the theme's colours.";
+    body.appendChild(colDesc);
+    const swatches = document.createElement("div");
+    swatches.className = "flex flex-wrap gap-2 px-2";
+    const activeColor = getEquippedPillarColorLocal();
+    for (const c of PILLAR_COLORS) {
+      const sw = document.createElement("button");
+      sw.dataset.noFlap = "true";
+      const isActive = c.id === activeColor;
+      sw.className =
+        "h-7 w-7 rounded-full border transition " +
+        (isActive ? "border-white ring-2 ring-white/60 scale-110" : "border-white/20 hover:border-white/50");
+      sw.style.background =
+        c.id === "theme"
+          ? "linear-gradient(135deg, #87ceeb 0 50%, #3d8b58 50% 100%)"
+          : `linear-gradient(135deg, ${c.body} 0 60%, ${c.cap} 60% 100%)`;
+      sw.title = c.name;
+      sw.setAttribute("aria-label", c.name);
+      sw.addEventListener("click", (e) => {
+        e.stopPropagation();
+        setEquippedPillarColorLocal(c.id);
+        renderPillars();
+      });
+      swatches.appendChild(sw);
+    }
+    body.appendChild(swatches);
   }
 
   async function renderBadges(): Promise<void> {
@@ -386,7 +433,7 @@ export function renderGallery(
     questsBody.appendChild(headerLabel(`goals — ${got} / ${results.length}`));
     const intro = document.createElement("div");
     intro.className = "text-[10px] opacity-60 px-2 mb-2";
-    intro.textContent = "challenges to chase — finish them to unlock shapes, colors, worlds & more.";
+    intro.textContent = "every achievement & goal in one place — finish them to unlock shapes, colors, worlds & more.";
     questsBody.appendChild(intro);
     const grid = document.createElement("div");
     grid.className = "grid grid-cols-1 gap-2";
@@ -527,6 +574,27 @@ export function renderGallery(
     cancelled = true;
     wrap.remove();
   };
+}
+
+/** Best-effort numeric progress for an unlock hint, e.g. "7-day streak" with
+ *  streakDays 6 → {cur:6, target:7}. Returns null if the hint has no number or
+ *  no recognised stat (then the caller just shows the hint text). */
+function hintProgress(hint: string, s: AchievementStats): { cur: number; target: number } | null {
+  const m = hint.match(/(\d+)/);
+  if (!m) return null;
+  const target = parseInt(m[1], 10);
+  const h = hint.toLowerCase();
+  let cur: number | null = null;
+  if (h.includes("daily streak")) cur = s.dailyStreakDays;
+  else if (h.includes("streak")) cur = s.streakDays;
+  else if (h.includes("score")) cur = s.bestScore;
+  else if (h.includes("game")) cur = s.totalGames;
+  else if (h.includes("friend")) cur = s.friendCount;
+  else if (h.includes("challenge")) cur = s.challengeWins;
+  else if (h.includes("morning")) cur = s.morningGames;
+  else if (h.includes("night")) cur = s.lateNightGames;
+  if (cur == null) return null;
+  return { cur: Math.min(cur, target), target };
 }
 
 /** A small tier badge (top-left of a card). */
@@ -1169,6 +1237,8 @@ function pillarCard(
   hint: string | undefined,
   onTap: () => void,
   tier?: Tier,
+  previewBody = "#3d8b58",
+  previewCap = "#2b6f4d",
 ): HTMLElement {
   const el = document.createElement("button");
   el.dataset.noFlap = "true";
@@ -1192,8 +1262,8 @@ function pillarCard(
       worldHeight: 90,
       pipeWidth: 28,
       over: 0,
-      bodyColor: "#3d8b58",
-      capColor: "#2b6f4d",
+      bodyColor: previewBody,
+      capColor: previewCap,
       highContrast: false,
     });
   }

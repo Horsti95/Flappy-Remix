@@ -102,28 +102,39 @@ export function renderGallery(
     const add = (name: string, where: string, u: { unlocked: boolean; hint?: string | null }, unlock: (s: never) => { unlocked: boolean }, already = false): void => {
       if (!already && !u.unlocked && u.hint) next.push({ name, where, hint: u.hint, tier: tierForUnlock(unlock) });
     };
-    for (const sh of SHAPES) add(sh.name, "Player · shape", sh.unlock(aStats), sh.unlock, granted.has(sh.id));
-    for (const t of THEMES) add(t.name, "World · backgrounds", t.unlock(aStats), t.unlock);
-    for (const p of PILLAR_STYLES) add(p.name, "World · pillars", p.unlock(aStats), p.unlock);
+    // Secrets (obscure-gated items) are excluded — you can't guide toward them.
+    for (const sh of SHAPES) if (!isSecretHint(sh.unlock(aStats).hint)) add(sh.name, "Player · shape", sh.unlock(aStats), sh.unlock, granted.has(sh.id));
+    for (const t of THEMES) if (!isSecretHint(t.unlock(aStats).hint)) add(t.name, "World · backgrounds", t.unlock(aStats), t.unlock);
+    for (const p of PILLAR_STYLES) if (!isSecretHint(p.unlock(aStats).hint)) add(p.name, "World · pillars", p.unlock(aStats), p.unlock);
     next.sort((a, b) => tierRank(a.tier) - tierRank(b.tier));
     const top = next.slice(0, 3);
     const el = wrap.querySelector("[data-next]") as HTMLDivElement;
     if (top.length === 0) { el.remove(); return; }
-    el.innerHTML =
-      `<div class="text-[10px] uppercase tracking-wider opacity-50 mb-1">what's next</div>` +
-      top
-        .map((n) => {
-          const prog = hintProgress(n.hint, aStats);
-          const progHtml = prog
-            ? `<span class="tabular-nums opacity-80 shrink-0">${prog.cur}/${prog.target}</span>`
-            : `<span class="opacity-50 truncate">${escapeHtml(n.hint)}</span>`;
-          return `<div class="flex items-center gap-2 text-[11px] py-0.5">
-              <span class="opacity-40 text-[10px] shrink-0">${n.where} ›</span>
-              <span class="font-bold shrink-0">${escapeHtml(n.name)}</span>
-              ${progHtml}
-            </div>`;
-        })
-        .join("");
+    let open = false;
+    try { open = localStorage.getItem("pflug.nextOpen.v1") === "1"; } catch { /* ignore */ }
+    const rows = top
+      .map((n) => {
+        const prog = hintProgress(n.hint, aStats);
+        const progHtml = prog
+          ? `<span class="tabular-nums opacity-80 shrink-0">${prog.cur}/${prog.target}</span>`
+          : `<span class="opacity-50 truncate">${escapeHtml(n.hint)}</span>`;
+        return `<div class="flex items-center gap-2 text-[11px] py-0.5">
+            <span class="opacity-40 text-[10px] shrink-0">${n.where} ›</span>
+            <span class="font-bold shrink-0">${escapeHtml(n.name)}</span>
+            ${progHtml}
+          </div>`;
+      })
+      .join("");
+    const render = (): void => {
+      el.innerHTML = `<button data-next-toggle class="text-[10px] uppercase tracking-wider opacity-50 flex items-center gap-1">what's next <span>${open ? "▾" : "▸"}</span></button>${open ? `<div class="mt-1">${rows}</div>` : ""}`;
+      el.querySelector("[data-next-toggle]")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        open = !open;
+        try { localStorage.setItem("pflug.nextOpen.v1", open ? "1" : "0"); } catch { /* ignore */ }
+        render();
+      });
+    };
+    render();
   })();
 
   type Tab = "shapes" | "skins" | "backgrounds" | "effects" | "quests" | "badges" | "pillars";
@@ -197,15 +208,10 @@ export function renderGallery(
       header.className =
         "w-full flex items-center justify-between rounded-2xl px-4 py-1.5 transition " +
         (isOpen ? "bg-white/10 text-paper" : "bg-white/5 text-paper/80");
-      // Subtitle previews what's inside the group (its sub-tabs) so the
-      // collapsed row still tells you where to find each unlockable. Kept on
-      // ONE line beside the label (smaller) to save vertical space.
-      const subtitle = g.tabs.map((t) => t.label).join(" · ");
+      // The group label + the sub-tabs that appear on expand already say what's
+      // inside, so the subtitle preview is dropped to declutter.
       header.innerHTML = `
-        <span class="flex items-baseline gap-2 min-w-0">
-          <span class="text-sm font-bold shrink-0">${g.label}</span>
-          <span class="text-[10px] opacity-50 font-normal truncate">${subtitle}</span>
-        </span>
+        <span class="text-sm font-bold min-w-0 truncate">${g.label}</span>
         <span class="flex items-center gap-2 shrink-0">
           <span class="text-[11px] tabular-nums opacity-80 bg-white/10 rounded-full px-2 py-0.5">${prog.unlocked}/${prog.total}</span>
           <span class="text-xs opacity-60">${isOpen ? "▾" : "▸"}</span>
@@ -596,6 +602,20 @@ function hintProgress(hint: string, s: AchievementStats): { cur: number; target:
   return { cur: Math.min(cur, target), target };
 }
 
+/** Obscure / easter-egg unlock conditions (time-of-day, friend counts, daily
+ *  streaks) read better as hidden "secrets" than as chores. Detected from the
+ *  hint text; the condition itself is unchanged. */
+function isSecretHint(hint?: string | null): boolean {
+  if (!hint) return false;
+  return /morning|friend|daily streak|\d\d:\d\d/i.test(hint);
+}
+
+/** What to show on a LOCKED card: a secret label for obscure gates, else the
+ *  real hint. */
+function displayHint(hint?: string | null): string {
+  return isSecretHint(hint) ? "🔒 secret" : (hint ?? "locked");
+}
+
 /** A small tier badge (top-left of a card). */
 function tierChip(tier: Tier): string {
   return `<div class="absolute top-1 left-1 text-[8px] uppercase tracking-wider rounded px-1 py-0.5 font-bold" style="background:${TIER_COLOR[tier]}22;color:${TIER_COLOR[tier]}">${TIER_LABEL[tier]}</div>`;
@@ -632,7 +652,7 @@ function shapeCard(
     </div>
     <div class="font-bold">${shape.name}</div>
     <div class="opacity-60 text-[10px] text-center leading-tight">${
-      unlocked ? shape.blurb : (state.hint ?? "locked")
+      unlocked ? shape.blurb : displayHint(state.hint)
     }</div>
     ${tier ? tierChip(tier) : ""}
     ${
@@ -892,7 +912,7 @@ function themeCard(theme: Theme, equipped: boolean, stats: GalleryStats, onTap: 
       ${c.fogIntensity ? `<div class="absolute inset-0" style="background: radial-gradient(circle at 45% 55%, transparent 25%, rgba(205,214,221,${c.fogIntensity}) 80%)"></div>` : ""}
     </div>
     <div class="font-bold flex items-center gap-1">${escapeHtml(theme.name)}${hasZones(theme.id) || theme.backgroundStages ? `<span class="text-[8px] uppercase tracking-wider rounded px-1 py-0.5" style="background:#a855f733;color:#c79bff">interactive</span>` : ""}</div>
-    <div class="opacity-60 text-[10px] text-center leading-tight">${state.unlocked ? escapeHtml(theme.blurb) : escapeHtml(state.hint ?? "locked")}</div>
+    <div class="opacity-60 text-[10px] text-center leading-tight">${state.unlocked ? escapeHtml(theme.blurb) : escapeHtml(displayHint(state.hint))}</div>
     ${tier ? tierChip(tier) : ""}
     ${
       equipped
@@ -1271,7 +1291,7 @@ function pillarCard(
   label.textContent = style.name;
   const sub = document.createElement("div");
   sub.className = "text-[10px] opacity-60 text-center leading-snug";
-  sub.textContent = unlocked ? style.blurb : (hint ?? "locked");
+  sub.textContent = unlocked ? style.blurb : displayHint(hint);
   el.appendChild(cv);
   el.appendChild(label);
   el.appendChild(sub);

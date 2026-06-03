@@ -1,7 +1,10 @@
 import { deltaE2000, hueDistanceDeg, rgbToLch, type RGB } from "./color";
 import type { SkinColors } from "./skin";
 
-export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
+// "red" is a mythic tier ABOVE legendary. classifyRarity() NEVER returns it —
+// it's granted by the dev / special events only (so it can't be farmed by
+// picking the right colours) and stored directly on the skin row.
+export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary" | "red";
 
 // Background that skins are seen against in-game. ΔE against this
 // matters for whether the skin is even legible. ΔE against the
@@ -46,7 +49,7 @@ export function classifyRarity(skin: SkinColors): RarityScore {
   return { rarity, pairDeltaE, skyDeltaE, bodyChroma, accentChroma, hueGapDeg };
 }
 
-export const RARITY_ORDER: Rarity[] = ["common", "uncommon", "rare", "epic", "legendary"];
+export const RARITY_ORDER: Rarity[] = ["common", "uncommon", "rare", "epic", "legendary", "red"];
 
 export const RARITY_COLOR: Record<Rarity, string> = {
   common: "#9ca3af",
@@ -54,6 +57,7 @@ export const RARITY_COLOR: Record<Rarity, string> = {
   rare: "#60a5fa",
   epic: "#c084fc",
   legendary: "#facc15",
+  red: "#ef4444",
 };
 
 export function rarityRank(r: Rarity): number {

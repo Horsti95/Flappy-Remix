@@ -26,7 +26,7 @@ export function renderLeaderboard(
       ${seg("period", "total", "all-time", false)}
       ${seg("period", "monthly", "month", false)}
       ${seg("period", "weekly", "week", true)}
-      ${seg("period", "daily", "daily", false)}
+      ${seg("period", "daily", "today", false)}
     </div>
     <div data-modes class="px-5 mt-2 grid grid-cols-4 gap-2 text-[12px]">
       ${seg("mode", "all", "all", true)}

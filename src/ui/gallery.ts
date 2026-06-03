@@ -82,11 +82,10 @@ export function renderGallery(
   // achievement colors (one registry — see game/unlockables.ts).
   const collection = unlockProgress();
   wrap.innerHTML = `
-    <div class="px-5 pt-5 pb-1 flex items-center justify-between">
-      <h2 class="text-xl font-bold">gallery</h2>
+    <div class="px-5 pt-5 pb-2 flex items-baseline justify-between">
+      <h2 class="text-xl font-bold">gallery <span class="text-[11px] font-normal opacity-50 ml-1 tabular-nums">${collection.unlocked}/${collection.total}</span></h2>
       <button data-close class="text-sm underline opacity-70">close</button>
     </div>
-    <div class="px-5 pb-2 text-[11px] opacity-60">collection ${collection.unlocked} / ${collection.total} unlocked</div>
     <div data-next class="px-5 pb-2"></div>
     <div data-nav class="px-5 space-y-1.5"></div>
     <div data-body class="mt-3 px-3 flex-1 overflow-y-auto pb-28"></div>

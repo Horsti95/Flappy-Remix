@@ -54,7 +54,7 @@ import { createChallenge, fetchChallenge, fetchBestRunChallenge, ghostSkinFromCh
 import { renderInbox } from "./ui/inbox";
 import { renderProfile } from "./ui/profile";
 import { renderWhatsNew } from "./ui/whats-new";
-import { renderTutorial, tutorialSeen } from "./ui/tutorial";
+import { renderTutorial, tutorialSeen, firstRealRunSeen, markFirstRealRunSeen } from "./ui/tutorial";
 import { isFirstRun, markChangelogSeen, unseenChanges, CHANGELOG } from "./game/changelog";
 import { renderQuests } from "./ui/quests";
 import { evaluateRun, type QuestCompletion } from "./game/quests";
@@ -892,6 +892,33 @@ function startRun(runMode: RunMode = "casual"): void {
     runMode === "training",
   );
   loop.start();
+
+  // Practice-mode badge: persistent in-run label so players always know
+  // this isn't a real run. Shown over the overlays div (outside canvas).
+  if (runMode === "training") {
+    const badge = document.createElement("div");
+    badge.dataset.noFlap = "true";
+    badge.className =
+      "pointer-events-none absolute top-3 left-3 z-20 rounded-full bg-black/50 text-paper text-[10px] font-bold uppercase tracking-wider px-3 py-1.5";
+    badge.textContent = "practice · can't lose";
+    overlays.appendChild(badge);
+  }
+
+  // First real run hint: brief fade-in label for players who just finished
+  // the tutorial and are about to play their first scored run.
+  if (runMode === "casual" && tutorialSeen() && !firstRealRunSeen()) {
+    markFirstRealRunSeen();
+    const hint = document.createElement("div");
+    hint.dataset.noFlap = "true";
+    hint.className =
+      "pointer-events-none absolute inset-x-0 top-1/3 z-20 text-center text-paper text-sm font-bold px-6 transition-opacity duration-1000";
+    hint.style.opacity = "1";
+    hint.textContent = "This one counts — good luck! 🍀";
+    overlays.appendChild(hint);
+    // Fade out after 2.5s, then remove.
+    window.setTimeout(() => { hint.style.opacity = "0"; }, 2500);
+    window.setTimeout(() => { hint.remove(); }, 3500);
+  }
 }
 
 async function openShare(score: number, result: SubmitResult | null): Promise<void> {

@@ -8,6 +8,7 @@
  */
 
 const SEEN_KEY = "pflug.tutorialSeen.v1";
+const FIRST_RUN_KEY = "pflug.firstRealRun.v1";
 
 export function tutorialSeen(): boolean {
   try {
@@ -22,6 +23,23 @@ export function markTutorialSeen(): void {
     localStorage.setItem(SEEN_KEY, "1");
   } catch {
     /* localStorage blocked — harmless, tutorial may show again */
+  }
+}
+
+/** Returns true if the player has had their first real (non-practice) run. */
+export function firstRealRunSeen(): boolean {
+  try {
+    return localStorage.getItem(FIRST_RUN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function markFirstRealRunSeen(): void {
+  try {
+    localStorage.setItem(FIRST_RUN_KEY, "1");
+  } catch {
+    /* ignore */
   }
 }
 
@@ -59,8 +77,8 @@ const STEPS: Step[] = [
   },
   {
     emoji: "🚀",
-    title: "ready?",
-    body: "Let's try it with no stakes — a practice run where you can't lose. Tap to flap and get a feel for it. You've got this!",
+    title: "practice time",
+    body: "Next up: a PRACTICE run — you cannot crash, nothing is scored, nothing is saved. Just tap and feel the rhythm. When you're ready, hit 'play' from the menu for the real thing.",
   },
 ];
 
@@ -109,7 +127,7 @@ export function renderTutorial(host: HTMLElement, cbs: TutorialCallbacks): () =>
     bodyEl.textContent = step.body;
     backBtn.disabled = idx === 0;
     const last = idx === STEPS.length - 1;
-    nextBtn.textContent = last ? "try it (practice)" : "next";
+    nextBtn.textContent = last ? "start practice run" : "next";
     dotsEl.innerHTML = STEPS.map(
       (_, i) =>
         `<span class="h-1.5 rounded-full transition-all ${

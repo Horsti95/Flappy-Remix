@@ -1,4 +1,4 @@
-import { listOwnedSkins, type SkinRow } from "../social/skins";
+import { listOwnedSkins, getCachedOwnedSkins, type SkinRow } from "../social/skins";
 import { unlockProgress } from "../game/unlockables";
 import { tierForUnlock, tierRank, TIER_COLOR, TIER_LABEL, type Tier } from "../game/tiers";
 import { RARITY_COLOR, rarityRank } from "../game/rarity";
@@ -499,9 +499,18 @@ export function renderGallery(
 
   async function renderSkins(): Promise<void> {
     const body = wrap.querySelector("[data-body]") as HTMLDivElement;
-    body.innerHTML = `<div class="text-center text-xs opacity-60 mt-8">loading…</div>`;
+    // Local-first: paint the last-known owned skins instantly (no spinner),
+    // then revalidate against the server and repaint if it changed.
+    const cached = getCachedOwnedSkins();
+    if (cached) paintSkins(cached);
+    else body.innerHTML = `<div class="text-center text-xs opacity-60 mt-8">loading…</div>`;
     const rows = await listOwnedSkins();
     if (cancelled || activeTab !== "skins") return;
+    paintSkins(rows);
+  }
+
+  function paintSkins(rows: SkinRow[]): void {
+    const body = wrap.querySelector("[data-body]") as HTMLDivElement;
     body.innerHTML = "";
     const achStats = loadAchievementStats();
 

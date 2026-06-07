@@ -197,6 +197,10 @@ export function renderGallery(
       } bg-white/10`;
       if (typeof content === "string") {
         preview.innerHTML = content;
+        // Resize the SVG to fill the preview properly (shapeSvgWithColors uses w-3/4 h-3/4
+        // which is appropriate for larger cards but too small here).
+        const svgEl = preview.querySelector("svg");
+        if (svgEl) { svgEl.style.cssText = "display:block;width:90%;height:90%"; svgEl.removeAttribute("class"); }
       } else {
         content.style.width = "100%";
         content.style.height = "100%";
@@ -219,8 +223,12 @@ export function renderGallery(
 
     addItem("shape", "shapes", shapeSvgWithColors(currentEquipped.shapeId, [244,234,213], [26,26,26]));
 
+    // Color swatch: diagonal split showing body (top-left) and accent (bottom-right)
+    // so it's immediately readable as "these are your two colors" rather than a shape preview.
     const { body, accent } = resolveEquippedColors();
-    addItem("color", "skins", shapeSvgWithColors(currentEquipped.shapeId, body, accent));
+    const colorDiv = document.createElement("div");
+    colorDiv.style.cssText = `width:100%;height:100%;background:linear-gradient(135deg,rgb(${body.join(",")}) 55%,rgb(${accent.join(",")}) 55%)`;
+    addItem("color", "skins", colorDiv);
 
     const theme = THEMES.find(t => t.id === currentEquipped.themeId) ?? THEMES[0];
     const worldDiv = document.createElement("div");

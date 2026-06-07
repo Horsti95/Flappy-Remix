@@ -90,8 +90,7 @@ export function renderGallery(
       <button data-close class="text-sm underline opacity-70">close</button>
     </div>
     <div data-next class="px-5 pb-2"></div>
-    <div data-loadout class="flex items-center gap-3 px-4 py-2 border-b border-white/10 overflow-x-auto"></div>
-    <div data-nav class="flex gap-1.5 px-3 py-2 overflow-x-auto border-b border-white/10"></div>
+    <div data-loadout class="flex items-stretch gap-1 px-2 py-2 border-b border-white/10"></div>
     <div data-body class="mt-2 px-3 flex-1 overflow-y-auto pb-28"></div>
   `;
   host.appendChild(wrap);
@@ -142,15 +141,6 @@ export function renderGallery(
   })();
 
   type Tab = "shapes" | "skins" | "backgrounds" | "effects" | "quests" | "badges" | "pillars";
-  const TABS: { id: Tab; label: string }[] = [
-    { id: "shapes",      label: "shape"   },
-    { id: "skins",       label: "colors"  },
-    { id: "effects",     label: "effects" },
-    { id: "backgrounds", label: "worlds"  },
-    { id: "pillars",     label: "pillars" },
-    { id: "quests",      label: "goals"   },
-    { id: "badges",      label: "badges"  },
-  ];
   let activeTab: Tab = "shapes";
   let currentEquipped = { ...equipped, achColorId: equipped.achColorId };
   let cancelled = false;
@@ -182,32 +172,33 @@ export function renderGallery(
     return { body: DEFAULT_SKIN.body, accent: DEFAULT_SKIN.accent };
   }
 
+  // Single navigation row: 7 equal-width boxes that double as tabs AND as a
+  // live "loadout" preview of what you're flying. flex-1 + min-w-0 guarantees
+  // all seven fit the viewport width with no horizontal scroll.
   function renderLoadout(): void {
     const strip = wrap.querySelector("[data-loadout]") as HTMLDivElement;
     strip.innerHTML = "";
 
-    const addItem = (labelText: string, tab: Tab, content: HTMLElement | string): void => {
+    const addBox = (labelText: string, tab: Tab, content: HTMLElement | string): void => {
       const btn = document.createElement("button");
       btn.dataset.noFlap = "true";
-      btn.className = "flex flex-col items-center gap-0.5 shrink-0";
+      btn.className = "flex flex-col items-center gap-0.5 flex-1 min-w-0";
       const isActive = activeTab === tab;
       const preview = document.createElement("div");
-      preview.className = `w-11 h-11 rounded-xl flex items-center justify-center overflow-hidden ${
-        isActive ? "ring-2 ring-paper/50" : ""
-      } bg-white/10`;
+      preview.className = `w-full aspect-square rounded-lg flex items-center justify-center overflow-hidden text-base ${
+        isActive ? "ring-2 ring-paper bg-white/15" : "bg-white/8"
+      }`;
       if (typeof content === "string") {
         preview.innerHTML = content;
-        // Resize the SVG to fill the preview properly (shapeSvgWithColors uses w-3/4 h-3/4
-        // which is appropriate for larger cards but too small here).
         const svgEl = preview.querySelector("svg");
-        if (svgEl) { svgEl.style.cssText = "display:block;width:90%;height:90%"; svgEl.removeAttribute("class"); }
+        if (svgEl) { svgEl.style.cssText = "display:block;width:88%;height:88%"; svgEl.removeAttribute("class"); }
       } else {
         content.style.width = "100%";
         content.style.height = "100%";
         preview.appendChild(content);
       }
       const lbl = document.createElement("div");
-      lbl.className = `text-[9px] ${isActive ? "text-paper/80" : "text-paper/40"}`;
+      lbl.className = `text-[8px] leading-none truncate w-full text-center ${isActive ? "text-paper font-bold" : "text-paper/45"}`;
       lbl.textContent = labelText;
       btn.appendChild(preview);
       btn.appendChild(lbl);
@@ -215,26 +206,31 @@ export function renderGallery(
         e.stopPropagation();
         activeTab = tab;
         renderLoadout();
-        renderNav();
         render();
       });
       strip.appendChild(btn);
     };
 
-    addItem("shape", "shapes", shapeSvgWithColors(currentEquipped.shapeId, [244,234,213], [26,26,26]));
-
-    // Color swatch: diagonal split showing body (top-left) and accent (bottom-right)
-    // so it's immediately readable as "these are your two colors" rather than a shape preview.
+    // 1) Shape — drawn in the currently-equipped colours, so this box is a true
+    //    mini of what you fly with (shape + skin combined).
     const { body, accent } = resolveEquippedColors();
+    addBox("shape", "shapes", shapeSvgWithColors(currentEquipped.shapeId, body, accent));
+
+    // 2) Colors — diagonal body/accent split swatch.
     const colorDiv = document.createElement("div");
     colorDiv.style.cssText = `width:100%;height:100%;background:linear-gradient(135deg,rgb(${body.join(",")}) 55%,rgb(${accent.join(",")}) 55%)`;
-    addItem("color", "skins", colorDiv);
+    addBox("colors", "skins", colorDiv);
 
+    // 3) Effects — no single equipped visual; show a marker icon.
+    addBox("effects", "effects", `<span style="font-size:18px">✨</span>`);
+
+    // 4) World — the equipped theme's sky gradient.
     const theme = THEMES.find(t => t.id === currentEquipped.themeId) ?? THEMES[0];
     const worldDiv = document.createElement("div");
     worldDiv.style.cssText = `background:linear-gradient(180deg,${theme.colors.skyTop},${theme.colors.skyBottom})`;
-    addItem("world", "backgrounds", worldDiv);
+    addBox("world", "backgrounds", worldDiv);
 
+    // 5) Pillar — the equipped style rendered in its equipped colour.
     const pillarCv = document.createElement("canvas");
     pillarCv.width = 44; pillarCv.height = 44;
     const equippedPillarId = getEquippedPillarLocal();
@@ -246,32 +242,17 @@ export function renderGallery(
     if (pcx) {
       pillarStyle.draw({ ctx: pcx, x: 22, gapY: 18, gapH: 10, worldHeight: 44, pipeWidth: 14, over: 0, bodyColor: pillarBodyColor, capColor: pillarCapColor, highContrast: false });
     }
-    addItem("pillar", "pillars", pillarCv);
-  }
+    addBox("pillar", "pillars", pillarCv);
 
-  function renderNav(): void {
-    const nav = wrap.querySelector("[data-nav]") as HTMLDivElement;
-    nav.innerHTML = "";
-    for (const t of TABS) {
-      const btn = document.createElement("button");
-      btn.dataset.noFlap = "true";
-      const on = t.id === activeTab;
-      btn.className = `rounded-full px-3 py-1.5 text-[12px] whitespace-nowrap font-bold shrink-0 transition ${
-        on ? "bg-paper text-ink" : "bg-white/10 text-paper/70"
-      }`;
-      btn.textContent = t.label;
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        activeTab = t.id;
-        renderLoadout();
-        renderNav();
-        render();
-      });
-      nav.appendChild(btn);
-    }
+    // 6) Goals — progress fraction across every criterion.
+    const results = evaluateCriteria(loadAchievementStats());
+    const goalsDone = results.filter(r => r.unlocked).length;
+    addBox("goals", "quests", `<span class="text-[10px] font-bold tabular-nums leading-none">${goalsDone}<span class="opacity-40">/${results.length}</span></span>`);
+
+    // 7) Badges — marker icon.
+    addBox("badges", "badges", `<span style="font-size:18px">🏅</span>`);
   }
   renderLoadout();
-  renderNav();
 
   function render(): void {
     if (cancelled) return;

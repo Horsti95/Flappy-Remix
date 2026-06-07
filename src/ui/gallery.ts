@@ -40,7 +40,7 @@ import {
   type FlapFxId,
 } from "../game/flap-fx";
 import { getChainViews, type QuestChain, type QuestStep } from "../game/quests";
-import { listMyBadges, isDeveloper, type SeasonBadge } from "../social/badges";
+import { listMyBadges, getCachedBadges, isDeveloper, type SeasonBadge } from "../social/badges";
 import { authState } from "../social/auth";
 import { isPlaytester } from "../game/playtester";
 
@@ -185,13 +185,15 @@ export function renderGallery(
       btn.className = "flex flex-col items-center gap-0.5 flex-1 min-w-0";
       const isActive = activeTab === tab;
       const preview = document.createElement("div");
-      preview.className = `w-full aspect-square rounded-lg flex items-center justify-center overflow-hidden text-base ${
-        isActive ? "ring-2 ring-paper bg-white/15" : "bg-white/8"
+      // Every box is the same rounded plate (darker than the strip so the tile
+      // reads clearly), with an inset edge ring; the active one gets a paper ring.
+      preview.className = `w-full aspect-square rounded-lg flex items-center justify-center overflow-hidden bg-black/30 ${
+        isActive ? "ring-2 ring-paper" : "ring-1 ring-white/10"
       }`;
       if (typeof content === "string") {
         preview.innerHTML = content;
         const svgEl = preview.querySelector("svg");
-        if (svgEl) { svgEl.style.cssText = "display:block;width:88%;height:88%"; svgEl.removeAttribute("class"); }
+        if (svgEl) { svgEl.style.cssText = "display:block;width:80%;height:80%"; svgEl.removeAttribute("class"); }
       } else {
         content.style.width = "100%";
         content.style.height = "100%";
@@ -221,8 +223,9 @@ export function renderGallery(
     colorDiv.style.cssText = `width:100%;height:100%;background:linear-gradient(135deg,rgb(${body.join(",")}) 55%,rgb(${accent.join(",")}) 55%)`;
     addBox("colors", "skins", colorDiv);
 
-    // 3) Effects — no single equipped visual; show a marker icon.
-    addBox("effects", "effects", `<span style="font-size:18px">✨</span>`);
+    // 3) Effects — a drawn spark/sparkle (matches the in-game flap FX) rather
+    //    than a stock emoji.
+    addBox("effects", "effects", sparkIcon());
 
     // 4) World — the equipped theme's sky gradient.
     const theme = THEMES.find(t => t.id === currentEquipped.themeId) ?? THEMES[0];
@@ -230,7 +233,8 @@ export function renderGallery(
     worldDiv.style.cssText = `background:linear-gradient(180deg,${theme.colors.skyTop},${theme.colors.skyBottom})`;
     addBox("world", "backgrounds", worldDiv);
 
-    // 5) Pillar — the equipped style rendered in its equipped colour.
+    // 5) Pillar — the equipped style rendered in its equipped colour, over a
+    //    sky-tinted plate so the pillars read as a scene (not floating shapes).
     const pillarCv = document.createElement("canvas");
     pillarCv.width = 44; pillarCv.height = 44;
     const equippedPillarId = getEquippedPillarLocal();
@@ -240,17 +244,23 @@ export function renderGallery(
     const pillarCapColor = pc?.cap ?? "#2b6f4d";
     const pcx = pillarCv.getContext("2d");
     if (pcx) {
+      // Fill a soft sky behind the pillars so the tile isn't transparent.
+      const grad = pcx.createLinearGradient(0, 0, 0, 44);
+      grad.addColorStop(0, theme.colors.skyTop);
+      grad.addColorStop(1, theme.colors.skyBottom);
+      pcx.fillStyle = grad;
+      pcx.fillRect(0, 0, 44, 44);
       pillarStyle.draw({ ctx: pcx, x: 22, gapY: 18, gapH: 10, worldHeight: 44, pipeWidth: 14, over: 0, bodyColor: pillarBodyColor, capColor: pillarCapColor, highContrast: false });
     }
     addBox("pillar", "pillars", pillarCv);
 
-    // 6) Goals — progress fraction across every criterion.
+    // 6) Goals — a circular progress ring instead of plain "n / n".
     const results = evaluateCriteria(loadAchievementStats());
     const goalsDone = results.filter(r => r.unlocked).length;
-    addBox("goals", "quests", `<span class="text-[10px] font-bold tabular-nums leading-none">${goalsDone}<span class="opacity-40">/${results.length}</span></span>`);
+    addBox("goals", "quests", progressRing(goalsDone, results.length));
 
-    // 7) Badges — marker icon.
-    addBox("badges", "badges", `<span style="font-size:18px">🏅</span>`);
+    // 7) Badges — a drawn medal rather than a stock emoji.
+    addBox("badges", "badges", medalIcon());
   }
   renderLoadout();
 
@@ -326,9 +336,18 @@ export function renderGallery(
 
   async function renderBadges(): Promise<void> {
     const body = wrap.querySelector("[data-body]") as HTMLDivElement;
-    body.innerHTML = `<div class="text-center text-xs opacity-60 mt-8">loading…</div>`;
+    // Local-first: paint the last-known badges instantly (no spinner), then
+    // revalidate against the server and repaint if it changed.
+    const cached = getCachedBadges();
+    if (cached) paintBadges(cached);
+    else body.innerHTML = `<div class="text-center text-xs opacity-60 mt-8">loading…</div>`;
     const badges = await listMyBadges();
     if (cancelled || activeTab !== "badges") return;
+    paintBadges(badges);
+  }
+
+  function paintBadges(badges: SeasonBadge[]): void {
+    const body = wrap.querySelector("[data-body]") as HTMLDivElement;
     body.innerHTML = "";
     const playtester = isPlaytester(authState().profile?.created_at);
     const developer = isDeveloper(authState().profile?.username);
@@ -923,6 +942,43 @@ function shapeSvg(shapeId: ShapeId, unlocked: boolean): string {
 
 function svg(inner: string): string {
   return `<svg viewBox="-20 -16 40 32" class="w-3/4 h-3/4">${inner}</svg>`;
+}
+
+// --- Loadout-box icons (drawn, not emoji) ---
+
+/** Four-point sparkle + two small stars — a static nod to the flap FX. */
+function sparkIcon(): string {
+  return `<svg viewBox="-12 -12 24 24" fill="#f4ead5">
+    <path d="M0,-10 L2.2,-2.2 L10,0 L2.2,2.2 L0,10 L-2.2,2.2 L-10,0 L-2.2,-2.2 Z"/>
+    <circle cx="7" cy="-7" r="1.6" opacity="0.8"/>
+    <circle cx="-7" cy="6" r="1.2" opacity="0.6"/>
+  </svg>`;
+}
+
+/** A medal/coin on a ribbon — drawn replacement for the 🏅 emoji. */
+function medalIcon(): string {
+  return `<svg viewBox="-12 -12 24 24">
+    <path d="M-5,-11 L-2,-1 L-6,1 Z" fill="#d94f4f"/>
+    <path d="M5,-11 L2,-1 L6,1 Z" fill="#4f7fd9"/>
+    <circle cx="0" cy="3" r="7.5" fill="#f5c542" stroke="#caa028" stroke-width="1.2"/>
+    <circle cx="0" cy="3" r="4.2" fill="none" stroke="#caa028" stroke-width="0.8" opacity="0.7"/>
+    <path d="M0,-0.5 L1.3,2 L4,2.3 L2,4.2 L2.5,7 L0,5.6 L-2.5,7 L-2,4.2 L-4,2.3 L-1.3,2 Z" fill="#fff3c4"/>
+  </svg>`;
+}
+
+/** A circular progress ring with the done-count in the middle. */
+function progressRing(done: number, total: number): string {
+  const pct = total > 0 ? done / total : 0;
+  const r = 8.5;
+  const c = 2 * Math.PI * r;
+  const dash = (pct * c).toFixed(2);
+  return `<svg viewBox="-12 -12 24 24">
+    <circle cx="0" cy="0" r="${r}" fill="none" stroke="rgba(244,234,213,0.18)" stroke-width="2.4"/>
+    <circle cx="0" cy="0" r="${r}" fill="none" stroke="#4ade80" stroke-width="2.4" stroke-linecap="round"
+      stroke-dasharray="${dash} ${(c - pct * c).toFixed(2)}" transform="rotate(-90)"/>
+    <text x="0" y="0" text-anchor="middle" dominant-baseline="central"
+      fill="#f4ead5" font-size="9" font-weight="bold" font-family="inherit">${done}</text>
+  </svg>`;
 }
 
 function headerLabel(text: string): HTMLElement {

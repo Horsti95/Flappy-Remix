@@ -155,6 +155,13 @@ export function renderGallery(
     close();
   });
 
+  // If a server skin is equipped but the owned-skins cache hasn't been populated
+  // yet (gallery opened before ever visiting the skins tab), fetch it now so the
+  // shape box shows the right colours immediately without waiting for a tab tap.
+  if (currentEquipped.skinId && !getCachedOwnedSkins()) {
+    listOwnedSkins().then(() => { if (!cancelled) renderLoadout(); }).catch(() => {});
+  }
+
   function resolveEquippedColors(): { body: [number,number,number]; accent: [number,number,number] } {
     if (currentEquipped.presetId) {
       const preset = PRESET_SKINS.find(p => p.id === currentEquipped.presetId);
@@ -187,8 +194,8 @@ export function renderGallery(
       const preview = document.createElement("div");
       // Every box is the same rounded plate (darker than the strip so the tile
       // reads clearly), with an inset edge ring; the active one gets a paper ring.
-      preview.className = `w-full aspect-square rounded-lg flex items-center justify-center overflow-hidden bg-black/30 ${
-        isActive ? "ring-2 ring-paper" : "ring-1 ring-white/10"
+      preview.className = `w-full aspect-square rounded-lg flex items-center justify-center overflow-hidden relative bg-white/[0.13] ${
+        isActive ? "ring-2 ring-paper" : "ring-1 ring-white/15"
       }`;
       if (typeof content === "string") {
         preview.innerHTML = content;
@@ -227,11 +234,18 @@ export function renderGallery(
     //    than a stock emoji.
     addBox("effects", "effects", sparkIcon());
 
-    // 4) World — the equipped theme's sky gradient.
+    // 4) World — sky gradient + pipe stubs, matching the mini preview in the
+    //    backgrounds tab so the box reads as the actual world at a glance.
     const theme = THEMES.find(t => t.id === currentEquipped.themeId) ?? THEMES[0];
-    const worldDiv = document.createElement("div");
-    worldDiv.style.cssText = `background:linear-gradient(180deg,${theme.colors.skyTop},${theme.colors.skyBottom})`;
-    addBox("world", "backgrounds", worldDiv);
+    const worldEl = document.createElement("div");
+    worldEl.style.cssText = `position:relative;background:linear-gradient(180deg,${theme.colors.skyTop},${theme.colors.skyBottom})`;
+    const topPipe = document.createElement("div");
+    topPipe.style.cssText = `position:absolute;left:20%;right:20%;top:0;height:30%;border-radius:0 0 2px 2px;background:${theme.colors.pipeBody}`;
+    const botPipe = document.createElement("div");
+    botPipe.style.cssText = `position:absolute;left:20%;right:20%;bottom:0;height:36%;border-radius:2px 2px 0 0;background:${theme.colors.pipeBody}`;
+    worldEl.appendChild(topPipe);
+    worldEl.appendChild(botPipe);
+    addBox("world", "backgrounds", worldEl);
 
     // 5) Pillar — the equipped style rendered in its equipped colour, over a
     //    sky-tinted plate so the pillars read as a scene (not floating shapes).

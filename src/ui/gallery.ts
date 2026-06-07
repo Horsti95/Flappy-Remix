@@ -960,12 +960,21 @@ function svg(inner: string): string {
 
 // --- Loadout-box icons (drawn, not emoji) ---
 
-/** Four-point sparkle + two small stars — a static nod to the flap FX. */
+/** A soft cloud puff with drifting trails — mirrors the "wind puff" flap FX
+ *  (the default effect), rather than a stock emoji. */
 function sparkIcon(): string {
   return `<svg viewBox="-12 -12 24 24" fill="#f4ead5">
-    <path d="M0,-10 L2.2,-2.2 L10,0 L2.2,2.2 L0,10 L-2.2,2.2 L-10,0 L-2.2,-2.2 Z"/>
-    <circle cx="7" cy="-7" r="1.6" opacity="0.8"/>
-    <circle cx="-7" cy="6" r="1.2" opacity="0.6"/>
+    <g opacity="0.95">
+      <circle cx="-4" cy="-3" r="4.2"/>
+      <circle cx="2" cy="-5" r="5"/>
+      <circle cx="6" cy="-1.5" r="3.8"/>
+      <circle cx="0" cy="0" r="5.2"/>
+    </g>
+    <g stroke="#f4ead5" stroke-width="1.4" stroke-linecap="round" opacity="0.7">
+      <line x1="-5" y1="6" x2="-7" y2="9.5"/>
+      <line x1="0" y1="6.5" x2="-1.5" y2="10"/>
+      <line x1="5" y1="6" x2="3.5" y2="9.5"/>
+    </g>
   </svg>`;
 }
 

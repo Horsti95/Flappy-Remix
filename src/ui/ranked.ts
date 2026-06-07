@@ -13,6 +13,7 @@ import { authState } from "../social/auth";
 
 export interface RankedCallbacks {
   onPlayRound(match: RankedMatch, round: number): void;
+  onViewProfile(userId: string, username: string | null): void;
   onClose(): void;
 }
 
@@ -110,7 +111,7 @@ export function renderRankedPanel(host: HTMLElement, cbs: RankedCallbacks): () =
       return;
     }
     el.innerHTML = "";
-    for (const m of matches) el.appendChild(matchCard(m, cbs.onPlayRound));
+    for (const m of matches) el.appendChild(matchCard(m, cbs.onPlayRound, cbs.onViewProfile));
   }
 
   async function find(): Promise<void> {
@@ -152,7 +153,7 @@ export function renderRankedPanel(host: HTMLElement, cbs: RankedCallbacks): () =
   };
 }
 
-function matchCard(m: RankedMatch, onPlayRound: (m: RankedMatch, round: number) => void): HTMLElement {
+function matchCard(m: RankedMatch, onPlayRound: (m: RankedMatch, round: number) => void, onViewProfile: (userId: string, username: string | null) => void): HTMLElement {
   const el = document.createElement("div");
   el.dataset.noFlap = "true";
   el.className = "rounded-2xl bg-white/5 p-4";
@@ -167,6 +168,10 @@ function matchCard(m: RankedMatch, onPlayRound: (m: RankedMatch, round: number) 
         : `<span class="text-[10px] uppercase tracking-wider text-paper/80">in progress</span>`;
 
   const oppLabel = m.opponent.username ? `@${escapeHtml(m.opponent.username)}` : "anon";
+  const oppId = m.opponent.user_id;
+  const oppClickable = oppId
+    ? `<button data-view-profile class="text-sm font-bold underline decoration-dotted opacity-90 hover:opacity-100">vs ${oppLabel}</button>`
+    : `<div class="text-sm font-bold">vs ${oppLabel}</div>`;
   const revealOpp = m.state === "completed" || m.state === "expired";
   const rounds = [0, 1, 2]
     .map((i) => {
@@ -198,7 +203,7 @@ function matchCard(m: RankedMatch, onPlayRound: (m: RankedMatch, round: number) 
 
   el.innerHTML = `
     <div class="flex items-center justify-between">
-      <div class="text-sm font-bold">vs ${oppLabel}</div>
+      ${oppClickable}
       ${stateBadge}
     </div>
     <div class="mt-3 grid grid-cols-3 gap-2">${rounds}</div>
@@ -215,6 +220,10 @@ function matchCard(m: RankedMatch, onPlayRound: (m: RankedMatch, round: number) 
   el.querySelector("[data-play]")?.addEventListener("click", (e) => {
     e.stopPropagation();
     if (next !== null) onPlayRound(m, next);
+  });
+  el.querySelector("[data-view-profile]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onViewProfile(oppId!, m.opponent.username ?? null);
   });
   return el;
 }

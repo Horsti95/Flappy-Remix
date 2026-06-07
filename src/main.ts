@@ -656,10 +656,17 @@ function applyQuestReward(c: QuestCompletion): void {
   }
 }
 
-type BoolSetting = "sound" | "highContrast" | "reducedMotion";
+type BoolSetting = "sound" | "gateSound" | "deathSound" | "highContrast" | "reducedMotion";
 function onToggleSetting(key: keyof Settings): void {
   // Only the boolean toggles route here; ghostOpacity uses its own slider.
-  if (key !== "sound" && key !== "highContrast" && key !== "reducedMotion") return;
+  if (
+    key !== "sound" &&
+    key !== "gateSound" &&
+    key !== "deathSound" &&
+    key !== "highContrast" &&
+    key !== "reducedMotion"
+  )
+    return;
   const k = key as BoolSetting;
   settings[k] = !settings[k];
   saveSettings(settings);
@@ -725,7 +732,7 @@ function startRun(runMode: RunMode = "casual"): void {
     {
       render: (sim, alpha, g) => renderer.draw(sim, alpha, g),
       onScore: (sc) => {
-        if (settings.sound) playGatePass();
+        if (settings.sound && settings.gateSound) playGatePass();
         // Stadium theme: the crowd cheers every 20 points. Audio-only,
         // gated on the sound setting; never affects the deterministic sim.
         if (settings.sound && equippedThemeId === "stadium" && sc > 0 && sc % 20 === 0) {
@@ -733,7 +740,7 @@ function startRun(runMode: RunMode = "casual"): void {
         }
       },
       onDeath: async (sim) => {
-        if (settings.sound) playDeath();
+        if (settings.sound && settings.deathSound) playDeath();
         mode = "dead";
         pauseBtn.classList.add("hidden");
         const score = sim.score;

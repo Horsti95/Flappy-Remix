@@ -152,6 +152,8 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
         <div class="grid grid-cols-2 gap-2 text-[11px]">
           ${toggle("sound", "Sound", settings.sound)}
           ${toggle("reducedMotion", "Reduced motion", settings.reducedMotion)}
+          ${toggle("gateSound", "Gate ding", settings.gateSound)}
+          ${toggle("deathSound", "Death thud", settings.deathSound)}
         </div>
 
         <div class="panel-group-label">Display</div>

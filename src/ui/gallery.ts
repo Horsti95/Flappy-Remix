@@ -90,8 +90,9 @@ export function renderGallery(
       <button data-close class="text-sm underline opacity-70">close</button>
     </div>
     <div data-next class="px-5 pb-2"></div>
-    <div data-nav class="px-5 space-y-1.5"></div>
-    <div data-body class="mt-3 px-3 flex-1 overflow-y-auto pb-28"></div>
+    <div data-loadout class="flex items-center gap-3 px-4 py-2 border-b border-white/10 overflow-x-auto"></div>
+    <div data-nav class="flex gap-1.5 px-3 py-2 overflow-x-auto border-b border-white/10"></div>
+    <div data-body class="mt-2 px-3 flex-1 overflow-y-auto pb-28"></div>
   `;
   host.appendChild(wrap);
 
@@ -141,26 +142,16 @@ export function renderGallery(
   })();
 
   type Tab = "shapes" | "skins" | "backgrounds" | "effects" | "quests" | "badges" | "pillars";
-  // Collapsible accordion: three big groups, each expands on click to reveal
-  // its tabs. No horizontal scroll — everything fits in the three rows.
-  type Group = { id: string; label: string; tabs: { id: Tab; label: string }[] };
-  const GROUPS: Group[] = [
-    { id: "plane", label: "✈️  Player", tabs: [
-      { id: "shapes", label: "shape" },
-      { id: "skins", label: "colors" },
-      { id: "effects", label: "effects" },
-    ] },
-    { id: "world", label: "🌍  World", tabs: [
-      { id: "backgrounds", label: "backgrounds" },
-      { id: "pillars", label: "pillars" },
-    ] },
-    { id: "progress", label: "🏆  Goals", tabs: [
-      { id: "quests", label: "goals" },
-      { id: "badges", label: "badges" },
-    ] },
+  const TABS: { id: Tab; label: string }[] = [
+    { id: "shapes",      label: "shape"   },
+    { id: "skins",       label: "colors"  },
+    { id: "effects",     label: "effects" },
+    { id: "backgrounds", label: "worlds"  },
+    { id: "pillars",     label: "pillars" },
+    { id: "quests",      label: "goals"   },
+    { id: "badges",      label: "badges"  },
   ];
   let activeTab: Tab = "shapes";
-  let openGroup = "plane";
   let currentEquipped = { ...equipped, achColorId: equipped.achColorId };
   let cancelled = false;
 
@@ -174,79 +165,104 @@ export function renderGallery(
     close();
   });
 
-  // Unlocked / total across every collectible in a group, summed from each
-  // sub-tab's own registry. Counts only client-known unlockables — server
-  // skins and season badges aren't tallied here (they need async fetches).
-  function groupProgress(id: string): { unlocked: number; total: number } {
-    const s = loadAchievementStats();
-    let unlocked = 0;
-    let total = 0;
-    const add = (u: number, t: number): void => { unlocked += u; total += t; };
-    if (id === "plane") {
-      const granted = new Set(getGrantedShapesLocal());
-      add(SHAPES.filter((sh) => granted.has(sh.id) || sh.unlock(s).unlocked).length, SHAPES.length);
-      const pal = unlockProgress("palette", s);
-      const ach = unlockProgress("achievement-color", s);
-      add(pal.unlocked + ach.unlocked, pal.total + ach.total);
-      add(FLAP_FX_OPTIONS.filter((o) => flapFxUnlock(o.id, s).unlocked).length, FLAP_FX_OPTIONS.length);
-      add(FLAP_SOUND_OPTIONS.filter((o) => flapSoundUnlock(o.id, s).unlocked).length, FLAP_SOUND_OPTIONS.length);
-    } else if (id === "world") {
-      const th = unlockProgress("theme", s);
-      add(th.unlocked, th.total);
-      add(PILLAR_STYLES.filter((p) => p.unlock(s).unlocked).length, PILLAR_STYLES.length);
-    } else if (id === "progress") {
-      const results = evaluateCriteria(s);
-      add(results.filter((r) => r.unlocked).length, results.length);
+  function resolveEquippedColors(): { body: [number,number,number]; accent: [number,number,number] } {
+    if (currentEquipped.presetId) {
+      const preset = PRESET_SKINS.find(p => p.id === currentEquipped.presetId);
+      if (preset) return { body: preset.body, accent: preset.accent };
     }
-    return { unlocked, total };
+    if (currentEquipped.achColorId) {
+      const ach = ACHIEVEMENTS.find(a => a.id === currentEquipped.achColorId);
+      if (ach) return { body: ach.reward.body, accent: ach.reward.accent };
+    }
+    if (currentEquipped.skinId) {
+      const cached = getCachedOwnedSkins();
+      const skin = cached?.find(s => s.id === currentEquipped.skinId);
+      if (skin) return { body: skin.body, accent: skin.accent };
+    }
+    return { body: DEFAULT_SKIN.body, accent: DEFAULT_SKIN.accent };
+  }
+
+  function renderLoadout(): void {
+    const strip = wrap.querySelector("[data-loadout]") as HTMLDivElement;
+    strip.innerHTML = "";
+
+    const addItem = (labelText: string, tab: Tab, content: HTMLElement | string): void => {
+      const btn = document.createElement("button");
+      btn.dataset.noFlap = "true";
+      btn.className = "flex flex-col items-center gap-0.5 shrink-0";
+      const isActive = activeTab === tab;
+      const preview = document.createElement("div");
+      preview.className = `w-11 h-11 rounded-xl flex items-center justify-center overflow-hidden ${
+        isActive ? "ring-2 ring-paper/50" : ""
+      } bg-white/10`;
+      if (typeof content === "string") {
+        preview.innerHTML = content;
+      } else {
+        content.style.width = "100%";
+        content.style.height = "100%";
+        preview.appendChild(content);
+      }
+      const lbl = document.createElement("div");
+      lbl.className = `text-[9px] ${isActive ? "text-paper/80" : "text-paper/40"}`;
+      lbl.textContent = labelText;
+      btn.appendChild(preview);
+      btn.appendChild(lbl);
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        activeTab = tab;
+        renderLoadout();
+        renderNav();
+        render();
+      });
+      strip.appendChild(btn);
+    };
+
+    addItem("shape", "shapes", shapeSvgWithColors(currentEquipped.shapeId, [244,234,213], [26,26,26]));
+
+    const { body, accent } = resolveEquippedColors();
+    addItem("color", "skins", shapeSvgWithColors(currentEquipped.shapeId, body, accent));
+
+    const theme = THEMES.find(t => t.id === currentEquipped.themeId) ?? THEMES[0];
+    const worldDiv = document.createElement("div");
+    worldDiv.style.cssText = `background:linear-gradient(180deg,${theme.colors.skyTop},${theme.colors.skyBottom})`;
+    addItem("world", "backgrounds", worldDiv);
+
+    const pillarCv = document.createElement("canvas");
+    pillarCv.width = 44; pillarCv.height = 44;
+    const equippedPillarId = getEquippedPillarLocal();
+    const pillarStyle = PILLAR_STYLES.find(p => p.id === equippedPillarId) ?? PILLAR_STYLES[0];
+    const pc = getPillarColor(getEquippedPillarColorLocal());
+    const pillarBodyColor = pc?.body ?? "#3d8b58";
+    const pillarCapColor = pc?.cap ?? "#2b6f4d";
+    const pcx = pillarCv.getContext("2d");
+    if (pcx) {
+      pillarStyle.draw({ ctx: pcx, x: 22, gapY: 18, gapH: 10, worldHeight: 44, pipeWidth: 14, over: 0, bodyColor: pillarBodyColor, capColor: pillarCapColor, highContrast: false });
+    }
+    addItem("pillar", "pillars", pillarCv);
   }
 
   function renderNav(): void {
     const nav = wrap.querySelector("[data-nav]") as HTMLDivElement;
     nav.innerHTML = "";
-    for (const g of GROUPS) {
-      const isOpen = g.id === openGroup;
-      const prog = groupProgress(g.id);
-      const header = document.createElement("button");
-      header.className =
-        "w-full flex items-center justify-between rounded-2xl px-4 py-1.5 transition " +
-        (isOpen ? "bg-white/10 text-paper" : "bg-white/5 text-paper/80");
-      // The group label + the sub-tabs that appear on expand already say what's
-      // inside, so the subtitle preview is dropped to declutter.
-      header.innerHTML = `
-        <span class="text-sm font-bold min-w-0 truncate">${g.label}</span>
-        <span class="flex items-center gap-2 shrink-0">
-          <span class="text-[11px] tabular-nums opacity-80 bg-white/10 rounded-full px-2 py-0.5">${prog.unlocked}/${prog.total}</span>
-          <span class="text-xs opacity-60">${isOpen ? "▾" : "▸"}</span>
-        </span>`;
-      header.addEventListener("click", (e) => {
+    for (const t of TABS) {
+      const btn = document.createElement("button");
+      btn.dataset.noFlap = "true";
+      const on = t.id === activeTab;
+      btn.className = `rounded-full px-3 py-1.5 text-[12px] whitespace-nowrap font-bold shrink-0 transition ${
+        on ? "bg-paper text-ink" : "bg-white/10 text-paper/70"
+      }`;
+      btn.textContent = t.label;
+      btn.addEventListener("click", (e) => {
         e.stopPropagation();
-        openGroup = isOpen ? "" : g.id;
+        activeTab = t.id;
+        renderLoadout();
         renderNav();
+        render();
       });
-      nav.appendChild(header);
-      if (isOpen) {
-        const row = document.createElement("div");
-        row.className = "flex flex-wrap gap-2 px-1 py-1 text-[12px]";
-        for (const t of g.tabs) {
-          const btn = document.createElement("button");
-          const on = t.id === activeTab;
-          btn.className =
-            "rounded-full px-3 py-1 whitespace-nowrap " +
-            (on ? "bg-paper text-ink" : "bg-white/5 text-paper opacity-60");
-          btn.textContent = t.label;
-          btn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            activeTab = t.id;
-            renderNav();
-            render();
-          });
-          row.appendChild(btn);
-        }
-        nav.appendChild(row);
-      }
+      nav.appendChild(btn);
     }
   }
+  renderLoadout();
   renderNav();
 
   function render(): void {
@@ -277,6 +293,7 @@ export function renderGallery(
         pillarCard(style, equippedPillar === style.id, st.unlocked, st.hint, () => {
           if (!st.unlocked) return;
           setEquippedPillarLocal(style.id);
+          renderLoadout();
           renderPillars();
         }, tierForUnlock(style.unlock), previewBody, previewCap),
       );
@@ -310,6 +327,7 @@ export function renderGallery(
       sw.addEventListener("click", (e) => {
         e.stopPropagation();
         setEquippedPillarColorLocal(c.id);
+        renderLoadout();
         renderPillars();
       });
       swatches.appendChild(sw);
@@ -471,6 +489,7 @@ export function renderGallery(
           if (!themeUnlocked(theme)) return;
           currentEquipped.themeId = theme.id;
           cbs.onEquipTheme(theme.id);
+          renderLoadout();
           renderBackgrounds();
         }, tierForUnlock(theme.unlock)),
       );
@@ -491,6 +510,7 @@ export function renderGallery(
           if (!unlocked) return;
           currentEquipped.shapeId = shape.id;
           cbs.onEquipShape(shape.id);
+          renderLoadout();
           renderShapes();
         }, unlocked, tierForUnlock(shape.unlock)),
       );
@@ -527,6 +547,7 @@ export function renderGallery(
         currentEquipped.presetId = null;
         cbs.onEquipColorPreset(null);
         cbs.onEquipSkin(null);
+        renderLoadout();
         void renderSkins();
       }),
     );
@@ -542,6 +563,7 @@ export function renderGallery(
           currentEquipped.presetId = null;
           cbs.onEquipColorPreset(null);
           cbs.onEquipSkin(newId);
+          renderLoadout();
           void renderSkins();
         }),
       );
@@ -560,6 +582,7 @@ export function renderGallery(
           currentEquipped.presetId = p.id;
           currentEquipped.skinId = null;
           cbs.onEquipColorPreset(p.id);
+          renderLoadout();
           void renderSkins();
         }),
       );
@@ -594,6 +617,7 @@ export function renderGallery(
           currentEquipped.presetId = null;
           setEquippedAchievementColorLocal(newId);
           cbs.onEquipAchievementColor(newId);
+          renderLoadout();
           void renderSkins();
         }),
       );

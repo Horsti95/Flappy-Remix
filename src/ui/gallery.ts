@@ -26,6 +26,7 @@ import { PRESET_SKINS, presetUnlock, type PresetSkin } from "../game/preset-skin
 import { evaluateCriteria, isEventActive, type CriterionDef } from "../game/unlock-criteria";
 import { PILLAR_STYLES, getEquippedPillarLocal, setEquippedPillarLocal, type PillarStyle } from "../game/pillars";
 import { PILLAR_COLORS, getPillarColor, getEquippedPillarColorLocal, setEquippedPillarColorLocal } from "../game/pillar-colors";
+import { getEquippedAchievementColorLocal, setEquippedAchievementColorLocal } from "../game/achievement-equip";
 import {
   FLAP_FX_OPTIONS,
   FX_COLORS,
@@ -39,7 +40,7 @@ import {
   type FlapFxId,
 } from "../game/flap-fx";
 import { getChainViews, type QuestChain, type QuestStep } from "../game/quests";
-import { listMyBadges, type SeasonBadge } from "../social/badges";
+import { listMyBadges, isDeveloper, type SeasonBadge } from "../social/badges";
 import { authState } from "../social/auth";
 import { isPlaytester } from "../game/playtester";
 
@@ -48,6 +49,7 @@ export interface GalleryCallbacks {
   onEquipShape(shapeId: ShapeId): void;
   onEquipTheme(themeId: ThemeId): void;
   onEquipColorPreset(presetId: string | null): void;
+  onEquipAchievementColor(achId: string | null): void;
   onClose(): void;
 }
 
@@ -56,6 +58,7 @@ export interface GalleryEquipped {
   shapeId: ShapeId;
   themeId: ThemeId;
   presetId: string | null;
+  achColorId: string | null;
 }
 
 export interface GalleryStats {
@@ -158,7 +161,7 @@ export function renderGallery(
   ];
   let activeTab: Tab = "shapes";
   let openGroup = "plane";
-  let currentEquipped = { ...equipped };
+  let currentEquipped = { ...equipped, achColorId: equipped.achColorId };
   let cancelled = false;
 
   const close = () => {
@@ -337,6 +340,9 @@ export function renderGallery(
     grid.className = "grid grid-cols-2 gap-4 px-2 pt-1";
     body.appendChild(grid);
     if (playtester) grid.appendChild(playtesterCard());
+    if (isDeveloper(authState().profile?.username)) {
+      grid.appendChild(devBadgeCard());
+    }
     const sorted = [...badges].sort((a, b) => b.season_id - a.season_id);
     const bestRank = sorted.length ? Math.min(...sorted.map((b) => b.rank)) : 0;
     for (const badge of sorted) {
@@ -564,13 +570,26 @@ export function renderGallery(
     progress.innerHTML = `<div class="h-1.5 bg-white/10 rounded-full overflow-hidden"><div class="h-full bg-paper transition-all" style="width:${pct}%"></div></div>`;
     const achDesc = document.createElement("div");
     achDesc.className = "px-3 mb-3 text-[10px] opacity-60";
-    achDesc.textContent = "color palettes earned by achievements — preview shown locked; ??? are secret.";
+    achDesc.textContent = "tap an unlocked color to equip it — preview shown while locked; ??? are secret.";
     body.appendChild(progress);
     body.appendChild(achDesc);
     const achGrid = document.createElement("div");
     achGrid.className = "grid grid-cols-3 gap-3.5 px-2 pt-1";
     body.appendChild(achGrid);
-    for (const a of ach) achGrid.appendChild(achievementColorCard(a, achStats, currentEquipped.shapeId));
+    for (const a of ach) {
+      const isEquipped = currentEquipped.achColorId === a.id;
+      achGrid.appendChild(
+        achievementColorCard(a, achStats, currentEquipped.shapeId, isEquipped, () => {
+          const newId = isEquipped ? null : a.id;
+          currentEquipped.achColorId = newId;
+          currentEquipped.skinId = null;
+          currentEquipped.presetId = null;
+          setEquippedAchievementColorLocal(newId);
+          cbs.onEquipAchievementColor(newId);
+          void renderSkins();
+        }),
+      );
+    }
   }
 
   render();
@@ -930,7 +949,13 @@ function themeCard(theme: Theme, equipped: boolean, stats: GalleryStats, onTap: 
   return el;
 }
 
-function achievementColorCard(a: AchievementDef, stats: AchievementStats, shapeId: ShapeId): HTMLElement {
+function achievementColorCard(
+  a: AchievementDef,
+  stats: AchievementStats,
+  shapeId: ShapeId,
+  equipped: boolean,
+  onEquip: () => void,
+): HTMLElement {
   const got = a.check(stats);
   // Locked cards preview their real reward color so players can see what
   // they're working toward — EXCEPT prestige (secret) rewards, which stay a
@@ -939,8 +964,8 @@ function achievementColorCard(a: AchievementDef, stats: AchievementStats, shapeI
   const el = document.createElement("div");
   el.dataset.noFlap = "true";
   el.className = `relative rounded-2xl p-3 flex flex-col items-center text-[10px] gap-2 border-2 bg-white/5 ${
-    got ? "border-emerald-400/40" : mystery ? "border-white/10" : "border-white/5 opacity-80"
-  }`;
+    equipped ? "border-paper" : got ? "border-emerald-400/40" : mystery ? "border-white/10" : "border-white/5 opacity-80"
+  }${got ? " active:scale-95 transition" : ""}`;
   const body = mystery ? ([18, 18, 22] as [number, number, number]) : a.reward.body;
   const accent = mystery ? ([10, 10, 12] as [number, number, number]) : a.reward.accent;
   const preview = mystery
@@ -948,13 +973,20 @@ function achievementColorCard(a: AchievementDef, stats: AchievementStats, shapeI
     : `<div class="w-full aspect-square flex items-center justify-center swatch-plate rounded-xl ${got ? "" : "opacity-90"}">
          ${shapeSvgWithColors(shapeId, body, accent)}
        </div>`;
-  const stateLabel = got ? "unlocked" : mystery ? "secret" : "preview · locked";
+  const stateLabel = got && equipped ? "equipped" : got ? "unlocked" : mystery ? "secret" : "preview · locked";
   el.innerHTML = `
     ${preview}
     <div class="font-bold capitalize leading-tight text-center">${mystery ? "???" : escapeHtml(a.name)}</div>
     <div class="opacity-60 text-[10px] text-center leading-snug">${escapeHtml(a.blurb)}</div>
     <div class="text-[9px] uppercase tracking-wider font-bold ${got ? "text-emerald-300" : "opacity-50"}">${stateLabel}</div>
   `;
+  if (got) {
+    el.style.cursor = "pointer";
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      onEquip();
+    });
+  }
   return el;
 }
 
@@ -1187,6 +1219,19 @@ function playtesterCard(): HTMLElement {
     <div class="font-bold">Playtester</div>
     <div class="opacity-70 text-[12px] text-center leading-tight">here before launch</div>
     <div class="absolute top-1 right-1 text-[9px] bg-emerald-300 text-ink rounded-full px-1.5 py-0.5">forever</div>
+  `;
+  return el;
+}
+
+function devBadgeCard(): HTMLElement {
+  const el = document.createElement("div");
+  el.dataset.noFlap = "true";
+  el.className = "rounded-2xl bg-white/5 border-2 border-accent-ranked/30 p-4 flex flex-col items-center gap-2 text-center";
+  el.innerHTML = `
+    <div class="text-3xl">⚡</div>
+    <div class="font-bold text-sm">Developer</div>
+    <div class="text-[10px] opacity-60 leading-snug">made this game</div>
+    <div class="text-[9px] uppercase tracking-wider font-bold" style="color:#c084fc">dev badge</div>
   `;
   return el;
 }

@@ -8,7 +8,7 @@
  * Bump APP_VERSION + prepend an entry when shipping notable changes.
  */
 
-export const APP_VERSION = "0.17.0";
+export const APP_VERSION = "0.18.0";
 
 export interface ChangeEntry {
   version: string;
@@ -19,6 +19,18 @@ export interface ChangeEntry {
 
 // Newest first.
 export const CHANGELOG: ChangeEntry[] = [
+  {
+    version: "0.18.0",
+    date: "2026-06-07",
+    title: "One-tap gallery & readable unlocks",
+    notes: [
+      "Gallery redesigned: one row of boxes — shape, colours, effects, world, pillar, goals, badges — each a live mini of what you're flying with. Tap to jump.",
+      "Unlocks now show as full-screen cards you click through one by one — skins and achievements alike, no more blink-and-miss toasts.",
+      "Louder gate-pass and crash sounds.",
+      "Fixed the share button silently doing nothing on desktop.",
+      "Friendlier first run: short coach tips appear as you play.",
+    ],
+  },
   {
     version: "0.17.0",
     date: "2026-06-03",

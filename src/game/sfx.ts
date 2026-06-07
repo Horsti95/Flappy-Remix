@@ -137,6 +137,62 @@ export function playCheer(): void {
   src.start();
 }
 
+export function playGatePass(): void {
+  if (reducedMotion()) return;
+  const ac = getCtx();
+  if (!ac) return;
+  if (ac.state === "suspended") ac.resume().catch(() => undefined);
+  const master = ac.createGain();
+  master.gain.value = 0.72;
+  master.connect(ac.destination);
+  const t = ac.currentTime + 0.005;
+  const notes = [523.25, 783.99];
+  notes.forEach((freq, i) => {
+    tone(ac, master, { freq, startAt: t + i * 0.06, duration: 0.13, type: "sine", peak: 0.22 });
+  });
+}
+
+export function playDeath(): void {
+  if (reducedMotion()) return;
+  const ac = getCtx();
+  if (!ac) return;
+  if (ac.state === "suspended") ac.resume().catch(() => undefined);
+  const master = ac.createGain();
+  master.gain.value = 0.78;
+  master.connect(ac.destination);
+  const t = ac.currentTime + 0.005;
+  // Low descending thud
+  const osc = ac.createOscillator();
+  const g = ac.createGain();
+  osc.type = "triangle";
+  osc.frequency.setValueAtTime(200, t);
+  osc.frequency.exponentialRampToValueAtTime(80, t + 0.25);
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(0.35, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.32);
+  osc.connect(g).connect(master);
+  osc.start(t);
+  osc.stop(t + 0.3);
+  // Impact noise burst
+  const bufLen = Math.floor(ac.sampleRate * 0.15);
+  const buf = ac.createBuffer(1, bufLen, ac.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufLen; i++) {
+    const env = Math.pow(1 - i / bufLen, 3);
+    data[i] = (Math.random() * 2 - 1) * env;
+  }
+  const src = ac.createBufferSource();
+  src.buffer = buf;
+  const bp = ac.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.value = 400;
+  bp.Q.value = 1.5;
+  const ng = ac.createGain();
+  ng.gain.value = 0.3;
+  src.connect(bp).connect(ng).connect(master);
+  src.start(t);
+}
+
 // ---- Flap-sound variants ---------------------------------------------------
 // Five candidates. soft_pop is the always-on default; the rest are
 // gated behind achievements (so each unlock gives an audible reward).

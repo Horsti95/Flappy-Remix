@@ -1,4 +1,4 @@
-import { listOwnedSkins, type SkinRow } from "../social/skins";
+import { listOwnedSkins, getCachedOwnedSkins, type SkinRow } from "../social/skins";
 import { unlockProgress } from "../game/unlockables";
 import { tierForUnlock, tierRank, TIER_COLOR, TIER_LABEL, type Tier } from "../game/tiers";
 import { RARITY_COLOR, rarityRank } from "../game/rarity";
@@ -26,6 +26,7 @@ import { PRESET_SKINS, presetUnlock, type PresetSkin } from "../game/preset-skin
 import { evaluateCriteria, isEventActive, type CriterionDef } from "../game/unlock-criteria";
 import { PILLAR_STYLES, getEquippedPillarLocal, setEquippedPillarLocal, type PillarStyle } from "../game/pillars";
 import { PILLAR_COLORS, getPillarColor, getEquippedPillarColorLocal, setEquippedPillarColorLocal } from "../game/pillar-colors";
+import { setEquippedAchievementColorLocal } from "../game/achievement-equip";
 import {
   FLAP_FX_OPTIONS,
   FX_COLORS,
@@ -39,7 +40,7 @@ import {
   type FlapFxId,
 } from "../game/flap-fx";
 import { getChainViews, type QuestChain, type QuestStep } from "../game/quests";
-import { listMyBadges, type SeasonBadge } from "../social/badges";
+import { listMyBadges, getCachedBadges, isDeveloper, type SeasonBadge } from "../social/badges";
 import { authState } from "../social/auth";
 import { isPlaytester } from "../game/playtester";
 
@@ -48,6 +49,7 @@ export interface GalleryCallbacks {
   onEquipShape(shapeId: ShapeId): void;
   onEquipTheme(themeId: ThemeId): void;
   onEquipColorPreset(presetId: string | null): void;
+  onEquipAchievementColor(achId: string | null): void;
   onClose(): void;
 }
 
@@ -56,6 +58,7 @@ export interface GalleryEquipped {
   shapeId: ShapeId;
   themeId: ThemeId;
   presetId: string | null;
+  achColorId: string | null;
 }
 
 export interface GalleryStats {
@@ -87,8 +90,8 @@ export function renderGallery(
       <button data-close class="text-sm underline opacity-70">close</button>
     </div>
     <div data-next class="px-5 pb-2"></div>
-    <div data-nav class="px-5 space-y-1.5"></div>
-    <div data-body class="mt-3 px-3 flex-1 overflow-y-auto pb-28"></div>
+    <div data-loadout class="flex items-stretch gap-1 px-2 py-2 border-b border-white/10"></div>
+    <div data-body class="mt-2 px-3 flex-1 overflow-y-auto pb-28"></div>
   `;
   host.appendChild(wrap);
 
@@ -138,27 +141,8 @@ export function renderGallery(
   })();
 
   type Tab = "shapes" | "skins" | "backgrounds" | "effects" | "quests" | "badges" | "pillars";
-  // Collapsible accordion: three big groups, each expands on click to reveal
-  // its tabs. No horizontal scroll — everything fits in the three rows.
-  type Group = { id: string; label: string; tabs: { id: Tab; label: string }[] };
-  const GROUPS: Group[] = [
-    { id: "plane", label: "✈️  Player", tabs: [
-      { id: "shapes", label: "shape" },
-      { id: "skins", label: "colors" },
-      { id: "effects", label: "effects" },
-    ] },
-    { id: "world", label: "🌍  World", tabs: [
-      { id: "backgrounds", label: "backgrounds" },
-      { id: "pillars", label: "pillars" },
-    ] },
-    { id: "progress", label: "🏆  Goals", tabs: [
-      { id: "quests", label: "goals" },
-      { id: "badges", label: "badges" },
-    ] },
-  ];
   let activeTab: Tab = "shapes";
-  let openGroup = "plane";
-  let currentEquipped = { ...equipped };
+  let currentEquipped = { ...equipped, achColorId: equipped.achColorId };
   let cancelled = false;
 
   const close = () => {
@@ -171,80 +155,128 @@ export function renderGallery(
     close();
   });
 
-  // Unlocked / total across every collectible in a group, summed from each
-  // sub-tab's own registry. Counts only client-known unlockables — server
-  // skins and season badges aren't tallied here (they need async fetches).
-  function groupProgress(id: string): { unlocked: number; total: number } {
-    const s = loadAchievementStats();
-    let unlocked = 0;
-    let total = 0;
-    const add = (u: number, t: number): void => { unlocked += u; total += t; };
-    if (id === "plane") {
-      const granted = new Set(getGrantedShapesLocal());
-      add(SHAPES.filter((sh) => granted.has(sh.id) || sh.unlock(s).unlocked).length, SHAPES.length);
-      const pal = unlockProgress("palette", s);
-      const ach = unlockProgress("achievement-color", s);
-      add(pal.unlocked + ach.unlocked, pal.total + ach.total);
-      add(FLAP_FX_OPTIONS.filter((o) => flapFxUnlock(o.id, s).unlocked).length, FLAP_FX_OPTIONS.length);
-      add(FLAP_SOUND_OPTIONS.filter((o) => flapSoundUnlock(o.id, s).unlocked).length, FLAP_SOUND_OPTIONS.length);
-    } else if (id === "world") {
-      const th = unlockProgress("theme", s);
-      add(th.unlocked, th.total);
-      add(PILLAR_STYLES.filter((p) => p.unlock(s).unlocked).length, PILLAR_STYLES.length);
-    } else if (id === "progress") {
-      const results = evaluateCriteria(s);
-      add(results.filter((r) => r.unlocked).length, results.length);
-    }
-    return { unlocked, total };
+  // If a server skin is equipped but the owned-skins cache hasn't been populated
+  // yet (gallery opened before ever visiting the skins tab), fetch it now so the
+  // shape box shows the right colours immediately without waiting for a tab tap.
+  if (currentEquipped.skinId && !getCachedOwnedSkins()) {
+    listOwnedSkins().then(() => { if (!cancelled) renderLoadout(); }).catch(() => {});
   }
 
-  function renderNav(): void {
-    const nav = wrap.querySelector("[data-nav]") as HTMLDivElement;
-    nav.innerHTML = "";
-    for (const g of GROUPS) {
-      const isOpen = g.id === openGroup;
-      const prog = groupProgress(g.id);
-      const header = document.createElement("button");
-      header.className =
-        "w-full flex items-center justify-between rounded-2xl px-4 py-1.5 transition " +
-        (isOpen ? "bg-white/10 text-paper" : "bg-white/5 text-paper/80");
-      // The group label + the sub-tabs that appear on expand already say what's
-      // inside, so the subtitle preview is dropped to declutter.
-      header.innerHTML = `
-        <span class="text-sm font-bold min-w-0 truncate">${g.label}</span>
-        <span class="flex items-center gap-2 shrink-0">
-          <span class="text-[11px] tabular-nums opacity-80 bg-white/10 rounded-full px-2 py-0.5">${prog.unlocked}/${prog.total}</span>
-          <span class="text-xs opacity-60">${isOpen ? "▾" : "▸"}</span>
-        </span>`;
-      header.addEventListener("click", (e) => {
-        e.stopPropagation();
-        openGroup = isOpen ? "" : g.id;
-        renderNav();
-      });
-      nav.appendChild(header);
-      if (isOpen) {
-        const row = document.createElement("div");
-        row.className = "flex flex-wrap gap-2 px-1 py-1 text-[12px]";
-        for (const t of g.tabs) {
-          const btn = document.createElement("button");
-          const on = t.id === activeTab;
-          btn.className =
-            "rounded-full px-3 py-1 whitespace-nowrap " +
-            (on ? "bg-paper text-ink" : "bg-white/5 text-paper opacity-60");
-          btn.textContent = t.label;
-          btn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            activeTab = t.id;
-            renderNav();
-            render();
-          });
-          row.appendChild(btn);
-        }
-        nav.appendChild(row);
-      }
+  function resolveEquippedColors(): { body: [number,number,number]; accent: [number,number,number] } {
+    if (currentEquipped.presetId) {
+      const preset = PRESET_SKINS.find(p => p.id === currentEquipped.presetId);
+      if (preset) return { body: preset.body, accent: preset.accent };
     }
+    if (currentEquipped.achColorId) {
+      const ach = ACHIEVEMENTS.find(a => a.id === currentEquipped.achColorId);
+      if (ach) return { body: ach.reward.body, accent: ach.reward.accent };
+    }
+    if (currentEquipped.skinId) {
+      const cached = getCachedOwnedSkins();
+      const skin = cached?.find(s => s.id === currentEquipped.skinId);
+      if (skin) return { body: skin.body, accent: skin.accent };
+    }
+    return { body: DEFAULT_SKIN.body, accent: DEFAULT_SKIN.accent };
   }
-  renderNav();
+
+  // Single navigation row: 7 equal-width boxes that double as tabs AND as a
+  // live "loadout" preview of what you're flying. flex-1 + min-w-0 guarantees
+  // all seven fit the viewport width with no horizontal scroll.
+  function renderLoadout(): void {
+    const strip = wrap.querySelector("[data-loadout]") as HTMLDivElement;
+    strip.innerHTML = "";
+
+    const addBox = (labelText: string, tab: Tab, content: HTMLElement | string): void => {
+      const btn = document.createElement("button");
+      btn.dataset.noFlap = "true";
+      btn.className = "flex flex-col items-center gap-0.5 flex-1 min-w-0";
+      const isActive = activeTab === tab;
+      const preview = document.createElement("div");
+      // Every box is the same rounded plate (darker than the strip so the tile
+      // reads clearly), with an inset edge ring; the active one gets a paper ring.
+      preview.className = `w-full aspect-square rounded-lg flex items-center justify-center overflow-hidden relative bg-white/[0.13] ${
+        isActive ? "ring-2 ring-paper" : "ring-1 ring-white/15"
+      }`;
+      if (typeof content === "string") {
+        preview.innerHTML = content;
+        const svgEl = preview.querySelector("svg");
+        if (svgEl) { svgEl.style.cssText = "display:block;width:80%;height:80%"; svgEl.removeAttribute("class"); }
+      } else {
+        content.style.width = "100%";
+        content.style.height = "100%";
+        preview.appendChild(content);
+      }
+      const lbl = document.createElement("div");
+      lbl.className = `text-[8px] leading-none truncate w-full text-center ${isActive ? "text-paper font-bold" : "text-paper/45"}`;
+      lbl.textContent = labelText;
+      btn.appendChild(preview);
+      btn.appendChild(lbl);
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        activeTab = tab;
+        renderLoadout();
+        render();
+      });
+      strip.appendChild(btn);
+    };
+
+    // 1) Shape — drawn in the currently-equipped colours, so this box is a true
+    //    mini of what you fly with (shape + skin combined).
+    const { body, accent } = resolveEquippedColors();
+    addBox("shape", "shapes", shapeSvgWithColors(currentEquipped.shapeId, body, accent));
+
+    // 2) Colors — diagonal body/accent split swatch.
+    const colorDiv = document.createElement("div");
+    colorDiv.style.cssText = `width:100%;height:100%;background:linear-gradient(135deg,rgb(${body.join(",")}) 55%,rgb(${accent.join(",")}) 55%)`;
+    addBox("colors", "skins", colorDiv);
+
+    // 3) Effects — a drawn spark/sparkle (matches the in-game flap FX) rather
+    //    than a stock emoji.
+    addBox("effects", "effects", sparkIcon());
+
+    // 4) World — sky gradient + pipe stubs, matching the mini preview in the
+    //    backgrounds tab so the box reads as the actual world at a glance.
+    const theme = THEMES.find(t => t.id === currentEquipped.themeId) ?? THEMES[0];
+    const worldEl = document.createElement("div");
+    worldEl.style.cssText = `position:relative;background:linear-gradient(180deg,${theme.colors.skyTop},${theme.colors.skyBottom})`;
+    const topPipe = document.createElement("div");
+    topPipe.style.cssText = `position:absolute;left:20%;right:20%;top:0;height:30%;border-radius:0 0 2px 2px;background:${theme.colors.pipeBody}`;
+    const botPipe = document.createElement("div");
+    botPipe.style.cssText = `position:absolute;left:20%;right:20%;bottom:0;height:36%;border-radius:2px 2px 0 0;background:${theme.colors.pipeBody}`;
+    worldEl.appendChild(topPipe);
+    worldEl.appendChild(botPipe);
+    addBox("world", "backgrounds", worldEl);
+
+    // 5) Pillar — the equipped style rendered in its equipped colour, over a
+    //    sky-tinted plate so the pillars read as a scene (not floating shapes).
+    const pillarCv = document.createElement("canvas");
+    pillarCv.width = 44; pillarCv.height = 44;
+    const equippedPillarId = getEquippedPillarLocal();
+    const pillarStyle = PILLAR_STYLES.find(p => p.id === equippedPillarId) ?? PILLAR_STYLES[0];
+    const pc = getPillarColor(getEquippedPillarColorLocal());
+    const pillarBodyColor = pc?.body ?? "#3d8b58";
+    const pillarCapColor = pc?.cap ?? "#2b6f4d";
+    const pcx = pillarCv.getContext("2d");
+    if (pcx) {
+      // Fill a soft sky behind the pillars so the tile isn't transparent.
+      const grad = pcx.createLinearGradient(0, 0, 0, 44);
+      grad.addColorStop(0, theme.colors.skyTop);
+      grad.addColorStop(1, theme.colors.skyBottom);
+      pcx.fillStyle = grad;
+      pcx.fillRect(0, 0, 44, 44);
+      pillarStyle.draw({ ctx: pcx, x: 22, gapY: 18, gapH: 10, worldHeight: 44, pipeWidth: 14, over: 0, bodyColor: pillarBodyColor, capColor: pillarCapColor, highContrast: false });
+    }
+    addBox("pillar", "pillars", pillarCv);
+
+    // 6) Goals — a circular progress ring instead of plain "n / n".
+    const results = evaluateCriteria(loadAchievementStats());
+    const goalsDone = results.filter(r => r.unlocked).length;
+    addBox("goals", "quests", progressRing(goalsDone, results.length));
+
+    // 7) Badges — a drawn medal rather than a stock emoji.
+    addBox("badges", "badges", medalIcon());
+  }
+  renderLoadout();
 
   function render(): void {
     if (cancelled) return;
@@ -274,6 +306,7 @@ export function renderGallery(
         pillarCard(style, equippedPillar === style.id, st.unlocked, st.hint, () => {
           if (!st.unlocked) return;
           setEquippedPillarLocal(style.id);
+          renderLoadout();
           renderPillars();
         }, tierForUnlock(style.unlock), previewBody, previewCap),
       );
@@ -307,6 +340,7 @@ export function renderGallery(
       sw.addEventListener("click", (e) => {
         e.stopPropagation();
         setEquippedPillarColorLocal(c.id);
+        renderLoadout();
         renderPillars();
       });
       swatches.appendChild(sw);
@@ -316,12 +350,22 @@ export function renderGallery(
 
   async function renderBadges(): Promise<void> {
     const body = wrap.querySelector("[data-body]") as HTMLDivElement;
-    body.innerHTML = `<div class="text-center text-xs opacity-60 mt-8">loading…</div>`;
+    // Local-first: paint the last-known badges instantly (no spinner), then
+    // revalidate against the server and repaint if it changed.
+    const cached = getCachedBadges();
+    if (cached) paintBadges(cached);
+    else body.innerHTML = `<div class="text-center text-xs opacity-60 mt-8">loading…</div>`;
     const badges = await listMyBadges();
     if (cancelled || activeTab !== "badges") return;
+    paintBadges(badges);
+  }
+
+  function paintBadges(badges: SeasonBadge[]): void {
+    const body = wrap.querySelector("[data-body]") as HTMLDivElement;
     body.innerHTML = "";
     const playtester = isPlaytester(authState().profile?.created_at);
-    if (badges.length === 0 && !playtester) {
+    const developer = isDeveloper(authState().profile?.username);
+    if (badges.length === 0 && !playtester && !developer) {
       const empty = document.createElement("div");
       empty.className = "px-4 mt-8 text-center text-[12px] opacity-60 leading-relaxed";
       empty.textContent =
@@ -337,6 +381,7 @@ export function renderGallery(
     grid.className = "grid grid-cols-2 gap-4 px-2 pt-1";
     body.appendChild(grid);
     if (playtester) grid.appendChild(playtesterCard());
+    if (developer) grid.appendChild(devBadgeCard());
     const sorted = [...badges].sort((a, b) => b.season_id - a.season_id);
     const bestRank = sorted.length ? Math.min(...sorted.map((b) => b.rank)) : 0;
     for (const badge of sorted) {
@@ -466,6 +511,7 @@ export function renderGallery(
           if (!themeUnlocked(theme)) return;
           currentEquipped.themeId = theme.id;
           cbs.onEquipTheme(theme.id);
+          renderLoadout();
           renderBackgrounds();
         }, tierForUnlock(theme.unlock)),
       );
@@ -486,6 +532,7 @@ export function renderGallery(
           if (!unlocked) return;
           currentEquipped.shapeId = shape.id;
           cbs.onEquipShape(shape.id);
+          renderLoadout();
           renderShapes();
         }, unlocked, tierForUnlock(shape.unlock)),
       );
@@ -494,9 +541,18 @@ export function renderGallery(
 
   async function renderSkins(): Promise<void> {
     const body = wrap.querySelector("[data-body]") as HTMLDivElement;
-    body.innerHTML = `<div class="text-center text-xs opacity-60 mt-8">loading…</div>`;
+    // Local-first: paint the last-known owned skins instantly (no spinner),
+    // then revalidate against the server and repaint if it changed.
+    const cached = getCachedOwnedSkins();
+    if (cached) paintSkins(cached);
+    else body.innerHTML = `<div class="text-center text-xs opacity-60 mt-8">loading…</div>`;
     const rows = await listOwnedSkins();
     if (cancelled || activeTab !== "skins") return;
+    paintSkins(rows);
+  }
+
+  function paintSkins(rows: SkinRow[]): void {
+    const body = wrap.querySelector("[data-body]") as HTMLDivElement;
     body.innerHTML = "";
     const achStats = loadAchievementStats();
 
@@ -513,6 +569,7 @@ export function renderGallery(
         currentEquipped.presetId = null;
         cbs.onEquipColorPreset(null);
         cbs.onEquipSkin(null);
+        renderLoadout();
         void renderSkins();
       }),
     );
@@ -528,6 +585,7 @@ export function renderGallery(
           currentEquipped.presetId = null;
           cbs.onEquipColorPreset(null);
           cbs.onEquipSkin(newId);
+          renderLoadout();
           void renderSkins();
         }),
       );
@@ -546,6 +604,7 @@ export function renderGallery(
           currentEquipped.presetId = p.id;
           currentEquipped.skinId = null;
           cbs.onEquipColorPreset(p.id);
+          renderLoadout();
           void renderSkins();
         }),
       );
@@ -564,13 +623,27 @@ export function renderGallery(
     progress.innerHTML = `<div class="h-1.5 bg-white/10 rounded-full overflow-hidden"><div class="h-full bg-paper transition-all" style="width:${pct}%"></div></div>`;
     const achDesc = document.createElement("div");
     achDesc.className = "px-3 mb-3 text-[10px] opacity-60";
-    achDesc.textContent = "color palettes earned by achievements — preview shown locked; ??? are secret.";
+    achDesc.textContent = "tap an unlocked color to equip it — preview shown while locked; ??? are secret.";
     body.appendChild(progress);
     body.appendChild(achDesc);
     const achGrid = document.createElement("div");
     achGrid.className = "grid grid-cols-3 gap-3.5 px-2 pt-1";
     body.appendChild(achGrid);
-    for (const a of ach) achGrid.appendChild(achievementColorCard(a, achStats, currentEquipped.shapeId));
+    for (const a of ach) {
+      const isEquipped = currentEquipped.achColorId === a.id;
+      achGrid.appendChild(
+        achievementColorCard(a, achStats, currentEquipped.shapeId, isEquipped, () => {
+          const newId = isEquipped ? null : a.id;
+          currentEquipped.achColorId = newId;
+          currentEquipped.skinId = null;
+          currentEquipped.presetId = null;
+          setEquippedAchievementColorLocal(newId);
+          cbs.onEquipAchievementColor(newId);
+          renderLoadout();
+          void renderSkins();
+        }),
+      );
+    }
   }
 
   render();
@@ -885,6 +958,52 @@ function svg(inner: string): string {
   return `<svg viewBox="-20 -16 40 32" class="w-3/4 h-3/4">${inner}</svg>`;
 }
 
+// --- Loadout-box icons (drawn, not emoji) ---
+
+/** A soft cloud puff with drifting trails — mirrors the "wind puff" flap FX
+ *  (the default effect), rather than a stock emoji. */
+function sparkIcon(): string {
+  return `<svg viewBox="-12 -12 24 24" fill="#f4ead5">
+    <g opacity="0.95">
+      <circle cx="-4" cy="-3" r="4.2"/>
+      <circle cx="2" cy="-5" r="5"/>
+      <circle cx="6" cy="-1.5" r="3.8"/>
+      <circle cx="0" cy="0" r="5.2"/>
+    </g>
+    <g stroke="#f4ead5" stroke-width="1.4" stroke-linecap="round" opacity="0.7">
+      <line x1="-5" y1="6" x2="-7" y2="9.5"/>
+      <line x1="0" y1="6.5" x2="-1.5" y2="10"/>
+      <line x1="5" y1="6" x2="3.5" y2="9.5"/>
+    </g>
+  </svg>`;
+}
+
+/** A medal/coin on a ribbon — drawn replacement for the 🏅 emoji. */
+function medalIcon(): string {
+  return `<svg viewBox="-12 -12 24 24">
+    <path d="M-5,-11 L-2,-1 L-6,1 Z" fill="#d94f4f"/>
+    <path d="M5,-11 L2,-1 L6,1 Z" fill="#4f7fd9"/>
+    <circle cx="0" cy="3" r="7.5" fill="#f5c542" stroke="#caa028" stroke-width="1.2"/>
+    <circle cx="0" cy="3" r="4.2" fill="none" stroke="#caa028" stroke-width="0.8" opacity="0.7"/>
+    <path d="M0,-0.5 L1.3,2 L4,2.3 L2,4.2 L2.5,7 L0,5.6 L-2.5,7 L-2,4.2 L-4,2.3 L-1.3,2 Z" fill="#fff3c4"/>
+  </svg>`;
+}
+
+/** A circular progress ring with the done-count in the middle. */
+function progressRing(done: number, total: number): string {
+  const pct = total > 0 ? done / total : 0;
+  const r = 8.5;
+  const c = 2 * Math.PI * r;
+  const dash = (pct * c).toFixed(2);
+  return `<svg viewBox="-12 -12 24 24">
+    <circle cx="0" cy="0" r="${r}" fill="none" stroke="rgba(244,234,213,0.18)" stroke-width="2.4"/>
+    <circle cx="0" cy="0" r="${r}" fill="none" stroke="#4ade80" stroke-width="2.4" stroke-linecap="round"
+      stroke-dasharray="${dash} ${(c - pct * c).toFixed(2)}" transform="rotate(-90)"/>
+    <text x="0" y="0" text-anchor="middle" dominant-baseline="central"
+      fill="#f4ead5" font-size="9" font-weight="bold" font-family="inherit">${done}</text>
+  </svg>`;
+}
+
 function headerLabel(text: string): HTMLElement {
   const el = document.createElement("div");
   el.className = "px-3 mt-1 mb-2 text-[10px] uppercase tracking-wider opacity-60 font-bold";
@@ -930,7 +1049,13 @@ function themeCard(theme: Theme, equipped: boolean, stats: GalleryStats, onTap: 
   return el;
 }
 
-function achievementColorCard(a: AchievementDef, stats: AchievementStats, shapeId: ShapeId): HTMLElement {
+function achievementColorCard(
+  a: AchievementDef,
+  stats: AchievementStats,
+  shapeId: ShapeId,
+  equipped: boolean,
+  onEquip: () => void,
+): HTMLElement {
   const got = a.check(stats);
   // Locked cards preview their real reward color so players can see what
   // they're working toward — EXCEPT prestige (secret) rewards, which stay a
@@ -939,8 +1064,8 @@ function achievementColorCard(a: AchievementDef, stats: AchievementStats, shapeI
   const el = document.createElement("div");
   el.dataset.noFlap = "true";
   el.className = `relative rounded-2xl p-3 flex flex-col items-center text-[10px] gap-2 border-2 bg-white/5 ${
-    got ? "border-emerald-400/40" : mystery ? "border-white/10" : "border-white/5 opacity-80"
-  }`;
+    equipped ? "border-paper" : got ? "border-emerald-400/40" : mystery ? "border-white/10" : "border-white/5 opacity-80"
+  }${got ? " active:scale-95 transition" : ""}`;
   const body = mystery ? ([18, 18, 22] as [number, number, number]) : a.reward.body;
   const accent = mystery ? ([10, 10, 12] as [number, number, number]) : a.reward.accent;
   const preview = mystery
@@ -948,13 +1073,20 @@ function achievementColorCard(a: AchievementDef, stats: AchievementStats, shapeI
     : `<div class="w-full aspect-square flex items-center justify-center swatch-plate rounded-xl ${got ? "" : "opacity-90"}">
          ${shapeSvgWithColors(shapeId, body, accent)}
        </div>`;
-  const stateLabel = got ? "unlocked" : mystery ? "secret" : "preview · locked";
+  const stateLabel = got && equipped ? "equipped" : got ? "unlocked" : mystery ? "secret" : "preview · locked";
   el.innerHTML = `
     ${preview}
     <div class="font-bold capitalize leading-tight text-center">${mystery ? "???" : escapeHtml(a.name)}</div>
     <div class="opacity-60 text-[10px] text-center leading-snug">${escapeHtml(a.blurb)}</div>
     <div class="text-[9px] uppercase tracking-wider font-bold ${got ? "text-emerald-300" : "opacity-50"}">${stateLabel}</div>
   `;
+  if (got) {
+    el.style.cursor = "pointer";
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      onEquip();
+    });
+  }
   return el;
 }
 
@@ -1102,17 +1234,26 @@ function presetCard(
   onTap: () => void,
 ): HTMLElement {
   const state = presetUnlock(p, stats);
+  // Chameleon has no fixed colour — it rolls a new vivid pair every run. Paint
+  // its swatch as a rainbow so it reads as "random / legendary" at a glance.
+  const isChameleon = p.id === "chameleon";
   const el = document.createElement("button");
   el.dataset.noFlap = "true";
   el.className = `relative rounded-2xl p-3 flex flex-col items-center text-[10px] gap-2 border-2 ${
-    equipped ? "border-paper" : state.unlocked ? "border-white/10" : "border-white/5"
+    equipped ? "border-paper" : isChameleon && state.unlocked ? "border-fuchsia-400/50" : state.unlocked ? "border-white/10" : "border-white/5"
   } bg-white/5 ${state.unlocked ? "active:scale-95" : "opacity-50 cursor-not-allowed"} transition`;
+  const swatch = isChameleon
+    ? `<div class="w-full aspect-square flex items-center justify-center rounded-xl" style="background:conic-gradient(from 0deg, #ef4444, #f59e0b, #eab308, #22c55e, #06b6d4, #6366f1, #a855f7, #ef4444)">
+         <div class="w-[78%] h-[78%] flex items-center justify-center rounded-lg bg-black/35">${shapeSvgWithColors(shapeId, p.body, p.accent)}</div>
+       </div>`
+    : `<div class="w-full aspect-square flex items-center justify-center swatch-plate rounded-xl">
+         ${shapeSvgWithColors(shapeId, p.body, p.accent)}
+       </div>`;
   el.innerHTML = `
-    <div class="w-full aspect-square flex items-center justify-center swatch-plate rounded-xl">
-      ${shapeSvgWithColors(shapeId, p.body, p.accent)}
-    </div>
+    ${swatch}
     <div class="font-bold">${escapeHtml(p.name)}</div>
-    <div class="opacity-60 text-[10px] text-center leading-tight">${state.unlocked ? "ready" : escapeHtml(state.hint ?? "locked")}</div>
+    <div class="opacity-60 text-[10px] text-center leading-tight">${state.unlocked ? (isChameleon ? "random every run" : "ready") : escapeHtml(state.hint ?? "locked")}</div>
+    ${isChameleon ? `<div class="text-[8px] uppercase tracking-wider rounded px-1 py-0.5 font-bold" style="background:#a855f733;color:#d8b4fe">legendary</div>` : ""}
     ${
       equipped
         ? `<div class="absolute top-1 right-1 text-[9px] bg-paper text-ink rounded-full px-1.5 py-0.5">equipped</div>`
@@ -1187,6 +1328,19 @@ function playtesterCard(): HTMLElement {
     <div class="font-bold">Playtester</div>
     <div class="opacity-70 text-[12px] text-center leading-tight">here before launch</div>
     <div class="absolute top-1 right-1 text-[9px] bg-emerald-300 text-ink rounded-full px-1.5 py-0.5">forever</div>
+  `;
+  return el;
+}
+
+function devBadgeCard(): HTMLElement {
+  const el = document.createElement("div");
+  el.dataset.noFlap = "true";
+  el.className = "rounded-2xl bg-white/5 border-2 border-accent-ranked/30 p-4 flex flex-col items-center gap-2 text-center";
+  el.innerHTML = `
+    <div class="text-3xl">⚡</div>
+    <div class="font-bold text-sm">Developer</div>
+    <div class="text-[10px] opacity-60 leading-snug">made this game</div>
+    <div class="text-[9px] uppercase tracking-wider font-bold" style="color:#c084fc">dev badge</div>
   `;
   return el;
 }

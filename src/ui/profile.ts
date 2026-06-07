@@ -3,6 +3,7 @@ import { RARITY_COLOR, type Rarity } from "../game/rarity";
 import { shapeSvgInner } from "./shape-svg";
 import { DEFAULT_SHAPE_ID, type ShapeId } from "../game/shapes";
 import { isPlaytester } from "../game/playtester";
+import { isDeveloper } from "../social/badges";
 
 /**
  * Public profile inspector — a read-only stat card for any player by
@@ -87,19 +88,31 @@ function card(p: PublicProfile): string {
        </div>`
     : "";
 
-  const badge = p.best_rank != null && p.best_rank <= 100
-    ? `<div class="mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold" style="background:#facc1522;color:#facc15">🏅 top ${p.best_rank} season finish</div>`
-    : "";
+  // Build all earned badges as chip HTML strings, priority order: dev > playtester > seasonal
+  const chips: string[] = [];
 
-  const playtester = isPlaytester(p.created_at)
-    ? `<div class="mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold" style="background:#34d39922;color:#34d399">🧪 Playtester</div>`
+  if (isDeveloper(p.username)) {
+    chips.push(`<div class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold" style="background:#a855f722;color:#c084fc">⚡ Developer</div>`);
+  }
+
+  if (isPlaytester(p.created_at)) {
+    chips.push(`<div class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold" style="background:#34d39922;color:#34d399">🧪 Playtester</div>`);
+  }
+
+  if (p.best_rank != null && p.best_rank <= 100) {
+    chips.push(`<div class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold" style="background:#facc1522;color:#facc15">🏅 top ${p.best_rank}</div>`);
+  }
+
+  // Show up to 3 badges. Layout: single row if ≤2, wrap if 3.
+  const badgeRow = chips.length > 0
+    ? `<div class="flex flex-wrap items-center justify-center gap-2 mt-2">${chips.slice(0, 3).join("")}</div>`
     : "";
 
   return `
     <div class="text-center">
       ${plane}
       ${skin?.rarity ? `<div class="text-[11px] mt-1" style="color:${rarityColor}">${escapeHtml(skin.rarity)} skin</div>` : ""}
-      <div class="flex flex-wrap items-center justify-center gap-2">${badge}${playtester}</div>
+      ${badgeRow}
     </div>
     <div class="mt-4 grid grid-cols-2 gap-2 text-center">
       ${stat("best run", String(p.best_score))}

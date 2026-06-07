@@ -33,6 +33,11 @@ import { getEquippedThemeLocal, setEquippedThemeLocal, setThemesLabMode, type Th
 import { getEquippedPresetLocal, setEquippedPresetLocal, getPreset, setPresetLabMode } from "./game/preset-skins";
 import { getEquippedPillarLocal, getPillarStyle } from "./game/pillars";
 import { getEquippedPillarColorLocal } from "./game/pillar-colors";
+import { getEquippedAchievementColorLocal, setEquippedAchievementColorLocal } from "./game/achievement-equip";
+import { ACHIEVEMENTS } from "./game/achievements";
+import { CHAMELEON_ID, rollChameleonColors } from "./game/chameleon";
+import { type Rarity } from "./game/rarity";
+import { saveCasualRun, loadSavedCasualRun, clearSavedCasualRun, type SavedRun } from "./game/save-state";
 import { type SubmitResult } from "./social/runs";
 import { installFlushHooks, pendingCount, submitOrEnqueue } from "./social/offline-queue";
 import { fetchDaily, type DailyInfo } from "./social/daily";
@@ -45,14 +50,14 @@ import { loadAchievementStats, updateStatsAfterRun, saveAchievementStats, getNew
 import { getShowEquippedInMenu } from "./game/menu-prefs";
 import { renderDailyLanding } from "./ui/daily-landing";
 import { renderRankedPanel } from "./ui/ranked";
-import { playFlap, playCheer, setSoundLabMode } from "./game/sfx";
+import { playFlap, playCheer, playGatePass, playDeath, setSoundLabMode } from "./game/sfx";
 import { clearParticles, getActiveFlapFx, setFxLabMode, spawnFlapFx } from "./game/flap-fx";
 import { type RankedMatch, createRankedChallenge } from "./social/ranked";
 import { createChallenge, fetchChallenge, fetchBestRunChallenge, ghostSkinFromChallenge, fetchUnseenChallengeCount, type FetchedChallenge } from "./social/challenges";
 import { renderInbox } from "./ui/inbox";
 import { renderProfile } from "./ui/profile";
 import { renderWhatsNew } from "./ui/whats-new";
-import { renderTutorial, tutorialSeen } from "./ui/tutorial";
+import { renderTutorial, tutorialSeen, markTutorialSeen, firstRealRunSeen, markFirstRealRunSeen } from "./ui/tutorial";
 import { isFirstRun, markChangelogSeen, unseenChanges, CHANGELOG } from "./game/changelog";
 import { renderQuests } from "./ui/quests";
 import { evaluateRun, type QuestCompletion } from "./game/quests";
@@ -112,9 +117,16 @@ let activeChallenge: FetchedChallenge | null = null;
 let activeRanked: { match: RankedMatch; round: number } | null = null;
 let pendingChallengeTarget: { friend: Friend | null } | null = null;
 let inboxUnseen = 0;
+// Progressive onboarding: the very first launch drops the player into a
+// can't-lose practice run with piece-by-piece coaching hints, ending at a
+// target score with a "you got it" sign-off. Distinct from the plain
+// "practice mode" the menu offers (which is silent + endless).
+let onboardingActive = false;
+let onboardingFlapped = false;
+const ONBOARDING_TARGET = 20;
 
 app.innerHTML = `
-  <section id="stage" role="application" aria-label="Glide play area" class="relative w-full h-full max-w-md max-h-[85vh] aspect-[9/16] mx-auto bg-sky-day overflow-hidden touch-none select-none">
+  <section id="stage" role="application" aria-label="Glide play area" class="relative w-full h-full max-w-md max-h-[100svh] aspect-[9/16] mx-auto bg-sky-day overflow-hidden touch-none select-none">
     <canvas id="canvas" class="absolute inset-0 w-full h-full" aria-hidden="true"></canvas>
     <div id="live-region" aria-live="polite" aria-atomic="true" class="sr-only"></div>
     <button id="pause-btn" data-no-flap aria-label="Pause game" type="button" class="hidden absolute top-3 right-3 z-20 bg-black/30 text-paper rounded-full w-10 h-10 flex items-center justify-center text-lg font-bold">II</button>
@@ -216,6 +228,13 @@ const input = new InputController(stage, {
     if (mode === "playing") {
       loop?.flap();
       if (settings.sound) playFlap();
+      // First flap of the guided onboarding: clear the start prompt and
+      // immediately drip the first coaching card so it doesn't conflict.
+      if (onboardingActive && !onboardingFlapped) {
+        onboardingFlapped = true;
+        clearCenterHint();
+        showCoachCard("👆", "keep tapping — stay above the gaps!");
+      }
       // Flap-FX spawns a particle burst at the plane's last-rendered
       // position. The renderer ticks + paints them in subsequent
       // frames. Visual-only — never feeds back into the sim.
@@ -321,12 +340,11 @@ loadEquippedSkin().then(async () => {
   }
   showMenu();
   hideSplash();
-  // Brand-new players get the onboarding tutorial first; returning players
-  // see the "what's new" modal after an update. Never both at once.
+  // Brand-new players go straight into a guided practice run — no upfront
+  // wall of text. Coaching appears piece by piece while they fly. Returning
+  // players see the "what's new" modal after an update. Never both at once.
   if (!tutorialSeen()) {
-    pushSubView();
-    panelOpen = true;
-    renderTutorial(overlays, { onClose: () => showMenu(), onPractice: () => startRun("training") });
+    startOnboarding();
   } else {
     maybeShowWhatsNew();
   }
@@ -359,11 +377,30 @@ async function loadEquippedSkin(): Promise<void> {
   // A locally-equipped preset palette wins over DB skins — it's a
   // pure client choice with no server row.
   const presetId = getEquippedPresetLocal();
+  // Chameleon: legendary, no fixed colour — roll a fresh vivid pair so the
+  // menu mascot previews a random look; runs re-roll at start.
+  if (presetId === CHAMELEON_ID) {
+    equippedSkin = null;
+    renderer.options.skin = rollChameleonColors();
+    renderer.options.glow = true;
+    return;
+  }
   if (presetId) {
     const p = getPreset(presetId);
     if (p) {
       equippedSkin = null;
       renderer.options.skin = { body: p.body, accent: p.accent };
+      renderer.options.glow = false;
+      return;
+    }
+  }
+  // Achievement-color equip — local only, no DB row.
+  const achColorId = getEquippedAchievementColorLocal();
+  if (achColorId) {
+    const a = ACHIEVEMENTS.find((x) => x.id === achColorId);
+    if (a) {
+      equippedSkin = null;
+      renderer.options.skin = { body: a.reward.body, accent: a.reward.accent };
       renderer.options.glow = false;
       return;
     }
@@ -400,6 +437,13 @@ function menuAccountLabel(): string {
 function showMenu(): void {
   mode = "menu";
   panelOpen = false;
+  // If a player bails out of the guided run early (pause → menu), don't leave
+  // onboarding half-armed; they can resume practice from the menu button.
+  if (onboardingActive) {
+    onboardingActive = false;
+    markTutorialSeen();
+    clearCenterHint();
+  }
   setBannerVisible(true);
   pauseBtn.classList.add("hidden");
   loop?.stop();
@@ -417,7 +461,7 @@ function showMenu(): void {
     overlays,
     settings,
     {
-      onPlay: () => { pushSubView(); startRun("casual"); },
+      onPlay: () => { pushSubView(); playCasual(); },
       onTraining: () => { pushSubView(); startRun("training"); },
       onPlayDaily: () => { pushSubView(); openDailyLanding(); },
       onToggleSetting,
@@ -434,7 +478,7 @@ function showMenu(): void {
         panelOpen = true;
         renderGallery(
           overlays,
-          { skinId: equippedSkin?.id ?? null, shapeId: equippedShapeId, themeId: equippedThemeId, presetId: getEquippedPresetLocal() },
+          { skinId: equippedSkin?.id ?? null, shapeId: equippedShapeId, themeId: equippedThemeId, presetId: getEquippedPresetLocal(), achColorId: getEquippedAchievementColorLocal() },
           {
             totalGames: authState().profile?.total_games ?? 0,
             bestScore: bestScoreSeen,
@@ -465,6 +509,20 @@ function showMenu(): void {
               if (id) {
                 const p = getPreset(id);
                 if (p) renderer.options.skin = { body: p.body, accent: p.accent };
+              } else {
+                void loadEquippedSkin();
+              }
+            },
+            onEquipAchievementColor: (achId) => {
+              setEquippedAchievementColorLocal(achId);
+              if (achId) {
+                const a = ACHIEVEMENTS.find((x) => x.id === achId);
+                if (a) {
+                  equippedSkin = null;
+                  setEquippedPresetLocal(null);
+                  renderer.options.skin = { body: a.reward.body, accent: a.reward.accent };
+                  renderer.options.glow = false;
+                }
               } else {
                 void loadEquippedSkin();
               }
@@ -629,27 +687,53 @@ function applyQuestReward(c: QuestCompletion): void {
   }
 }
 
-type BoolSetting = "sound" | "highContrast" | "reducedMotion";
+type BoolSetting = "sound" | "gateSound" | "deathSound" | "highContrast" | "reducedMotion";
 function onToggleSetting(key: keyof Settings): void {
   // Only the boolean toggles route here; ghostOpacity uses its own slider.
-  if (key !== "sound" && key !== "highContrast" && key !== "reducedMotion") return;
+  if (
+    key !== "sound" &&
+    key !== "gateSound" &&
+    key !== "deathSound" &&
+    key !== "highContrast" &&
+    key !== "reducedMotion"
+  )
+    return;
   const k = key as BoolSetting;
   settings[k] = !settings[k];
   saveSettings(settings);
   renderer.options.highContrast = settings.highContrast;
   renderer.options.reducedMotion = settings.reducedMotion || matchMedia("(prefers-reduced-motion: reduce)").matches;
-  showMenu();
+  // Update the toggle button in-place so the settings panel stays open.
+  const btn = overlays.querySelector<HTMLButtonElement>(`[data-toggle="${k}"]`);
+  if (btn) {
+    const on = settings[k];
+    btn.className = `rounded-xl border ${on ? "bg-paper/20 border-paper" : "border-paper/30"} py-2 px-1`;
+    const statusDiv = btn.querySelector<HTMLElement>("div:last-child");
+    if (statusDiv) statusDiv.textContent = on ? "on" : "off";
+  } else {
+    // Toggled from outside the settings panel (shouldn't normally happen).
+    showMenu();
+  }
 }
 
-function startRun(runMode: RunMode = "casual"): void {
+function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {}): void {
   overlays.innerHTML = "";
   mode = "playing";
   currentRunMode = runMode;
+  // Starting any fresh casual run discards a stale saved one (resume consumes
+  // it separately below). Keeps the menu from offering an outdated resume.
+  if (runMode === "casual" && !opts.resume) clearSavedCasualRun();
   renderer.options.pillarStyle = getEquippedPillarLocal();
   renderer.options.pillarColor = getEquippedPillarColorLocal();
-  // Banner stays visible during gameplay too (consistent everywhere); the
-  // offset shrinks the stage below it, so the pause button isn't covered.
-  setBannerVisible(true);
+  // Chameleon: re-roll the random colours once per run (recorded into the
+  // run, so the share card and challenge ghost show the colours you flew).
+  if (getEquippedPresetLocal() === CHAMELEON_ID) {
+    renderer.options.skin = rollChameleonColors();
+    renderer.options.glow = true;
+  }
+  // Banner hidden during active gameplay — cleaner play area; restored on
+  // showMenu / game-over. The offset is removed so the stage fills fully.
+  setBannerVisible(false);
   pauseBtn.classList.remove("hidden");
   let ghost: GhostSim | undefined;
   // Daily twist: apply the modifier(s) on top of DEFAULT_CONFIG for
@@ -686,7 +770,9 @@ function startRun(runMode: RunMode = "casual"): void {
     renderer.options.mirror = (dailyInfo?.pick.modifiers ?? []).some(m => m.id === "mirror");
     renderer.options.visualEffect = dailyInfo.pick.visualEffect;
   } else {
-    currentSeed = (Math.random() * 0xffffffff) >>> 0;
+    // Casual: resume reuses the saved seed; otherwise a fresh random seed
+    // (casual is always a new layout on play-again — never repeats).
+    currentSeed = opts.resume ? opts.resume.seed >>> 0 : (Math.random() * 0xffffffff) >>> 0;
     renderer.options.ghostSkin = undefined;
     renderer.options.ghostShape = undefined;
     renderer.options.theme = equippedThemeId;
@@ -698,13 +784,22 @@ function startRun(runMode: RunMode = "casual"): void {
     {
       render: (sim, alpha, g) => renderer.draw(sim, alpha, g),
       onScore: (sc) => {
+        if (settings.sound && settings.gateSound) playGatePass();
         // Stadium theme: the crowd cheers every 20 points. Audio-only,
         // gated on the sound setting; never affects the deterministic sim.
         if (settings.sound && equippedThemeId === "stadium" && sc > 0 && sc % 20 === 0) {
           playCheer();
         }
+        // Guided onboarding: drip-feed coaching cards as gates pass.
+        if (onboardingActive) {
+          if (sc === 2)  showCoachCard("🎯", "through the gap = +1 point");
+          else if (sc === 5)  showCoachCard("💡", "you can't die in practice — fly freely!");
+          else if (sc === 12) showCoachCard("🎮", "feeling it? hit Play on the home screen for a real run");
+          if (sc >= ONBOARDING_TARGET) finishOnboarding();
+        }
       },
       onDeath: async (sim) => {
+        if (settings.sound && settings.deathSound) playDeath();
         mode = "dead";
         pauseBtn.classList.add("hidden");
         const score = sim.score;
@@ -745,6 +840,11 @@ function startRun(runMode: RunMode = "casual"): void {
         }
         announce(`Run ended. Score ${score}. Press R to play again.`);
         const result = await trySubmit(sim);
+        // Newly-earned achievements this run — surfaced as full-screen
+        // celebration cards (built in renderGameOver) so each one is read,
+        // not flashed by in a toast. Training returns earlier, so the stats
+        // update + unlock check only run for tracked modes here.
+        let newAchievements: ReturnType<typeof getNewlyUnlocked> = [];
         {
           const currentStats = loadAchievementStats();
           const updatedStats = updateStatsAfterRun(currentStats, {
@@ -753,12 +853,7 @@ function startRun(runMode: RunMode = "casual"): void {
             inputCount: loop?.getRecordedInputs().length,
           });
           saveAchievementStats(updatedStats);
-          // Surface ANY newly-earned achievement reward as a toast (previously
-          // only server-minted color skins were celebrated, so achievement
-          // unlocks were silent). Training returns earlier, so we're tracked here.
-          for (const a of getNewlyUnlocked(currentStats, updatedStats)) {
-            showUnlockToast(`🎉 unlocked: ${a.name}`);
-          }
+          newAchievements = getNewlyUnlocked(currentStats, updatedStats);
         }
         // Responding to a challenge resolves the duel server-side, so the
         // win tally may have changed — re-sync it for the achievement check.
@@ -802,6 +897,12 @@ function startRun(runMode: RunMode = "casual"): void {
             : undefined,
           result,
           ticks,
+          achievements: newAchievements.map((a) => ({
+            name: a.name,
+            blurb: a.blurb,
+            body: a.reward.body,
+            accent: a.reward.accent,
+          })),
           onShare: share,
           challengeCreate: challengeTarget
             ? {
@@ -862,34 +963,78 @@ function startRun(runMode: RunMode = "casual"): void {
     ghost,
     runMode === "training",
   );
+  // Resume: replay saved inputs to reconstruct position, then consume the save.
+  if (opts.resume) {
+    loop.prime(opts.resume.inputs, opts.resume.tick);
+    clearSavedCasualRun();
+  }
   loop.start();
+
+  // Practice-mode badge: persistent in-run label so players always know
+  // this isn't a real run. Shown over the overlays div (outside canvas).
+  if (runMode === "training") {
+    const badge = document.createElement("div");
+    badge.dataset.noFlap = "true";
+    badge.className =
+      "pointer-events-none absolute top-3 left-3 z-20 rounded-full bg-black/50 text-paper text-[10px] font-bold uppercase tracking-wider px-3 py-1.5";
+    badge.textContent = "practice · can't lose";
+    overlays.appendChild(badge);
+  }
+
+  // First real run hint: brief fade-in label for players who just finished
+  // the tutorial and are about to play their first scored run.
+  if (runMode === "casual" && tutorialSeen() && !firstRealRunSeen()) {
+    markFirstRealRunSeen();
+    const hint = document.createElement("div");
+    hint.dataset.noFlap = "true";
+    hint.className =
+      "pointer-events-none absolute inset-x-0 top-1/3 z-20 text-center text-paper text-sm font-bold px-6 transition-opacity duration-1000";
+    hint.style.opacity = "1";
+    hint.textContent = "This one counts — good luck! 🍀";
+    overlays.appendChild(hint);
+    // Fade out after 2.5s, then remove.
+    window.setTimeout(() => { hint.style.opacity = "0"; }, 2500);
+    window.setTimeout(() => { hint.remove(); }, 3500);
+  }
 }
 
 async function openShare(score: number, result: SubmitResult | null): Promise<void> {
   const s = authState();
-  const badges = await listMyBadges();
-  const topRank = badges.length > 0 ? Math.min(...badges.map((b) => b.rank)) : null;
   const dailyPick = currentRunMode === "daily" ? dailyInfo?.pick : null;
-  // Every share becomes a challenge link so opening it plays the friend
-  // against the recorded ghost. Falls back to a bare landing URL if we
-  // can't create one (offline, ranked, etc.).
+
+  // Fetch badges for the rank chip — non-fatal if it fails.
+  let topRank: number | null = null;
+  try {
+    const badges = await listMyBadges();
+    topRank = badges.length > 0 ? Math.min(...badges.map((b) => b.rank)) : null;
+  } catch {
+    /* show share sheet without rank chip */
+  }
+
+  // Turn the run into a challenge link so the recipient plays the ghost.
+  // Non-fatal if it fails — share sheet renders without the challenge link.
   let challengeShortId: string | null = null;
   if (result?.run_id && currentRunMode !== "ranked") {
-    const created = await createChallenge(result.run_id, activeChallenge?.short_id ?? null, null, { shape: equippedShapeId, theme: equippedThemeId });
-    if (created.ok && created.short_id) {
-      challengeShortId = created.short_id;
-      const params = new URLSearchParams();
-      params.set("c", challengeShortId);
-      history.replaceState(null, "", `${window.location.origin}/?${params}`);
+    try {
+      const created = await createChallenge(result.run_id, activeChallenge?.short_id ?? null, null, { shape: equippedShapeId, theme: equippedThemeId });
+      if (created.ok && created.short_id) {
+        challengeShortId = created.short_id;
+        const params = new URLSearchParams();
+        params.set("c", challengeShortId);
+        history.replaceState(null, "", `${window.location.origin}/?${params}`);
+      }
+    } catch {
+      /* share without challenge link */
     }
   }
+
   const data: ShareCardData = {
     score,
     username: s.profile?.username ?? null,
     skin: renderer.options.skin,
     shape: equippedShapeId,
     themeId: equippedThemeId,
-    rarity: equippedSkin?.rarity,
+    rarity: currentRarity(),
     streakDays: result?.streak_days ?? s.profile?.streak_days ?? 0,
     mode: challengeShortId ? "challenge" : currentRunMode === "ranked" ? "ranked" : currentRunMode === "daily" ? "daily" : currentRunMode === "challenge" ? "challenge" : "casual",
     dailyDate: currentRunMode === "daily" ? dailyInfo?.date ?? null : null,
@@ -912,7 +1057,7 @@ function shareChallenge(score: number, shortId: string, addressedTo: string | nu
     skin: renderer.options.skin,
     shape: equippedShapeId,
     themeId: equippedThemeId,
-    rarity: equippedSkin?.rarity,
+    rarity: currentRarity(),
     streakDays: s.profile?.streak_days ?? 0,
     mode: "challenge",
     dailyDate: null,
@@ -930,23 +1075,6 @@ function shareChallenge(score: number, shortId: string, addressedTo: string | nu
   renderShareSheet(overlays, data, () => {
     overlays.querySelector('[data-no-flap][class*="z-40"]')?.remove();
   });
-}
-
-// Small transient toast for any unlock (achievement colors, etc.). Stacks
-// briefly bottom-center; auto-dismisses. Cosmetic feedback only.
-let unlockToastCount = 0;
-function showUnlockToast(text: string): void {
-  const t = document.createElement("div");
-  t.className =
-    "pointer-events-none fixed left-1/2 -translate-x-1/2 rounded-2xl bg-paper text-ink px-5 py-3 font-bold text-sm shadow-xl z-50";
-  t.style.bottom = `${24 + unlockToastCount * 56}px`;
-  t.textContent = text;
-  document.body.appendChild(t);
-  unlockToastCount++;
-  window.setTimeout(() => {
-    t.remove();
-    unlockToastCount = Math.max(0, unlockToastCount - 1);
-  }, 2600);
 }
 
 function openProfile(username: string): void {
@@ -983,8 +1111,112 @@ function openRankedPanel(): void {
       activeRanked = { match, round };
       startRun("ranked");
     },
+    onViewProfile: (_userId, username) => {
+      if (username) openProfile(username);
+    },
     onClose: () => showMenu(),
   });
+}
+
+// ---- Guided onboarding -----------------------------------------------------
+
+/** A single large coaching line centered over the play area. Replaces any
+ *  prior hint. `fadeMs` (when set) auto-fades it; omit to keep it persistent
+ *  until the next hint or clearCenterHint(). */
+function showCenterHint(text: string, opts: { fadeMs?: number } = {}): void {
+  let hint = overlays.querySelector("[data-coach-hint]") as HTMLDivElement | null;
+  if (!hint) {
+    hint = document.createElement("div");
+    hint.dataset.coachHint = "true";
+    hint.dataset.noFlap = "true";
+    hint.className =
+      "pointer-events-none absolute inset-x-0 top-[28%] z-20 text-center text-paper text-lg font-bold px-8 transition-opacity duration-700 drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]";
+    overlays.appendChild(hint);
+  }
+  hint.textContent = text;
+  hint.style.opacity = "1";
+  if (opts.fadeMs != null) {
+    window.setTimeout(() => { if (hint) hint.style.opacity = "0"; }, opts.fadeMs);
+  }
+}
+
+function clearCenterHint(): void {
+  overlays.querySelector("[data-coach-hint]")?.remove();
+}
+
+/** A small emoji+text card that appears at the bottom of the play area
+ *  during the guided onboarding run. Auto-fades after 3.5 s. Replaces
+ *  any prior coach card so hints never stack. */
+function showCoachCard(emoji: string, text: string): void {
+  overlays.querySelector("[data-coach-card]")?.remove();
+  const card = document.createElement("div");
+  card.dataset.coachCard = "true";
+  card.dataset.noFlap = "true";
+  card.className =
+    "pointer-events-none absolute bottom-20 inset-x-4 z-20 flex justify-center";
+  card.innerHTML = `
+    <div class="bg-black/80 backdrop-blur-sm rounded-2xl px-5 py-3 text-paper font-display text-center shadow-xl max-w-xs" style="border:1px solid rgba(244,234,213,0.15)">
+      <div class="text-2xl mb-1">${emoji}</div>
+      <div class="text-sm font-bold leading-snug">${text}</div>
+    </div>
+  `;
+  overlays.appendChild(card);
+  window.setTimeout(() => {
+    card.style.transition = "opacity 0.5s";
+    card.style.opacity = "0";
+    window.setTimeout(() => card.remove(), 500);
+  }, 3500);
+}
+
+/** Kick off the first-launch guided practice run. */
+function startOnboarding(): void {
+  onboardingActive = true;
+  onboardingFlapped = false;
+  startRun("training");
+  // Initial prompt persists until the first tap.
+  showCenterHint("tap anywhere to fly ✨");
+}
+
+/** Graduate the player out of the guided run with a warm sign-off. */
+function finishOnboarding(): void {
+  if (!onboardingActive) return;
+  onboardingActive = false;
+  markTutorialSeen();
+  loop?.stop();
+  loop = null;
+  mode = "dead";
+  pauseBtn.classList.add("hidden");
+  clearCenterHint();
+  overlays.querySelector("[data-coach-card]")?.remove();
+  overlays.innerHTML = "";
+  const card = document.createElement("div");
+  card.dataset.noFlap = "true";
+  card.className =
+    "pointer-events-auto absolute inset-0 z-30 bg-black/85 backdrop-blur-sm font-display text-paper flex flex-col items-center justify-center text-center px-8";
+  card.innerHTML = `
+    <div class="text-5xl mb-4">🎉</div>
+    <h2 class="text-2xl font-bold mb-2">you got it!</h2>
+    <p class="text-sm opacity-80 max-w-xs leading-relaxed">
+      That's the whole game — tap to fly, mind the gaps. Find <b>practice mode</b>
+      any time at the bottom of the home screen. Happy playing!
+    </p>
+    <button data-go class="mt-8 rounded-2xl bg-paper text-ink font-bold px-8 py-3 active:scale-95 transition">let's play</button>
+  `;
+  card.querySelector("[data-go]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    card.remove();
+    showMenu();
+    maybeShowWhatsNew();
+  });
+  overlays.appendChild(card);
+  announce("Practice complete. You got it! Tap let's play to continue.");
+}
+
+/** Rarity to show on shares / profile for the current equip. Chameleon is a
+ *  client preset with no DB row, so surface it as legendary explicitly. */
+function currentRarity(): Rarity | undefined {
+  if (getEquippedPresetLocal() === CHAMELEON_ID) return "legendary";
+  return equippedSkin?.rarity;
 }
 
 function showToast(message: string): void {
@@ -1051,10 +1283,63 @@ function setPaused(p: boolean): void {
     renderPauseOverlay(
       overlays,
       () => setPaused(false),
-      () => showMenu(),
+      () => quitRunToMenu(),
     );
   } else {
     mode = "playing";
     removePauseOverlay(overlays);
   }
+}
+
+/** Leave the current run for the menu. Casual runs are snapshotted first so
+ *  they can be resumed later; every other mode just exits. */
+function quitRunToMenu(): void {
+  if (currentRunMode === "casual" && loop && loop.currentTick() > 0) {
+    saveCasualRun({
+      seed: currentSeed,
+      inputs: loop.getRecordedInputs(),
+      tick: loop.currentTick(),
+      score: loop.sim.score,
+      savedAt: Date.now(),
+    });
+  }
+  showMenu();
+}
+
+/** Casual "Play": offer to resume a saved run if one exists, else start fresh. */
+function playCasual(): void {
+  const saved = loadSavedCasualRun();
+  if (saved) {
+    promptResume(saved);
+  } else {
+    startRun("casual");
+  }
+}
+
+function promptResume(saved: SavedRun): void {
+  const card = document.createElement("div");
+  card.dataset.noFlap = "true";
+  card.className =
+    "pointer-events-auto absolute inset-0 z-30 bg-black/85 backdrop-blur-sm font-display text-paper flex flex-col items-center justify-center text-center px-8";
+  card.innerHTML = `
+    <div class="text-4xl mb-3">⏸️</div>
+    <h2 class="text-xl font-bold mb-1">resume your run?</h2>
+    <p class="text-sm opacity-75 mb-7">you left a casual run at score ${saved.score}.</p>
+    <div class="w-full max-w-xs space-y-2">
+      <button data-resume class="w-full rounded-2xl bg-paper text-ink font-bold py-3 active:scale-95 transition">resume (score ${saved.score})</button>
+      <button data-new class="w-full rounded-2xl border border-paper/40 text-paper font-bold py-3 active:scale-95 transition">start new</button>
+    </div>
+  `;
+  card.querySelector("[data-resume]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    card.remove();
+    startRun("casual", { resume: saved });
+  });
+  card.querySelector("[data-new]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    card.remove();
+    clearSavedCasualRun();
+    startRun("casual");
+  });
+  overlays.appendChild(card);
 }

@@ -1,5 +1,9 @@
 export interface Settings {
   sound: boolean;
+  /** Gate-pass "ding" on every point scored. Gated behind `sound` too. */
+  gateSound: boolean;
+  /** Death "thud" when the run ends. Gated behind `sound` too. */
+  deathSound: boolean;
   highContrast: boolean;
   reducedMotion: boolean;
   /** Challenge-ghost opacity 0..100 (%), in 5% steps. 0 = ghost hidden. */
@@ -10,6 +14,8 @@ const KEY = "pflug.settings.v1";
 
 export const DEFAULT_SETTINGS: Settings = {
   sound: false,
+  gateSound: true,
+  deathSound: true,
   highContrast: false,
   reducedMotion: false,
   ghostOpacity: 25,

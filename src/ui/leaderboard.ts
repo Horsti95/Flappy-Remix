@@ -1,4 +1,4 @@
-import { fetchLeaderboard, type LeaderboardScope, type LeaderboardPeriod, type LeaderboardMode } from "../social/leaderboard";
+import { fetchLeaderboard, getCachedLeaderboard, type LeaderboardScope, type LeaderboardPeriod, type LeaderboardMode, type LeaderboardRow } from "../social/leaderboard";
 import { authState } from "../social/auth";
 import { RARITY_COLOR, type Rarity } from "../game/rarity";
 import { shapeSvgInner } from "./shape-svg";
@@ -100,10 +100,19 @@ export function renderLeaderboard(
   async function load(): Promise<void> {
     const seq = ++loadSeq;
     const list = wrap.querySelector("[data-list]") as HTMLDivElement;
-    list.innerHTML = `<div class="text-center text-xs opacity-60 mt-12">loading…</div>`;
+    // Local-first: paint the last-known board for this filter combo instantly,
+    // then revalidate against the server and repaint.
+    const cached = getCachedLeaderboard(scope, period, mode);
+    if (cached && cached.length) paint(cached);
+    else list.innerHTML = `<div class="text-center text-xs opacity-60 mt-12">loading…</div>`;
     const rows = await fetchLeaderboard(scope, period, mode, 100);
     // Drop the result if closed, or if a newer load has started since.
     if (cancelled || seq !== loadSeq) return;
+    paint(rows);
+  }
+
+  function paint(rows: LeaderboardRow[]): void {
+    const list = wrap.querySelector("[data-list]") as HTMLDivElement;
     if (rows.length === 0) {
       const hint = scope === "friends"
         ? "add friends and play to fill this board."

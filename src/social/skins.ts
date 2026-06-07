@@ -13,6 +13,9 @@ export interface SkinRow {
 
 const EQUIPPED_KEY = "pflug.equipped.v1";
 const EQUIPPED_SHAPE_KEY = "pflug.shape.v1";
+const OWNED_CACHE_KEY = "pflug.ownedSkins.cache.v1";
+
+let ownedCache: SkinRow[] | null = null;
 
 export function getEquippedShapeLocal(): string | null {
   try {
@@ -52,13 +55,35 @@ export async function listOwnedSkins(): Promise<SkinRow[]> {
     console.error("[skins] list", error);
     return [];
   }
-  return (data ?? []).map((r) => ({
+  const mapped = (data ?? []).map((r) => ({
     id: r.id as string,
     body: [r.body_r, r.body_g, r.body_b] as [number, number, number],
     accent: [r.accent_r, r.accent_g, r.accent_b] as [number, number, number],
     rarity: r.rarity as Rarity,
     unlocked_at_games: r.unlocked_at_games as number,
   }));
+  ownedCache = mapped;
+  try { localStorage.setItem(OWNED_CACHE_KEY, JSON.stringify(mapped)); } catch { /* ignore */ }
+  return mapped;
+}
+
+/** Last-known owned skins from memory or localStorage — for instant render
+ *  before listOwnedSkins() revalidates. Returns null if nothing cached. */
+export function getCachedOwnedSkins(): SkinRow[] | null {
+  if (ownedCache) return ownedCache;
+  try {
+    const raw = localStorage.getItem(OWNED_CACHE_KEY);
+    if (!raw) return null;
+    ownedCache = JSON.parse(raw) as SkinRow[];
+    return ownedCache;
+  } catch {
+    return null;
+  }
+}
+
+export function invalidateOwnedSkinsCache(): void {
+  ownedCache = null;
+  try { localStorage.removeItem(OWNED_CACHE_KEY); } catch { /* ignore */ }
 }
 
 export async function setEquippedSkin(skinId: string | null): Promise<void> {

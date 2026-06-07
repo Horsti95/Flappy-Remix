@@ -18,6 +18,32 @@ export interface LeaderboardRow {
   skin_rarity: string | null;
 }
 
+const LB_CACHE_PREFIX = "pflug.lb.cache.v1:";
+const lbMemCache = new Map<string, LeaderboardRow[]>();
+function lbKey(scope: LeaderboardScope, period: LeaderboardPeriod, mode: LeaderboardMode): string {
+  return `${scope}:${period}:${mode}`;
+}
+
+/** Last-known leaderboard rows for this filter combo, from memory or
+ *  localStorage — for instant render before fetchLeaderboard() revalidates. */
+export function getCachedLeaderboard(
+  scope: LeaderboardScope,
+  period: LeaderboardPeriod,
+  mode: LeaderboardMode = "all",
+): LeaderboardRow[] | null {
+  const k = lbKey(scope, period, mode);
+  if (lbMemCache.has(k)) return lbMemCache.get(k)!;
+  try {
+    const raw = localStorage.getItem(LB_CACHE_PREFIX + k);
+    if (!raw) return null;
+    const rows = JSON.parse(raw) as LeaderboardRow[];
+    lbMemCache.set(k, rows);
+    return rows;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchLeaderboard(
   scope: LeaderboardScope,
   period: LeaderboardPeriod,
@@ -62,7 +88,11 @@ export async function fetchLeaderboard(
       skin_rarity: (r.skin_rarity ?? null) as string | null,
     };
   });
-  return rankRows(rows);
+  const ranked = rankRows(rows);
+  const k = lbKey(scope, period, mode);
+  lbMemCache.set(k, ranked);
+  try { localStorage.setItem(LB_CACHE_PREFIX + k, JSON.stringify(ranked)); } catch { /* ignore */ }
+  return ranked;
 }
 
 /**

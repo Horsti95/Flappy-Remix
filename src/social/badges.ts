@@ -9,6 +9,13 @@ export interface SeasonBadge {
 
 let cache: SeasonBadge[] | null = null;
 
+/** Usernames that carry the developer badge — hardcoded, never fetched. */
+const DEVELOPER_USERNAMES = new Set(["hossi95"]);
+
+export function isDeveloper(username: string | null | undefined): boolean {
+  return username != null && DEVELOPER_USERNAMES.has(username);
+}
+
 export async function listMyBadges(): Promise<SeasonBadge[]> {
   if (cache) return cache;
   const sb = getSupabase();

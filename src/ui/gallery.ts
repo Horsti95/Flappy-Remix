@@ -324,7 +324,8 @@ export function renderGallery(
     if (cancelled || activeTab !== "badges") return;
     body.innerHTML = "";
     const playtester = isPlaytester(authState().profile?.created_at);
-    if (badges.length === 0 && !playtester) {
+    const developer = isDeveloper(authState().profile?.username);
+    if (badges.length === 0 && !playtester && !developer) {
       const empty = document.createElement("div");
       empty.className = "px-4 mt-8 text-center text-[12px] opacity-60 leading-relaxed";
       empty.textContent =
@@ -340,9 +341,7 @@ export function renderGallery(
     grid.className = "grid grid-cols-2 gap-4 px-2 pt-1";
     body.appendChild(grid);
     if (playtester) grid.appendChild(playtesterCard());
-    if (isDeveloper(authState().profile?.username)) {
-      grid.appendChild(devBadgeCard());
-    }
+    if (developer) grid.appendChild(devBadgeCard());
     const sorted = [...badges].sort((a, b) => b.season_id - a.season_id);
     const bestRank = sorted.length ? Math.min(...sorted.map((b) => b.rank)) : 0;
     for (const badge of sorted) {

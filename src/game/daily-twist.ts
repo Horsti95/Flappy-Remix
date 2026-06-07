@@ -24,7 +24,7 @@ import { type SimConfig } from "./config";
 
 export type ModifierKind = "physics" | "geometry" | "visual" | "mechanical";
 
-export type Tier = "easy" | "medium" | "hard" | "super_hard";
+export type Tier = "easy" | "medium" | "hard" | "super_hard" | "extreme";
 
 /**
  * Visual overlay effects. Purely cosmetic — they never touch SimConfig,
@@ -263,6 +263,7 @@ const TIER_WEIGHTS: Array<{ tier: Tier; weight: number }> = [
   { tier: "medium", weight: 3 },
   { tier: "hard", weight: 2 },
   { tier: "super_hard", weight: 1 },
+  { tier: "extreme", weight: 0.25 },
 ];
 
 function pickWeighted<T extends { weight: number }>(items: T[], rng: Rng): T {
@@ -319,10 +320,19 @@ export function pickDaily(dateUtc: string): DailyPick {
       modifiers = [a, b];
       break;
     }
+    case "extreme": {
+      const a = pickOne(HOSTILE, rng);
+      const others1 = HOSTILE.filter((m) => m.id !== a.id);
+      const b = pickOne(others1, rng);
+      const others2 = others1.filter((m) => m.id !== b.id);
+      const c = pickOne(others2, rng);
+      modifiers = [a, b, c];
+      break;
+    }
   }
   // Visual overlay rolled last, on the same deterministic stream. Cosmetic
   // only — keeps the daily fair worldwide while varying the mood.
-  const visualMod = rng.next() < VISUAL_CHANCE ? pickOne(VISUAL, rng) : null;
+  const visualMod = (tier === "extreme" || rng.next() < VISUAL_CHANCE) ? pickOne(VISUAL, rng) : null;
   return {
     date: dateUtc,
     tier,
@@ -374,6 +384,7 @@ export const TIER_LABEL: Record<Tier, string> = {
   medium: "medium",
   hard: "hard",
   super_hard: "super hard",
+  extreme: "extreme",
 };
 
 export const TIER_COLOR: Record<Tier, string> = {
@@ -381,6 +392,7 @@ export const TIER_COLOR: Record<Tier, string> = {
   medium: "#60a5fa",    // blue
   hard: "#f59e0b",      // amber
   super_hard: "#ef4444", // red
+  extreme: "#a855f7",   // purple
 };
 
 export function tierWarning(pick: DailyPick): string {

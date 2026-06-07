@@ -31,9 +31,9 @@ export const DEFAULT_CONFIG: SimConfig = {
   pipeWidth: 56,
   pipeSpacing: 200,
   pipeGapBase: 170,
-  pipeGapMin: 110,
+  pipeGapMin: 100,
   pipeMargin: 56,
   speedScale: 1.04,
-  gapShrinkPerStep: 8,
-  difficultyStep: 10,
+  gapShrinkPerStep: 4,
+  difficultyStep: 20,
 };

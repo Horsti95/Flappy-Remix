@@ -170,7 +170,7 @@ export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData): v
   ctx.fillText("can you beat it?", W / 2, H - 160);
   ctx.font = "500 28px system-ui,sans-serif";
   ctx.fillStyle = "#f4ead588";
-  ctx.fillText("pflug.app", W / 2, H - 92);
+  ctx.fillText("glide.uno", W / 2, H - 92);
 }
 
 function drawChip(

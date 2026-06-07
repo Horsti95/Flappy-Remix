@@ -8,7 +8,7 @@ export const config = { runtime: "edge" };
 // root after a moment via the meta refresh, with deep-link params
 // preserved.
 
-const ABS_ORIGIN = process.env.PUBLIC_SITE_URL ?? "https://pflug.app";
+const ABS_ORIGIN = process.env.PUBLIC_SITE_URL ?? "https://glide.uno";
 
 export default async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url);

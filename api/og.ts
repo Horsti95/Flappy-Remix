@@ -124,7 +124,7 @@ function card(p: OgPayload): Node {
       ]),
       el("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-end" } }, [
         el("div", { style: { fontSize: 22, opacity: 0.7 } }, "play"),
-        el("div", { style: { fontSize: 48, fontWeight: 700 } }, "pflug.app"),
+        el("div", { style: { fontSize: 48, fontWeight: 700 } }, "glide.uno"),
       ]),
     ]),
   ]);

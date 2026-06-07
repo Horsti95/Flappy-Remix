@@ -1133,17 +1133,26 @@ function presetCard(
   onTap: () => void,
 ): HTMLElement {
   const state = presetUnlock(p, stats);
+  // Chameleon has no fixed colour — it rolls a new vivid pair every run. Paint
+  // its swatch as a rainbow so it reads as "random / legendary" at a glance.
+  const isChameleon = p.id === "chameleon";
   const el = document.createElement("button");
   el.dataset.noFlap = "true";
   el.className = `relative rounded-2xl p-3 flex flex-col items-center text-[10px] gap-2 border-2 ${
-    equipped ? "border-paper" : state.unlocked ? "border-white/10" : "border-white/5"
+    equipped ? "border-paper" : isChameleon && state.unlocked ? "border-fuchsia-400/50" : state.unlocked ? "border-white/10" : "border-white/5"
   } bg-white/5 ${state.unlocked ? "active:scale-95" : "opacity-50 cursor-not-allowed"} transition`;
+  const swatch = isChameleon
+    ? `<div class="w-full aspect-square flex items-center justify-center rounded-xl" style="background:conic-gradient(from 0deg, #ef4444, #f59e0b, #eab308, #22c55e, #06b6d4, #6366f1, #a855f7, #ef4444)">
+         <div class="w-[78%] h-[78%] flex items-center justify-center rounded-lg bg-black/35">${shapeSvgWithColors(shapeId, p.body, p.accent)}</div>
+       </div>`
+    : `<div class="w-full aspect-square flex items-center justify-center swatch-plate rounded-xl">
+         ${shapeSvgWithColors(shapeId, p.body, p.accent)}
+       </div>`;
   el.innerHTML = `
-    <div class="w-full aspect-square flex items-center justify-center swatch-plate rounded-xl">
-      ${shapeSvgWithColors(shapeId, p.body, p.accent)}
-    </div>
+    ${swatch}
     <div class="font-bold">${escapeHtml(p.name)}</div>
-    <div class="opacity-60 text-[10px] text-center leading-tight">${state.unlocked ? "ready" : escapeHtml(state.hint ?? "locked")}</div>
+    <div class="opacity-60 text-[10px] text-center leading-tight">${state.unlocked ? (isChameleon ? "random every run" : "ready") : escapeHtml(state.hint ?? "locked")}</div>
+    ${isChameleon ? `<div class="text-[8px] uppercase tracking-wider rounded px-1 py-0.5 font-bold" style="background:#a855f733;color:#d8b4fe">legendary</div>` : ""}
     ${
       equipped
         ? `<div class="absolute top-1 right-1 text-[9px] bg-paper text-ink rounded-full px-1.5 py-0.5">equipped</div>`

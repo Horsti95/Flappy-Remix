@@ -43,6 +43,11 @@ export const PRESET_SKINS: PresetSkin[] = [
     unlock: (s) => ({ unlocked: s.totalGames >= 300, hint: "play 300 games" }) },
   { id: "preset-germany", name: "Germany", body: [221, 0, 0], accent: [255, 206, 0],
     unlock: (s) => ({ unlocked: s.totalGames >= 20, hint: "play 20 games" }) },
+  // Chameleon — legendary. Colours are placeholders; the real pair is rolled
+  // fresh each run (see game/chameleon.ts). The gallery paints it as a rainbow
+  // so it reads as "random every time".
+  { id: "chameleon", name: "Chameleon", body: [168, 85, 247], accent: [30, 10, 50],
+    unlock: (s) => ({ unlocked: s.totalGames >= 1234, hint: "play 1234 games" }) },
 ];
 
 const PRESET_KEY = "pflug.equippedPreset.v1";

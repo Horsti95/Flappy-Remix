@@ -35,6 +35,8 @@ import { getEquippedPillarLocal, getPillarStyle } from "./game/pillars";
 import { getEquippedPillarColorLocal } from "./game/pillar-colors";
 import { getEquippedAchievementColorLocal, setEquippedAchievementColorLocal } from "./game/achievement-equip";
 import { ACHIEVEMENTS } from "./game/achievements";
+import { CHAMELEON_ID, rollChameleonColors } from "./game/chameleon";
+import { type Rarity } from "./game/rarity";
 import { type SubmitResult } from "./social/runs";
 import { installFlushHooks, pendingCount, submitOrEnqueue } from "./social/offline-queue";
 import { fetchDaily, type DailyInfo } from "./social/daily";
@@ -374,6 +376,14 @@ async function loadEquippedSkin(): Promise<void> {
   // A locally-equipped preset palette wins over DB skins — it's a
   // pure client choice with no server row.
   const presetId = getEquippedPresetLocal();
+  // Chameleon: legendary, no fixed colour — roll a fresh vivid pair so the
+  // menu mascot previews a random look; runs re-roll at start.
+  if (presetId === CHAMELEON_ID) {
+    equippedSkin = null;
+    renderer.options.skin = rollChameleonColors();
+    renderer.options.glow = true;
+    return;
+  }
   if (presetId) {
     const p = getPreset(presetId);
     if (p) {
@@ -701,6 +711,12 @@ function startRun(runMode: RunMode = "casual"): void {
   currentRunMode = runMode;
   renderer.options.pillarStyle = getEquippedPillarLocal();
   renderer.options.pillarColor = getEquippedPillarColorLocal();
+  // Chameleon: re-roll the random colours once per run (recorded into the
+  // run, so the share card and challenge ghost show the colours you flew).
+  if (getEquippedPresetLocal() === CHAMELEON_ID) {
+    renderer.options.skin = rollChameleonColors();
+    renderer.options.glow = true;
+  }
   // Banner hidden during active gameplay — cleaner play area; restored on
   // showMenu / game-over. The offset is removed so the stage fills fully.
   setBannerVisible(false);
@@ -978,7 +994,7 @@ async function openShare(score: number, result: SubmitResult | null): Promise<vo
     skin: renderer.options.skin,
     shape: equippedShapeId,
     themeId: equippedThemeId,
-    rarity: equippedSkin?.rarity,
+    rarity: currentRarity(),
     streakDays: result?.streak_days ?? s.profile?.streak_days ?? 0,
     mode: challengeShortId ? "challenge" : currentRunMode === "ranked" ? "ranked" : currentRunMode === "daily" ? "daily" : currentRunMode === "challenge" ? "challenge" : "casual",
     dailyDate: currentRunMode === "daily" ? dailyInfo?.date ?? null : null,
@@ -1001,7 +1017,7 @@ function shareChallenge(score: number, shortId: string, addressedTo: string | nu
     skin: renderer.options.skin,
     shape: equippedShapeId,
     themeId: equippedThemeId,
-    rarity: equippedSkin?.rarity,
+    rarity: currentRarity(),
     streakDays: s.profile?.streak_days ?? 0,
     mode: "challenge",
     dailyDate: null,
@@ -1146,6 +1162,13 @@ function finishOnboarding(): void {
   });
   overlays.appendChild(card);
   announce("Practice complete. You got it! Tap let's play to continue.");
+}
+
+/** Rarity to show on shares / profile for the current equip. Chameleon is a
+ *  client preset with no DB row, so surface it as legendary explicitly. */
+function currentRarity(): Rarity | undefined {
+  if (getEquippedPresetLocal() === CHAMELEON_ID) return "legendary";
+  return equippedSkin?.rarity;
 }
 
 function showToast(message: string): void {

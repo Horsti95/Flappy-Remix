@@ -21,12 +21,17 @@ describe("pickDaily", () => {
     expect(new Set(ids).size).toBeGreaterThan(1);
   });
 
-  it("super_hard days carry exactly 2 hostile modifiers, others carry 1", () => {
+  it("super_hard carries 2 hostile mods, extreme carries 3, others carry 1", () => {
     // Sample 200 dates and check the invariant.
     for (let i = 0; i < 200; i++) {
       const date = `2026-${String(((i % 12) + 1)).padStart(2, "0")}-${String(((i % 28) + 1)).padStart(2, "0")}`;
       const pick = pickDaily(date);
-      if (pick.tier === "super_hard") {
+      if (pick.tier === "extreme") {
+        expect(pick.modifiers).toHaveLength(3);
+        for (const m of pick.modifiers) expect(m.difficulty).toBe("hostile");
+        // distinct modifiers — no repeats
+        expect(new Set(pick.modifiers.map((m) => m.id)).size).toBe(3);
+      } else if (pick.tier === "super_hard") {
         expect(pick.modifiers).toHaveLength(2);
         for (const m of pick.modifiers) expect(m.difficulty).toBe("hostile");
       } else {
@@ -58,7 +63,7 @@ describe("pickDaily", () => {
   });
 
   it("roughly matches the 1/3/2/1 weighting over a large sample", () => {
-    const counts: Record<Tier, number> = { easy: 0, medium: 0, hard: 0, super_hard: 0 };
+    const counts: Record<Tier, number> = { easy: 0, medium: 0, hard: 0, super_hard: 0, extreme: 0 };
     const days = 365 * 5; // 5 years of UTC dates
     const base = new Date(Date.UTC(2026, 0, 1));
     for (let i = 0; i < days; i++) {
@@ -78,6 +83,9 @@ describe("pickDaily", () => {
     expect(counts.hard / total).toBeLessThan(0.35);
     expect(counts.super_hard / total).toBeGreaterThan(0.10);
     expect(counts.super_hard / total).toBeLessThan(0.20);
+    // Extreme is very rare (weight 0.25 / 7.25 ≈ 3.4%).
+    expect(counts.extreme / total).toBeGreaterThan(0.005);
+    expect(counts.extreme / total).toBeLessThan(0.07);
   });
 
   it("rejects malformed date strings", () => {

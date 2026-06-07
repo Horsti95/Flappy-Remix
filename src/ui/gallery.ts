@@ -26,7 +26,7 @@ import { PRESET_SKINS, presetUnlock, type PresetSkin } from "../game/preset-skin
 import { evaluateCriteria, isEventActive, type CriterionDef } from "../game/unlock-criteria";
 import { PILLAR_STYLES, getEquippedPillarLocal, setEquippedPillarLocal, type PillarStyle } from "../game/pillars";
 import { PILLAR_COLORS, getPillarColor, getEquippedPillarColorLocal, setEquippedPillarColorLocal } from "../game/pillar-colors";
-import { getEquippedAchievementColorLocal, setEquippedAchievementColorLocal } from "../game/achievement-equip";
+import { setEquippedAchievementColorLocal } from "../game/achievement-equip";
 import {
   FLAP_FX_OPTIONS,
   FX_COLORS,

@@ -37,6 +37,7 @@ import { getEquippedAchievementColorLocal, setEquippedAchievementColorLocal } fr
 import { ACHIEVEMENTS } from "./game/achievements";
 import { CHAMELEON_ID, rollChameleonColors } from "./game/chameleon";
 import { type Rarity } from "./game/rarity";
+import { saveCasualRun, loadSavedCasualRun, clearSavedCasualRun, type SavedRun } from "./game/save-state";
 import { type SubmitResult } from "./social/runs";
 import { installFlushHooks, pendingCount, submitOrEnqueue } from "./social/offline-queue";
 import { fetchDaily, type DailyInfo } from "./social/daily";
@@ -460,7 +461,7 @@ function showMenu(): void {
     overlays,
     settings,
     {
-      onPlay: () => { pushSubView(); startRun("casual"); },
+      onPlay: () => { pushSubView(); playCasual(); },
       onTraining: () => { pushSubView(); startRun("training"); },
       onPlayDaily: () => { pushSubView(); openDailyLanding(); },
       onToggleSetting,
@@ -705,10 +706,13 @@ function onToggleSetting(key: keyof Settings): void {
   showMenu();
 }
 
-function startRun(runMode: RunMode = "casual"): void {
+function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {}): void {
   overlays.innerHTML = "";
   mode = "playing";
   currentRunMode = runMode;
+  // Starting any fresh casual run discards a stale saved one (resume consumes
+  // it separately below). Keeps the menu from offering an outdated resume.
+  if (runMode === "casual" && !opts.resume) clearSavedCasualRun();
   renderer.options.pillarStyle = getEquippedPillarLocal();
   renderer.options.pillarColor = getEquippedPillarColorLocal();
   // Chameleon: re-roll the random colours once per run (recorded into the
@@ -756,7 +760,9 @@ function startRun(runMode: RunMode = "casual"): void {
     renderer.options.mirror = (dailyInfo?.pick.modifiers ?? []).some(m => m.id === "mirror");
     renderer.options.visualEffect = dailyInfo.pick.visualEffect;
   } else {
-    currentSeed = (Math.random() * 0xffffffff) >>> 0;
+    // Casual: resume reuses the saved seed; otherwise a fresh random seed
+    // (casual is always a new layout on play-again — never repeats).
+    currentSeed = opts.resume ? opts.resume.seed >>> 0 : (Math.random() * 0xffffffff) >>> 0;
     renderer.options.ghostSkin = undefined;
     renderer.options.ghostShape = undefined;
     renderer.options.theme = equippedThemeId;
@@ -940,6 +946,11 @@ function startRun(runMode: RunMode = "casual"): void {
     ghost,
     runMode === "training",
   );
+  // Resume: replay saved inputs to reconstruct position, then consume the save.
+  if (opts.resume) {
+    loop.prime(opts.resume.inputs, opts.resume.tick);
+    clearSavedCasualRun();
+  }
   loop.start();
 
   // Practice-mode badge: persistent in-run label so players always know
@@ -1235,10 +1246,63 @@ function setPaused(p: boolean): void {
     renderPauseOverlay(
       overlays,
       () => setPaused(false),
-      () => showMenu(),
+      () => quitRunToMenu(),
     );
   } else {
     mode = "playing";
     removePauseOverlay(overlays);
   }
+}
+
+/** Leave the current run for the menu. Casual runs are snapshotted first so
+ *  they can be resumed later; every other mode just exits. */
+function quitRunToMenu(): void {
+  if (currentRunMode === "casual" && loop && loop.currentTick() > 0) {
+    saveCasualRun({
+      seed: currentSeed,
+      inputs: loop.getRecordedInputs(),
+      tick: loop.currentTick(),
+      score: loop.sim.score,
+      savedAt: Date.now(),
+    });
+  }
+  showMenu();
+}
+
+/** Casual "Play": offer to resume a saved run if one exists, else start fresh. */
+function playCasual(): void {
+  const saved = loadSavedCasualRun();
+  if (saved) {
+    promptResume(saved);
+  } else {
+    startRun("casual");
+  }
+}
+
+function promptResume(saved: SavedRun): void {
+  const card = document.createElement("div");
+  card.dataset.noFlap = "true";
+  card.className =
+    "pointer-events-auto absolute inset-0 z-30 bg-black/85 backdrop-blur-sm font-display text-paper flex flex-col items-center justify-center text-center px-8";
+  card.innerHTML = `
+    <div class="text-4xl mb-3">⏸️</div>
+    <h2 class="text-xl font-bold mb-1">resume your run?</h2>
+    <p class="text-sm opacity-75 mb-7">you left a casual run at score ${saved.score}.</p>
+    <div class="w-full max-w-xs space-y-2">
+      <button data-resume class="w-full rounded-2xl bg-paper text-ink font-bold py-3 active:scale-95 transition">resume (score ${saved.score})</button>
+      <button data-new class="w-full rounded-2xl border border-paper/40 text-paper font-bold py-3 active:scale-95 transition">start new</button>
+    </div>
+  `;
+  card.querySelector("[data-resume]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    card.remove();
+    startRun("casual", { resume: saved });
+  });
+  card.querySelector("[data-new]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    card.remove();
+    clearSavedCasualRun();
+    startRun("casual");
+  });
+  overlays.appendChild(card);
 }

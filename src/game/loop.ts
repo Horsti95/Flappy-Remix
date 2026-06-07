@@ -61,6 +61,29 @@ export class GameLoop {
     return [...this.recordedInputs];
   }
 
+  /** Current sim tick — used to snapshot a resumable run. */
+  currentTick(): number {
+    return this.sim.tick;
+  }
+
+  /**
+   * Restore a saved casual run: queue the recorded inputs and fast-forward the
+   * deterministic sim to `toTick`, so play continues exactly where it stopped.
+   * Call before start(). Inputs carry absolute ticks, so the sim applies each
+   * at the right moment as we step.
+   */
+  prime(inputs: readonly InputEvent[], toTick: number): void {
+    for (const ev of inputs) {
+      const stamped = { tick: ev.tick, action: ev.action };
+      this.sim.queueInput(stamped);
+      this.recordedInputs.push(stamped);
+    }
+    while (this.sim.alive && this.sim.tick < toTick) {
+      this.sim.step();
+    }
+    this.prevScore = this.sim.score;
+  }
+
   private recordedInputs: InputEvent[] = [];
 
   private frame = (now: number): void => {

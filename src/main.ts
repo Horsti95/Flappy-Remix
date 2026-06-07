@@ -33,6 +33,8 @@ import { getEquippedThemeLocal, setEquippedThemeLocal, setThemesLabMode, type Th
 import { getEquippedPresetLocal, setEquippedPresetLocal, getPreset, setPresetLabMode } from "./game/preset-skins";
 import { getEquippedPillarLocal, getPillarStyle } from "./game/pillars";
 import { getEquippedPillarColorLocal } from "./game/pillar-colors";
+import { getEquippedAchievementColorLocal, setEquippedAchievementColorLocal } from "./game/achievement-equip";
+import { ACHIEVEMENTS } from "./game/achievements";
 import { type SubmitResult } from "./social/runs";
 import { installFlushHooks, pendingCount, submitOrEnqueue } from "./social/offline-queue";
 import { fetchDaily, type DailyInfo } from "./social/daily";
@@ -45,7 +47,7 @@ import { loadAchievementStats, updateStatsAfterRun, saveAchievementStats, getNew
 import { getShowEquippedInMenu } from "./game/menu-prefs";
 import { renderDailyLanding } from "./ui/daily-landing";
 import { renderRankedPanel } from "./ui/ranked";
-import { playFlap, playCheer, setSoundLabMode } from "./game/sfx";
+import { playFlap, playCheer, playGatePass, playDeath, setSoundLabMode } from "./game/sfx";
 import { clearParticles, getActiveFlapFx, setFxLabMode, spawnFlapFx } from "./game/flap-fx";
 import { type RankedMatch, createRankedChallenge } from "./social/ranked";
 import { createChallenge, fetchChallenge, fetchBestRunChallenge, ghostSkinFromChallenge, fetchUnseenChallengeCount, type FetchedChallenge } from "./social/challenges";
@@ -114,7 +116,7 @@ let pendingChallengeTarget: { friend: Friend | null } | null = null;
 let inboxUnseen = 0;
 
 app.innerHTML = `
-  <section id="stage" role="application" aria-label="Glide play area" class="relative w-full h-full max-w-md max-h-[85vh] aspect-[9/16] mx-auto bg-sky-day overflow-hidden touch-none select-none">
+  <section id="stage" role="application" aria-label="Glide play area" class="relative w-full h-full max-w-md max-h-[100svh] aspect-[9/16] mx-auto bg-sky-day overflow-hidden touch-none select-none">
     <canvas id="canvas" class="absolute inset-0 w-full h-full" aria-hidden="true"></canvas>
     <div id="live-region" aria-live="polite" aria-atomic="true" class="sr-only"></div>
     <button id="pause-btn" data-no-flap aria-label="Pause game" type="button" class="hidden absolute top-3 right-3 z-20 bg-black/30 text-paper rounded-full w-10 h-10 flex items-center justify-center text-lg font-bold">II</button>
@@ -368,6 +370,17 @@ async function loadEquippedSkin(): Promise<void> {
       return;
     }
   }
+  // Achievement-color equip — local only, no DB row.
+  const achColorId = getEquippedAchievementColorLocal();
+  if (achColorId) {
+    const a = ACHIEVEMENTS.find((x) => x.id === achColorId);
+    if (a) {
+      equippedSkin = null;
+      renderer.options.skin = { body: a.reward.body, accent: a.reward.accent };
+      renderer.options.glow = false;
+      return;
+    }
+  }
   const s = authState();
   if (!s.ready || s.offline) {
     equippedSkin = null;
@@ -434,7 +447,7 @@ function showMenu(): void {
         panelOpen = true;
         renderGallery(
           overlays,
-          { skinId: equippedSkin?.id ?? null, shapeId: equippedShapeId, themeId: equippedThemeId, presetId: getEquippedPresetLocal() },
+          { skinId: equippedSkin?.id ?? null, shapeId: equippedShapeId, themeId: equippedThemeId, presetId: getEquippedPresetLocal(), achColorId: getEquippedAchievementColorLocal() },
           {
             totalGames: authState().profile?.total_games ?? 0,
             bestScore: bestScoreSeen,
@@ -465,6 +478,20 @@ function showMenu(): void {
               if (id) {
                 const p = getPreset(id);
                 if (p) renderer.options.skin = { body: p.body, accent: p.accent };
+              } else {
+                void loadEquippedSkin();
+              }
+            },
+            onEquipAchievementColor: (achId) => {
+              setEquippedAchievementColorLocal(achId);
+              if (achId) {
+                const a = ACHIEVEMENTS.find((x) => x.id === achId);
+                if (a) {
+                  equippedSkin = null;
+                  setEquippedPresetLocal(null);
+                  renderer.options.skin = { body: a.reward.body, accent: a.reward.accent };
+                  renderer.options.glow = false;
+                }
               } else {
                 void loadEquippedSkin();
               }
@@ -647,9 +674,9 @@ function startRun(runMode: RunMode = "casual"): void {
   currentRunMode = runMode;
   renderer.options.pillarStyle = getEquippedPillarLocal();
   renderer.options.pillarColor = getEquippedPillarColorLocal();
-  // Banner stays visible during gameplay too (consistent everywhere); the
-  // offset shrinks the stage below it, so the pause button isn't covered.
-  setBannerVisible(true);
+  // Banner hidden during active gameplay — cleaner play area; restored on
+  // showMenu / game-over. The offset is removed so the stage fills fully.
+  setBannerVisible(false);
   pauseBtn.classList.remove("hidden");
   let ghost: GhostSim | undefined;
   // Daily twist: apply the modifier(s) on top of DEFAULT_CONFIG for
@@ -698,6 +725,7 @@ function startRun(runMode: RunMode = "casual"): void {
     {
       render: (sim, alpha, g) => renderer.draw(sim, alpha, g),
       onScore: (sc) => {
+        if (settings.sound) playGatePass();
         // Stadium theme: the crowd cheers every 20 points. Audio-only,
         // gated on the sound setting; never affects the deterministic sim.
         if (settings.sound && equippedThemeId === "stadium" && sc > 0 && sc % 20 === 0) {
@@ -705,6 +733,7 @@ function startRun(runMode: RunMode = "casual"): void {
         }
       },
       onDeath: async (sim) => {
+        if (settings.sound) playDeath();
         mode = "dead";
         pauseBtn.classList.add("hidden");
         const score = sim.score;
@@ -982,6 +1011,9 @@ function openRankedPanel(): void {
     onPlayRound: (match, round) => {
       activeRanked = { match, round };
       startRun("ranked");
+    },
+    onViewProfile: (_userId, username) => {
+      if (username) openProfile(username);
     },
     onClose: () => showMenu(),
   });

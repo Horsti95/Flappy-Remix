@@ -228,12 +228,12 @@ const input = new InputController(stage, {
     if (mode === "playing") {
       loop?.flap();
       if (settings.sound) playFlap();
-      // First flap of the guided onboarding: acknowledge it, then point them
-      // at the goal. "pillars scroll in — fly through the gaps" is the only
-      // rule worth stating; the rest is felt, not read.
+      // First flap of the guided onboarding: clear the start prompt and
+      // immediately drip the first coaching card so it doesn't conflict.
       if (onboardingActive && !onboardingFlapped) {
         onboardingFlapped = true;
-        showCenterHint("nice! keep tapping to stay up", { fadeMs: 2200 });
+        clearCenterHint();
+        showCoachCard("👆", "keep tapping — stay above the gaps!");
       }
       // Flap-FX spawns a particle burst at the plane's last-rendered
       // position. The renderer ticks + paints them in subsequent
@@ -703,7 +703,17 @@ function onToggleSetting(key: keyof Settings): void {
   saveSettings(settings);
   renderer.options.highContrast = settings.highContrast;
   renderer.options.reducedMotion = settings.reducedMotion || matchMedia("(prefers-reduced-motion: reduce)").matches;
-  showMenu();
+  // Update the toggle button in-place so the settings panel stays open.
+  const btn = overlays.querySelector<HTMLButtonElement>(`[data-toggle="${k}"]`);
+  if (btn) {
+    const on = settings[k];
+    btn.className = `rounded-xl border ${on ? "bg-paper/20 border-paper" : "border-paper/30"} py-2 px-1`;
+    const statusDiv = btn.querySelector<HTMLElement>("div:last-child");
+    if (statusDiv) statusDiv.textContent = on ? "on" : "off";
+  } else {
+    // Toggled from outside the settings panel (shouldn't normally happen).
+    showMenu();
+  }
 }
 
 function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {}): void {
@@ -780,10 +790,11 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
         if (settings.sound && equippedThemeId === "stadium" && sc > 0 && sc % 20 === 0) {
           playCheer();
         }
-        // Guided onboarding: drip-feed encouragement, then graduate at target.
+        // Guided onboarding: drip-feed coaching cards as gates pass.
         if (onboardingActive) {
-          if (sc === 1) showCenterHint("+1! fly through the gaps", { fadeMs: 2000 });
-          else if (sc === 10) showCenterHint("halfway — you've got this", { fadeMs: 2000 });
+          if (sc === 2)  showCoachCard("🎯", "through the gap = +1 point");
+          else if (sc === 5)  showCoachCard("💡", "you can't die in practice — fly freely!");
+          else if (sc === 12) showCoachCard("🎮", "feeling it? hit Play on the home screen for a real run");
           if (sc >= ONBOARDING_TARGET) finishOnboarding();
         }
       },
@@ -983,22 +994,34 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
 
 async function openShare(score: number, result: SubmitResult | null): Promise<void> {
   const s = authState();
-  const badges = await listMyBadges();
-  const topRank = badges.length > 0 ? Math.min(...badges.map((b) => b.rank)) : null;
   const dailyPick = currentRunMode === "daily" ? dailyInfo?.pick : null;
-  // Every share becomes a challenge link so opening it plays the friend
-  // against the recorded ghost. Falls back to a bare landing URL if we
-  // can't create one (offline, ranked, etc.).
+
+  // Fetch badges for the rank chip — non-fatal if it fails.
+  let topRank: number | null = null;
+  try {
+    const badges = await listMyBadges();
+    topRank = badges.length > 0 ? Math.min(...badges.map((b) => b.rank)) : null;
+  } catch {
+    /* show share sheet without rank chip */
+  }
+
+  // Turn the run into a challenge link so the recipient plays the ghost.
+  // Non-fatal if it fails — share sheet renders without the challenge link.
   let challengeShortId: string | null = null;
   if (result?.run_id && currentRunMode !== "ranked") {
-    const created = await createChallenge(result.run_id, activeChallenge?.short_id ?? null, null, { shape: equippedShapeId, theme: equippedThemeId });
-    if (created.ok && created.short_id) {
-      challengeShortId = created.short_id;
-      const params = new URLSearchParams();
-      params.set("c", challengeShortId);
-      history.replaceState(null, "", `${window.location.origin}/?${params}`);
+    try {
+      const created = await createChallenge(result.run_id, activeChallenge?.short_id ?? null, null, { shape: equippedShapeId, theme: equippedThemeId });
+      if (created.ok && created.short_id) {
+        challengeShortId = created.short_id;
+        const params = new URLSearchParams();
+        params.set("c", challengeShortId);
+        history.replaceState(null, "", `${window.location.origin}/?${params}`);
+      }
+    } catch {
+      /* share without challenge link */
     }
   }
+
   const data: ShareCardData = {
     score,
     username: s.profile?.username ?? null,
@@ -1132,6 +1155,30 @@ function clearCenterHint(): void {
   overlays.querySelector("[data-coach-hint]")?.remove();
 }
 
+/** A small emoji+text card that appears at the bottom of the play area
+ *  during the guided onboarding run. Auto-fades after 3.5 s. Replaces
+ *  any prior coach card so hints never stack. */
+function showCoachCard(emoji: string, text: string): void {
+  overlays.querySelector("[data-coach-card]")?.remove();
+  const card = document.createElement("div");
+  card.dataset.coachCard = "true";
+  card.dataset.noFlap = "true";
+  card.className =
+    "pointer-events-none absolute bottom-20 inset-x-4 z-20 flex justify-center";
+  card.innerHTML = `
+    <div class="bg-black/80 backdrop-blur-sm rounded-2xl px-5 py-3 text-paper font-display text-center shadow-xl max-w-xs" style="border:1px solid rgba(244,234,213,0.15)">
+      <div class="text-2xl mb-1">${emoji}</div>
+      <div class="text-sm font-bold leading-snug">${text}</div>
+    </div>
+  `;
+  overlays.appendChild(card);
+  window.setTimeout(() => {
+    card.style.transition = "opacity 0.5s";
+    card.style.opacity = "0";
+    window.setTimeout(() => card.remove(), 500);
+  }, 3500);
+}
+
 /** Kick off the first-launch guided practice run. */
 function startOnboarding(): void {
   onboardingActive = true;
@@ -1151,6 +1198,7 @@ function finishOnboarding(): void {
   mode = "dead";
   pauseBtn.classList.add("hidden");
   clearCenterHint();
+  overlays.querySelector("[data-coach-card]")?.remove();
   overlays.innerHTML = "";
   const card = document.createElement("div");
   card.dataset.noFlap = "true";

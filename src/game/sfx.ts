@@ -143,12 +143,12 @@ export function playGatePass(): void {
   if (!ac) return;
   if (ac.state === "suspended") ac.resume().catch(() => undefined);
   const master = ac.createGain();
-  master.gain.value = 0.4;
+  master.gain.value = 0.72;
   master.connect(ac.destination);
   const t = ac.currentTime + 0.005;
   const notes = [523.25, 783.99];
   notes.forEach((freq, i) => {
-    tone(ac, master, { freq, startAt: t + i * 0.06, duration: 0.12, type: "sine", peak: 0.14 });
+    tone(ac, master, { freq, startAt: t + i * 0.06, duration: 0.13, type: "sine", peak: 0.22 });
   });
 }
 
@@ -158,7 +158,7 @@ export function playDeath(): void {
   if (!ac) return;
   if (ac.state === "suspended") ac.resume().catch(() => undefined);
   const master = ac.createGain();
-  master.gain.value = 0.45;
+  master.gain.value = 0.78;
   master.connect(ac.destination);
   const t = ac.currentTime + 0.005;
   // Low descending thud
@@ -168,8 +168,8 @@ export function playDeath(): void {
   osc.frequency.setValueAtTime(200, t);
   osc.frequency.exponentialRampToValueAtTime(80, t + 0.25);
   g.gain.setValueAtTime(0, t);
-  g.gain.linearRampToValueAtTime(0.22, t + 0.01);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+  g.gain.linearRampToValueAtTime(0.35, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.32);
   osc.connect(g).connect(master);
   osc.start(t);
   osc.stop(t + 0.3);

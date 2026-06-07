@@ -54,7 +54,7 @@ import { createChallenge, fetchChallenge, fetchBestRunChallenge, ghostSkinFromCh
 import { renderInbox } from "./ui/inbox";
 import { renderProfile } from "./ui/profile";
 import { renderWhatsNew } from "./ui/whats-new";
-import { renderTutorial, tutorialSeen, firstRealRunSeen, markFirstRealRunSeen } from "./ui/tutorial";
+import { renderTutorial, tutorialSeen, markTutorialSeen, firstRealRunSeen, markFirstRealRunSeen } from "./ui/tutorial";
 import { isFirstRun, markChangelogSeen, unseenChanges, CHANGELOG } from "./game/changelog";
 import { renderQuests } from "./ui/quests";
 import { evaluateRun, type QuestCompletion } from "./game/quests";
@@ -114,6 +114,13 @@ let activeChallenge: FetchedChallenge | null = null;
 let activeRanked: { match: RankedMatch; round: number } | null = null;
 let pendingChallengeTarget: { friend: Friend | null } | null = null;
 let inboxUnseen = 0;
+// Progressive onboarding: the very first launch drops the player into a
+// can't-lose practice run with piece-by-piece coaching hints, ending at a
+// target score with a "you got it" sign-off. Distinct from the plain
+// "practice mode" the menu offers (which is silent + endless).
+let onboardingActive = false;
+let onboardingFlapped = false;
+const ONBOARDING_TARGET = 20;
 
 app.innerHTML = `
   <section id="stage" role="application" aria-label="Glide play area" class="relative w-full h-full max-w-md max-h-[100svh] aspect-[9/16] mx-auto bg-sky-day overflow-hidden touch-none select-none">
@@ -218,6 +225,13 @@ const input = new InputController(stage, {
     if (mode === "playing") {
       loop?.flap();
       if (settings.sound) playFlap();
+      // First flap of the guided onboarding: acknowledge it, then point them
+      // at the goal. "pillars scroll in — fly through the gaps" is the only
+      // rule worth stating; the rest is felt, not read.
+      if (onboardingActive && !onboardingFlapped) {
+        onboardingFlapped = true;
+        showCenterHint("nice! keep tapping to stay up", { fadeMs: 2200 });
+      }
       // Flap-FX spawns a particle burst at the plane's last-rendered
       // position. The renderer ticks + paints them in subsequent
       // frames. Visual-only — never feeds back into the sim.
@@ -323,12 +337,11 @@ loadEquippedSkin().then(async () => {
   }
   showMenu();
   hideSplash();
-  // Brand-new players get the onboarding tutorial first; returning players
-  // see the "what's new" modal after an update. Never both at once.
+  // Brand-new players go straight into a guided practice run — no upfront
+  // wall of text. Coaching appears piece by piece while they fly. Returning
+  // players see the "what's new" modal after an update. Never both at once.
   if (!tutorialSeen()) {
-    pushSubView();
-    panelOpen = true;
-    renderTutorial(overlays, { onClose: () => showMenu(), onPractice: () => startRun("training") });
+    startOnboarding();
   } else {
     maybeShowWhatsNew();
   }
@@ -413,6 +426,13 @@ function menuAccountLabel(): string {
 function showMenu(): void {
   mode = "menu";
   panelOpen = false;
+  // If a player bails out of the guided run early (pause → menu), don't leave
+  // onboarding half-armed; they can resume practice from the menu button.
+  if (onboardingActive) {
+    onboardingActive = false;
+    markTutorialSeen();
+    clearCenterHint();
+  }
   setBannerVisible(true);
   pauseBtn.classList.add("hidden");
   loop?.stop();
@@ -738,6 +758,12 @@ function startRun(runMode: RunMode = "casual"): void {
         if (settings.sound && equippedThemeId === "stadium" && sc > 0 && sc % 20 === 0) {
           playCheer();
         }
+        // Guided onboarding: drip-feed encouragement, then graduate at target.
+        if (onboardingActive) {
+          if (sc === 1) showCenterHint("+1! fly through the gaps", { fadeMs: 2000 });
+          else if (sc === 10) showCenterHint("halfway — you've got this", { fadeMs: 2000 });
+          if (sc >= ONBOARDING_TARGET) finishOnboarding();
+        }
       },
       onDeath: async (sim) => {
         if (settings.sound && settings.deathSound) playDeath();
@@ -1051,6 +1077,75 @@ function openRankedPanel(): void {
     },
     onClose: () => showMenu(),
   });
+}
+
+// ---- Guided onboarding -----------------------------------------------------
+
+/** A single large coaching line centered over the play area. Replaces any
+ *  prior hint. `fadeMs` (when set) auto-fades it; omit to keep it persistent
+ *  until the next hint or clearCenterHint(). */
+function showCenterHint(text: string, opts: { fadeMs?: number } = {}): void {
+  let hint = overlays.querySelector("[data-coach-hint]") as HTMLDivElement | null;
+  if (!hint) {
+    hint = document.createElement("div");
+    hint.dataset.coachHint = "true";
+    hint.dataset.noFlap = "true";
+    hint.className =
+      "pointer-events-none absolute inset-x-0 top-[28%] z-20 text-center text-paper text-lg font-bold px-8 transition-opacity duration-700 drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]";
+    overlays.appendChild(hint);
+  }
+  hint.textContent = text;
+  hint.style.opacity = "1";
+  if (opts.fadeMs != null) {
+    window.setTimeout(() => { if (hint) hint.style.opacity = "0"; }, opts.fadeMs);
+  }
+}
+
+function clearCenterHint(): void {
+  overlays.querySelector("[data-coach-hint]")?.remove();
+}
+
+/** Kick off the first-launch guided practice run. */
+function startOnboarding(): void {
+  onboardingActive = true;
+  onboardingFlapped = false;
+  startRun("training");
+  // Initial prompt persists until the first tap.
+  showCenterHint("tap anywhere to fly ✨");
+}
+
+/** Graduate the player out of the guided run with a warm sign-off. */
+function finishOnboarding(): void {
+  if (!onboardingActive) return;
+  onboardingActive = false;
+  markTutorialSeen();
+  loop?.stop();
+  loop = null;
+  mode = "dead";
+  pauseBtn.classList.add("hidden");
+  clearCenterHint();
+  overlays.innerHTML = "";
+  const card = document.createElement("div");
+  card.dataset.noFlap = "true";
+  card.className =
+    "pointer-events-auto absolute inset-0 z-30 bg-black/85 backdrop-blur-sm font-display text-paper flex flex-col items-center justify-center text-center px-8";
+  card.innerHTML = `
+    <div class="text-5xl mb-4">🎉</div>
+    <h2 class="text-2xl font-bold mb-2">you got it!</h2>
+    <p class="text-sm opacity-80 max-w-xs leading-relaxed">
+      That's the whole game — tap to fly, mind the gaps. Find <b>practice mode</b>
+      any time at the bottom of the home screen. Happy playing!
+    </p>
+    <button data-go class="mt-8 rounded-2xl bg-paper text-ink font-bold px-8 py-3 active:scale-95 transition">let's play</button>
+  `;
+  card.querySelector("[data-go]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    card.remove();
+    showMenu();
+    maybeShowWhatsNew();
+  });
+  overlays.appendChild(card);
+  announce("Practice complete. You got it! Tap let's play to continue.");
 }
 
 function showToast(message: string): void {

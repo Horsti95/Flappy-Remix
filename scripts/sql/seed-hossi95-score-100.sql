@@ -40,20 +40,23 @@ begin
   -- 3) Milestone skins at the 1 / 10 / 50 / 100 thresholds.
   --    encoded_int uses the same bit-packing the app does:
   --    r1<<40 | g1<<32 | b1<<24 | r2<<16 | g2<<8 | b2.
+  --    All components cast to bigint — PostgreSQL evaluates integer literals as
+  --    int32 by default, and anything > 2^31-1 (e.g. 4294967296) overflows before
+  --    the addition chain widens the type.
   insert into public.skins
     (user_id, body_r, body_g, body_b, accent_r, accent_g, accent_b, encoded_int, rarity, unlocked_at_games)
   values
     (uid, 38,166,154, 255,112,67,
-       38::bigint*1099511627776 + 166*4294967296 + 154*16777216 + 255*65536 + 112*256 + 67,
+       (38::bigint << 40) | (166::bigint << 32) | (154::bigint << 24) | (255::bigint << 16) | (112::bigint << 8) | 67::bigint,
        'uncommon', 1),
     (uid, 66,135,245, 245,200,66,
-       66::bigint*1099511627776 + 135*4294967296 + 245*16777216 + 245*65536 + 200*256 + 66,
+       (66::bigint << 40) | (135::bigint << 32) | (245::bigint << 24) | (245::bigint << 16) | (200::bigint << 8) | 66::bigint,
        'rare', 10),
     (uid, 171,71,188, 205,220,57,
-       171::bigint*1099511627776 + 71*4294967296 + 188*16777216 + 205*65536 + 220*256 + 57,
+       (171::bigint << 40) | (71::bigint << 32) | (188::bigint << 24) | (205::bigint << 16) | (220::bigint << 8) | 57::bigint,
        'epic', 50),
     (uid, 233,30,99, 0,229,255,
-       233::bigint*1099511627776 + 30*4294967296 + 99*16777216 + 0*65536 + 229*256 + 255,
+       (233::bigint << 40) | (30::bigint << 32) | (99::bigint << 24) | (0::bigint << 16) | (229::bigint << 8) | 255::bigint,
        'legendary', 100)
   on conflict (user_id, encoded_int) do nothing;
 

@@ -128,6 +128,15 @@ export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData): v
   ctx.fillStyle = "#f4ead5cc";
   ctx.fillText("score", W / 2, H * 0.74 + 60);
 
+  // Rarity label — centered below the skin preview
+  if (data.rarity) {
+    ctx.font = "700 32px system-ui,sans-serif";
+    ctx.fillStyle = RARITY_COLOR[data.rarity];
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(`${data.rarity} skin`, W / 2, H * 0.42 + 155);
+  }
+
   // Rarity / username band
   ctx.font = "700 44px system-ui,sans-serif";
   ctx.textAlign = "left";
@@ -136,12 +145,6 @@ export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData): v
   const baselineY = H - 280;
   const handle = data.username ? `@${data.username}` : "anon";
   ctx.fillText(handle, left, baselineY);
-
-  if (data.rarity) {
-    ctx.font = "500 28px system-ui,sans-serif";
-    ctx.fillStyle = RARITY_COLOR[data.rarity];
-    ctx.fillText(`${data.rarity} skin`, left, baselineY + 44);
-  }
 
   // Daily rank
   if (data.mode === "daily" && data.dailyRank) {
@@ -165,15 +168,9 @@ export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData): v
   ctx.font = "500 32px system-ui,sans-serif";
   ctx.fillStyle = "#f4ead5aa";
   ctx.fillText("can you beat it?", W / 2, H - 160);
-  if (data.username) {
-    ctx.font = "800 48px system-ui,sans-serif";
-    ctx.fillStyle = "#f4ead5";
-    ctx.fillText(`add @${data.username}`, W / 2, H - 92);
-  } else {
-    ctx.font = "500 28px system-ui,sans-serif";
-    ctx.fillStyle = "#f4ead588";
-    ctx.fillText("play at pflug.app", W / 2, H - 92);
-  }
+  ctx.font = "500 28px system-ui,sans-serif";
+  ctx.fillStyle = "#f4ead588";
+  ctx.fillText("pflug.app", W / 2, H - 92);
 }
 
 function drawChip(

@@ -840,6 +840,11 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
         }
         announce(`Run ended. Score ${score}. Press R to play again.`);
         const result = await trySubmit(sim);
+        // Newly-earned achievements this run — surfaced as full-screen
+        // celebration cards (built in renderGameOver) so each one is read,
+        // not flashed by in a toast. Training returns earlier, so the stats
+        // update + unlock check only run for tracked modes here.
+        let newAchievements: ReturnType<typeof getNewlyUnlocked> = [];
         {
           const currentStats = loadAchievementStats();
           const updatedStats = updateStatsAfterRun(currentStats, {
@@ -848,12 +853,7 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
             inputCount: loop?.getRecordedInputs().length,
           });
           saveAchievementStats(updatedStats);
-          // Surface ANY newly-earned achievement reward as a toast (previously
-          // only server-minted color skins were celebrated, so achievement
-          // unlocks were silent). Training returns earlier, so we're tracked here.
-          for (const a of getNewlyUnlocked(currentStats, updatedStats)) {
-            showUnlockToast(`🎉 unlocked: ${a.name}`);
-          }
+          newAchievements = getNewlyUnlocked(currentStats, updatedStats);
         }
         // Responding to a challenge resolves the duel server-side, so the
         // win tally may have changed — re-sync it for the achievement check.
@@ -897,6 +897,12 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
             : undefined,
           result,
           ticks,
+          achievements: newAchievements.map((a) => ({
+            name: a.name,
+            blurb: a.blurb,
+            body: a.reward.body,
+            accent: a.reward.accent,
+          })),
           onShare: share,
           challengeCreate: challengeTarget
             ? {
@@ -1069,23 +1075,6 @@ function shareChallenge(score: number, shortId: string, addressedTo: string | nu
   renderShareSheet(overlays, data, () => {
     overlays.querySelector('[data-no-flap][class*="z-40"]')?.remove();
   });
-}
-
-// Small transient toast for any unlock (achievement colors, etc.). Stacks
-// briefly bottom-center; auto-dismisses. Cosmetic feedback only.
-let unlockToastCount = 0;
-function showUnlockToast(text: string): void {
-  const t = document.createElement("div");
-  t.className =
-    "pointer-events-none fixed left-1/2 -translate-x-1/2 rounded-2xl bg-paper text-ink px-5 py-3 font-bold text-sm shadow-xl z-50";
-  t.style.bottom = `${24 + unlockToastCount * 56}px`;
-  t.textContent = text;
-  document.body.appendChild(t);
-  unlockToastCount++;
-  window.setTimeout(() => {
-    t.remove();
-    unlockToastCount = Math.max(0, unlockToastCount - 1);
-  }, 2600);
 }
 
 function openProfile(username: string): void {

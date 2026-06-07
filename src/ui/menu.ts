@@ -375,6 +375,16 @@ export interface GameOverResult {
   /** Ranked round just played (0-based) of `total` — drives the
    *  "round submitted, back to match" action instead of a replay. */
   rankedRound?: { round: number; total: number };
+  /** Achievements newly earned this run. Shown as full-screen,
+   *  click-to-dismiss celebration cards (one per achievement) BEFORE the
+   *  game-over panel — so the player actually reads each one instead of a
+   *  toast that flashes by. */
+  achievements?: Array<{
+    name: string;
+    blurb: string;
+    body: [number, number, number];
+    accent: [number, number, number];
+  }>;
 }
 
 export function renderGameOver(
@@ -384,9 +394,26 @@ export function renderGameOver(
   onMenu: () => void,
   extra?: GameOverResult,
 ): void {
-  const unlocks = extra?.result?.unlocked ?? [];
-  if (unlocks.length > 0) {
-    renderUnlockCelebration(host, unlocks, () => {
+  // Build one celebration queue: skin unlocks first, then achievements.
+  // Each is a full-screen card the player dismisses with "Continue", so
+  // multiple unlocks in one run are all seen one after another.
+  const skinItems: CelebrationItem[] = (extra?.result?.unlocked ?? []).map((u) => ({
+    kind: "skin",
+    threshold: u.threshold,
+    rarity: u.rarity,
+    body: u.body,
+    accent: u.accent,
+  }));
+  const achItems: CelebrationItem[] = (extra?.achievements ?? []).map((a) => ({
+    kind: "achievement",
+    name: a.name,
+    blurb: a.blurb,
+    body: a.body,
+    accent: a.accent,
+  }));
+  const items = [...skinItems, ...achItems];
+  if (items.length > 0) {
+    renderUnlockCelebration(host, items, () => {
       renderGameOverInner(host, score, onRestart, onMenu, extra);
     });
     return;
@@ -546,42 +573,63 @@ function renderUnlocks(unlocks: NonNullable<GameOverResult["result"]>["unlocked"
   `;
 }
 
-type Unlock = NonNullable<NonNullable<GameOverResult["result"]>["unlocked"]>[number];
+type CelebrationItem =
+  | {
+      kind: "skin";
+      threshold: number;
+      rarity: Rarity;
+      body: [number, number, number];
+      accent: [number, number, number];
+    }
+  | {
+      kind: "achievement";
+      name: string;
+      blurb: string;
+      body: [number, number, number];
+      accent: [number, number, number];
+    };
 
-function renderUnlockCelebration(host: HTMLElement, unlocks: Unlock[], onDone: () => void): void {
+function renderUnlockCelebration(host: HTMLElement, items: CelebrationItem[], onDone: () => void): void {
   let index = 0;
 
   const showOne = (): void => {
-    const u = unlocks[index];
-    if (!u) {
+    const item = items[index];
+    if (!item) {
       onDone();
       return;
     }
-    const glow = RARITY_COLOR[u.rarity];
+    // Skins glow by rarity; achievements use a warm gold so they read as a
+    // reward of their own without implying a rarity tier.
+    const glow = item.kind === "skin" ? RARITY_COLOR[item.rarity] : "#facc15";
+    const headline = item.kind === "skin" ? "new skin" : "achievement";
+    const title = item.kind === "skin" ? item.rarity : item.name;
+    const subtitle =
+      item.kind === "skin" ? `unlocked at ${item.threshold} games` : item.blurb;
     const overlay = document.createElement("div");
     overlay.dataset.noFlap = "true";
     overlay.className =
       "unlock-celebrate-backdrop pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-black/70 backdrop-blur-sm text-paper font-display";
-    const remaining = unlocks.length - index - 1;
+    const remaining = items.length - index - 1;
     const moreLabel = remaining > 0 ? `<div class="mt-3 text-[10px] opacity-60">${remaining} more after this</div>` : "";
     overlay.innerHTML = `
       <div class="max-w-sm w-full px-6 text-center">
-        <div class="unlock-celebrate-headline text-[11px] uppercase font-bold opacity-80" style="letter-spacing:0.25em">new skin</div>
+        <div class="unlock-celebrate-headline text-[11px] uppercase font-bold opacity-80" style="letter-spacing:0.25em">${headline}</div>
         <div class="mt-6 flex justify-center" style="--unlock-glow:${glow}">
           <svg viewBox="-20 -20 40 40" class="unlock-celebrate-svg w-60 h-60">
-            <polygon points="-14,6 14,-6 1,0 14,-6 -1,11" fill="rgb(${u.body.join(",")})" stroke="#1a1a1a" stroke-width="0.8"/>
-            <polygon points="1,0 -14,6 -1,11" fill="rgb(${u.accent.join(",")})" stroke="#1a1a1a" stroke-width="0.8"/>
+            <polygon points="-14,6 14,-6 1,0 14,-6 -1,11" fill="rgb(${item.body.join(",")})" stroke="#1a1a1a" stroke-width="0.8"/>
+            <polygon points="1,0 -14,6 -1,11" fill="rgb(${item.accent.join(",")})" stroke="#1a1a1a" stroke-width="0.8"/>
           </svg>
         </div>
-        <div class="mt-6 text-2xl font-bold capitalize tracking-widest" style="color:${glow}">${u.rarity}</div>
-        <div class="mt-1 text-[11px] opacity-70">unlocked at ${u.threshold} games</div>
+        <div class="mt-6 text-2xl font-bold capitalize tracking-widest" style="color:${glow}">${escapeHtml(title)}</div>
+        <div class="mt-1 text-[11px] opacity-70">${escapeHtml(subtitle)}</div>
         ${moreLabel}
         <button data-unlock-continue class="mt-8 w-full rounded-2xl bg-paper text-ink font-bold py-3">Continue</button>
       </div>
     `;
     host.appendChild(overlay);
-    playUnlockSound(u.rarity);
-    triggerUnlockHaptic(u.rarity);
+    // Reuse the skin unlock fanfare. Achievements ring the "rare" chime.
+    playUnlockSound(item.kind === "skin" ? item.rarity : "rare");
+    triggerUnlockHaptic(item.kind === "skin" ? item.rarity : "rare");
 
     const advance = (): void => {
       overlay.remove();

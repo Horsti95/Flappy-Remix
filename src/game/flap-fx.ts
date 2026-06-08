@@ -53,25 +53,46 @@ export function isFxLabMode(): boolean { return labMode; }
 // ── Flap-FX color ──────────────────────────────────────────────────────────
 // A basic 16-color palette the player can tint their flap effect with. null =
 // "default" (the original per-effect colors).
-export interface FxColor { id: string; name: string; rgb: [number, number, number] }
+export interface FxColor {
+  id: string;
+  name: string;
+  rgb: [number, number, number];
+  /** Light unlock gate. default/white are always free. */
+  unlock(stats: AchievementStats): { unlocked: boolean; hint?: string };
+}
+const free = () => ({ unlocked: true });
 export const FX_COLORS: FxColor[] = [
-  { id: "default", name: "default", rgb: [244, 234, 213] },
-  { id: "white",   name: "white",   rgb: [255, 255, 255] },
-  { id: "red",     name: "red",     rgb: [255, 70, 70] },
-  { id: "orange",  name: "orange",  rgb: [255, 150, 40] },
-  { id: "yellow",  name: "yellow",  rgb: [255, 220, 60] },
-  { id: "lime",    name: "lime",    rgb: [160, 230, 60] },
-  { id: "green",   name: "green",   rgb: [60, 210, 110] },
-  { id: "teal",    name: "teal",    rgb: [50, 210, 200] },
-  { id: "cyan",    name: "cyan",    rgb: [70, 200, 255] },
-  { id: "blue",    name: "blue",    rgb: [80, 130, 255] },
-  { id: "indigo",  name: "indigo",  rgb: [120, 90, 235] },
-  { id: "purple",  name: "purple",  rgb: [180, 90, 235] },
-  { id: "pink",    name: "pink",    rgb: [255, 110, 200] },
-  { id: "magenta", name: "magenta", rgb: [235, 40, 160] },
-  { id: "brown",   name: "brown",   rgb: [165, 110, 70] },
-  { id: "gray",    name: "gray",    rgb: [150, 150, 150] },
+  { id: "default", name: "default", rgb: [244, 234, 213], unlock: free },
+  { id: "white",   name: "white",   rgb: [255, 255, 255], unlock: free },
+  { id: "red",     name: "red",     rgb: [255, 70, 70],   unlock: (s) => ({ unlocked: s.totalGames >= 5,  hint: "play 5 games" }) },
+  { id: "orange",  name: "orange",  rgb: [255, 150, 40],  unlock: (s) => ({ unlocked: s.totalGames >= 10, hint: "play 10 games" }) },
+  { id: "yellow",  name: "yellow",  rgb: [255, 220, 60],  unlock: (s) => ({ unlocked: s.totalGames >= 20, hint: "play 20 games" }) },
+  { id: "lime",    name: "lime",    rgb: [160, 230, 60],  unlock: (s) => ({ unlocked: s.bestScore >= 15,  hint: "score 15 in a single run" }) },
+  { id: "green",   name: "green",   rgb: [60, 210, 110],  unlock: (s) => ({ unlocked: s.bestScore >= 25,  hint: "score 25 in a single run" }) },
+  { id: "teal",    name: "teal",    rgb: [50, 210, 200],  unlock: (s) => ({ unlocked: s.bestScore >= 35,  hint: "score 35 in a single run" }) },
+  { id: "cyan",    name: "cyan",    rgb: [70, 200, 255],  unlock: (s) => ({ unlocked: s.bestScore >= 50,  hint: "score 50 in a single run" }) },
+  { id: "blue",    name: "blue",    rgb: [80, 130, 255],  unlock: (s) => ({ unlocked: s.totalScore >= 500,  hint: "score 500 lifetime points" }) },
+  { id: "indigo",  name: "indigo",  rgb: [120, 90, 235],  unlock: (s) => ({ unlocked: s.totalScore >= 1500, hint: "score 1500 lifetime points" }) },
+  { id: "purple",  name: "purple",  rgb: [180, 90, 235],  unlock: (s) => ({ unlocked: s.totalScore >= 3000, hint: "score 3000 lifetime points" }) },
+  { id: "pink",    name: "pink",    rgb: [255, 110, 200], unlock: (s) => ({ unlocked: s.streakDays >= 3,  hint: "3-day streak" }) },
+  { id: "magenta", name: "magenta", rgb: [235, 40, 160],  unlock: (s) => ({ unlocked: s.streakDays >= 7,  hint: "7-day streak" }) },
+  { id: "brown",   name: "brown",   rgb: [165, 110, 70],  unlock: (s) => ({ unlocked: s.totalGames >= 50, hint: "play 50 games" }) },
+  { id: "gray",    name: "gray",    rgb: [150, 150, 150], unlock: (s) => ({ unlocked: s.totalGames >= 30, hint: "play 30 games" }) },
 ];
+
+let fxColorLabMode = false;
+export function setFxColorLabMode(on: boolean): void { fxColorLabMode = on; }
+export function isFxColorLabMode(): boolean { return fxColorLabMode; }
+
+/** Evaluate an FX colour's unlock, honouring lab mode. */
+export function fxColorUnlocked(
+  color: FxColor,
+  stats: AchievementStats,
+): { unlocked: boolean; hint?: string } {
+  if (fxColorLabMode) return { unlocked: true };
+  return color.unlock(stats);
+}
+
 const FX_COLOR_KEY = "pflug.flapFxColor.v1";
 
 export function getFlapFxColor(): string {

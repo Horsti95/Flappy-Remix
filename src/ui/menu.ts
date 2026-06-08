@@ -382,8 +382,12 @@ export interface GameOverResult {
   achievements?: Array<{
     name: string;
     blurb: string;
-    body: [number, number, number];
-    accent: [number, number, number];
+    /** What the achievement grants. Color rewards paint the plane preview;
+     *  fx/sound rewards show a generic icon + the unlocked option's label. */
+    reward:
+      | { type: "color"; body: [number, number, number]; accent: [number, number, number] }
+      | { type: "fx"; label: string }
+      | { type: "sound"; label: string };
   }>;
 }
 
@@ -408,8 +412,7 @@ export function renderGameOver(
     kind: "achievement",
     name: a.name,
     blurb: a.blurb,
-    body: a.body,
-    accent: a.accent,
+    reward: a.reward,
   }));
   const items = [...skinItems, ...achItems];
   if (items.length > 0) {
@@ -585,8 +588,10 @@ type CelebrationItem =
       kind: "achievement";
       name: string;
       blurb: string;
-      body: [number, number, number];
-      accent: [number, number, number];
+      reward:
+        | { type: "color"; body: [number, number, number]; accent: [number, number, number] }
+        | { type: "fx"; label: string }
+        | { type: "sound"; label: string };
     };
 
 function renderUnlockCelebration(host: HTMLElement, items: CelebrationItem[], onDone: () => void): void {
@@ -605,6 +610,32 @@ function renderUnlockCelebration(host: HTMLElement, items: CelebrationItem[], on
     const title = item.kind === "skin" ? item.rarity : item.name;
     const subtitle =
       item.kind === "skin" ? `unlocked at ${item.threshold} games` : item.blurb;
+    // Preview: skins and color achievements paint the plane; fx/sound
+    // achievements show a generic icon + the unlocked option's label.
+    let preview = "";
+    const colorReward =
+      item.kind === "skin"
+        ? { body: item.body, accent: item.accent }
+        : item.reward.type === "color"
+          ? { body: item.reward.body, accent: item.reward.accent }
+          : null;
+    if (colorReward) {
+      const { body, accent } = colorReward;
+      preview = `
+        <svg viewBox="-20 -20 40 40" class="unlock-celebrate-svg w-60 h-60">
+          <polygon points="-14,6 14,-6 1,0 14,-6 -1,11" fill="rgb(${body.join(",")})" stroke="#1a1a1a" stroke-width="0.8"/>
+          <polygon points="1,0 -14,6 -1,11" fill="rgb(${accent.join(",")})" stroke="#1a1a1a" stroke-width="0.8"/>
+        </svg>`;
+    } else if (item.kind === "achievement" && item.reward.type !== "color") {
+      const icon = item.reward.type === "fx" ? "🎆" : "🔊";
+      const kindLabel = item.reward.type === "fx" ? "effect unlocked" : "sound unlocked";
+      preview = `
+        <div class="unlock-celebrate-svg w-60 h-60 flex flex-col items-center justify-center gap-2">
+          <div class="text-6xl">${icon}</div>
+          <div class="text-[11px] uppercase tracking-wider opacity-70">${kindLabel}</div>
+          <div class="text-lg font-bold">${escapeHtml(item.reward.label)}</div>
+        </div>`;
+    }
     const overlay = document.createElement("div");
     overlay.dataset.noFlap = "true";
     overlay.className =
@@ -615,10 +646,7 @@ function renderUnlockCelebration(host: HTMLElement, items: CelebrationItem[], on
       <div class="max-w-sm w-full px-6 text-center">
         <div class="unlock-celebrate-headline text-[11px] uppercase font-bold opacity-80" style="letter-spacing:0.25em">${headline}</div>
         <div class="mt-6 flex justify-center" style="--unlock-glow:${glow}">
-          <svg viewBox="-20 -20 40 40" class="unlock-celebrate-svg w-60 h-60">
-            <polygon points="-14,6 14,-6 1,0 14,-6 -1,11" fill="rgb(${item.body.join(",")})" stroke="#1a1a1a" stroke-width="0.8"/>
-            <polygon points="1,0 -14,6 -1,11" fill="rgb(${item.accent.join(",")})" stroke="#1a1a1a" stroke-width="0.8"/>
-          </svg>
+          ${preview}
         </div>
         <div class="mt-6 text-2xl font-bold capitalize tracking-widest" style="color:${glow}">${escapeHtml(title)}</div>
         <div class="mt-1 text-[11px] opacity-70">${escapeHtml(subtitle)}</div>

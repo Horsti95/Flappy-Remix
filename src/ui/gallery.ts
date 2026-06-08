@@ -169,7 +169,7 @@ export function renderGallery(
     }
     if (currentEquipped.achColorId) {
       const ach = ACHIEVEMENTS.find(a => a.id === currentEquipped.achColorId);
-      if (ach) return { body: ach.reward.body, accent: ach.reward.accent };
+      if (ach && ach.reward.type === "color") return { body: ach.reward.body, accent: ach.reward.accent };
     }
     if (currentEquipped.skinId) {
       const cached = getCachedOwnedSkins();
@@ -614,7 +614,9 @@ export function renderGallery(
     // on the equipped shape. Cards stay locked until the player
     // crosses the threshold — at which point they'll appear in the
     // owned grid too once the server mints the skin row.
-    const ach = ACHIEVEMENTS;
+    // Only color-reward achievements appear in the color grid; fx/sound
+    // rewards live in their own pickers and auto-equip on unlock.
+    const ach = ACHIEVEMENTS.filter((a) => a.reward.type === "color");
     const unlockedN = ach.filter((a) => a.check(achStats)).length;
     const pct = Math.round((unlockedN / ach.length) * 100);
     body.appendChild(headerLabel(`achievement colors — ${unlockedN} / ${ach.length}`));
@@ -1066,8 +1068,9 @@ function achievementColorCard(
   el.className = `relative rounded-2xl p-3 flex flex-col items-center text-[10px] gap-2 border-2 bg-white/5 ${
     equipped ? "border-paper" : got ? "border-emerald-400/40" : mystery ? "border-white/10" : "border-white/5 opacity-80"
   }${got ? " active:scale-95 transition" : ""}`;
-  const body = mystery ? ([18, 18, 22] as [number, number, number]) : a.reward.body;
-  const accent = mystery ? ([10, 10, 12] as [number, number, number]) : a.reward.accent;
+  const rewardColor = a.reward.type === "color" ? a.reward : { body: DEFAULT_SKIN.body, accent: DEFAULT_SKIN.accent };
+  const body = mystery ? ([18, 18, 22] as [number, number, number]) : rewardColor.body;
+  const accent = mystery ? ([10, 10, 12] as [number, number, number]) : rewardColor.accent;
   const preview = mystery
     ? `<div class="w-full aspect-square flex items-center justify-center bg-black/40 rounded-xl text-2xl font-black opacity-70">?</div>`
     : `<div class="w-full aspect-square flex items-center justify-center swatch-plate rounded-xl ${got ? "" : "opacity-90"}">

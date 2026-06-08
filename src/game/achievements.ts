@@ -1,11 +1,25 @@
-import type { SkinColors } from "./skin";
+import { DEFAULT_SKIN, type SkinColors } from "./skin";
+import type { FlapFxId } from "./flap-fx";
+import type { FlapSoundId } from "./sfx";
+
+type RGB = [number, number, number];
+
+/**
+ * What an achievement grants on unlock. Most are a `color` skin, but an
+ * achievement can also hand the player a flap FX or a flap sound, which the
+ * game auto-equips when the achievement is earned.
+ */
+export type AchievementReward =
+  | { type: "color"; body: RGB; accent: RGB }
+  | { type: "fx"; fxId: FlapFxId }
+  | { type: "sound"; soundId: FlapSoundId };
 
 export interface AchievementDef {
   id: string;
   name: string;
   blurb: string;
   category: "score" | "efficiency" | "streak" | "daily" | "social" | "milestone" | "special" | "ranked";
-  reward: { type: "color"; body: [number, number, number]; accent: [number, number, number] };
+  reward: AchievementReward;
   /** Prestige rewards stay a blacked-out mystery while locked (the color is
    *  a surprise). Most rewards preview their real color when locked; only a
    *  few rare/special ones set this. */
@@ -121,7 +135,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "minimalist",
     blurb: "score 25+ with fewer than 80 taps",
     category: "efficiency",
-    reward: { type: "color", body: [180, 180, 180], accent: [100, 100, 100] },
+    reward: { type: "sound", soundId: "paper_whoosh" },
     check: (s) => s.minimalistDone === true,
   },
 
@@ -216,7 +230,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "rival",
     blurb: "win 10 challenges — outscore a friend's duel ghost",
     category: "social",
-    reward: { type: "color", body: [200, 0, 0], accent: [255, 100, 50] },
+    reward: { type: "fx", fxId: "ring_pulse" },
     check: (s) => s.challengeWins >= 10,
   },
 
@@ -314,7 +328,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "centurion",
     blurb: "score 100+ in five separate runs",
     category: "score",
-    reward: { type: "color", body: [229, 228, 226], accent: [200, 150, 40] },
+    reward: { type: "sound", soundId: "glass_tap" },
     check: (s) => s.runsOver100 >= 5,
   },
   {
@@ -330,7 +344,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "metronome",
     blurb: "score over 50 in 20 runs in a row",
     category: "special",
-    reward: { type: "color", body: [60, 200, 140], accent: [12, 60, 55] },
+    reward: { type: "fx", fxId: "sparkle" },
     secret: true,
     check: (s) => s.consecutiveOver50 >= 20,
   },
@@ -519,6 +533,8 @@ export function getNewlyUnlocked(before: AchievementStats, after: AchievementSta
   return ACHIEVEMENTS.filter((a) => !a.check(before) && a.check(after));
 }
 
+/** Color skin for a color-reward achievement; DEFAULT_SKIN for fx/sound rewards. */
 export function achievementToSkin(a: AchievementDef): SkinColors {
+  if (a.reward.type !== "color") return DEFAULT_SKIN;
   return { body: a.reward.body, accent: a.reward.accent };
 }

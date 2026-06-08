@@ -10,7 +10,7 @@ import type { AchievementStats } from "./achievements";
  * only, never the hitbox).
  */
 
-export type PillarStyleId = "solid" | "glass" | "neon" | "stone" | "stadium" | "bamboo" | "brick" | "candy" | "ice";
+export type PillarStyleId = "solid" | "og" | "glass" | "neon" | "stone" | "stadium" | "bamboo" | "brick" | "candy" | "ice";
 
 export interface PillarDrawCtx {
   ctx: CanvasRenderingContext2D;
@@ -70,12 +70,15 @@ function cylinderShade(p: PillarDrawCtx): void {
   bodies(p);
 }
 
-/** Shared: a thin bright highlight along the top lip of each cap. */
+/** Shared: a thin bright highlight along the OUTER lip of each cap — the rim
+ *  furthest from the gap. The top cap glints along its top edge and the bottom
+ *  cap along its bottom edge, so both read "dark near the gap, bright at the
+ *  rim". (The bottom lip used to sit on the gap side, mirroring the wrong way.) */
 function capGloss(p: PillarDrawCtx): void {
   const { ctx, x, gapY, gapH, pipeWidth } = p;
   ctx.fillStyle = "rgba(255,255,255,0.22)";
   rect(ctx, x - 3, gapY - 14, pipeWidth + 6, 3);
-  rect(ctx, x - 3, gapY + gapH, pipeWidth + 6, 3);
+  rect(ctx, x - 3, gapY + gapH + 14 - 3, pipeWidth + 6, 3);
 }
 
 const drawSolid = (p: PillarDrawCtx): void => {
@@ -87,6 +90,15 @@ const drawSolid = (p: PillarDrawCtx): void => {
   p.ctx.fillStyle = p.capColor;
   caps(p);
   if (!p.highContrast) capGloss(p);
+};
+
+// OG legacy: the original launch look — flat body + flat caps, no HD cylinder
+// shading or cap gloss. Pure nostalgia.
+const drawOg = (p: PillarDrawCtx): void => {
+  p.ctx.fillStyle = p.bodyColor;
+  bodies(p);
+  p.ctx.fillStyle = p.capColor;
+  caps(p);
 };
 
 const drawGlass = (p: PillarDrawCtx): void => {
@@ -358,6 +370,14 @@ export const PILLAR_STYLES: PillarStyle[] = [
     hardensDaily: true,
     unlock: (s) => ({ unlocked: s.bestScore >= 80, hint: "score 80 in a single run" }),
     draw: drawIce,
+  },
+  {
+    id: "og",
+    name: "OG legacy",
+    blurb: "the original launch look — flat, no HD shading.",
+    hardensDaily: false,
+    unlock: (s) => ({ unlocked: s.totalGames >= 100, hint: "play 100 games — for the veterans" }),
+    draw: drawOg,
   },
 ];
 

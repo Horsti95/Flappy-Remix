@@ -573,11 +573,22 @@ export function renderGallery(
         void renderSkins();
       }),
     );
-    rows.sort(
+    // Defensive de-dup: collapse any skins that share the exact body+accent
+    // colours (e.g. legacy rows from before the unique index, or a colour also
+    // granted by another source). One representative per colour — preferring
+    // the currently-equipped row, else the earliest earned.
+    const bySig = new Map<string, SkinRow>();
+    for (const row of [...rows].sort((a, b) => a.unlocked_at_games - b.unlocked_at_games)) {
+      const sig = `${row.body.join(",")}|${row.accent.join(",")}`;
+      const existing = bySig.get(sig);
+      if (!existing || row.id === currentEquipped.skinId) bySig.set(sig, row);
+    }
+    const deduped = [...bySig.values()];
+    deduped.sort(
       (a, b) =>
         rarityRank(b.rarity) - rarityRank(a.rarity) || b.unlocked_at_games - a.unlocked_at_games,
     );
-    for (const row of rows) {
+    for (const row of deduped) {
       ownedGrid.appendChild(
         skinCard(row, row.id === currentEquipped.skinId, currentEquipped.shapeId, () => {
           const newId = row.id === currentEquipped.skinId ? null : row.id;

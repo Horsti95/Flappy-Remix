@@ -54,35 +54,60 @@ export function renderDailyLanding(
   );
   const band = intensityBand(intensity);
   const bandColor = INTENSITY_BAND_COLOR[band];
-  const intensityRow = `
-    <div class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-bold"
-         style="background:${bandColor}22; color:${bandColor}">
-      <span class="uppercase tracking-wider">${band}</span>
-      <span class="opacity-70">${intensityPercentLabel(intensity)} intensity</span>
-    </div>`;
-  const modifierBlurbs = meta.pick.modifiers.map((m) => m.blurb).join(" + ");
 
-  const warningCopy = isSuperHard
-    ? "you've been warned."
-    : meta.pick.tier === "hard"
-      ? "expect resistance."
-      : meta.pick.tier === "medium"
-        ? "feels different today."
-        : "go gentle today.";
+  // Combined tier + intensity header line: one row carries the tier label, the
+  // named intensity band and its percent — no separate tier chip / band chip.
+  const tierIntensityRow = `
+    <div class="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold">
+      <span class="rounded-full px-3 py-0.5 uppercase tracking-wider"
+            style="background:${tierColor}22; color:${tierColor}">${tierLabel}</span>
+      <span class="inline-flex items-center gap-1.5" style="color:${bandColor}">
+        <span class="uppercase tracking-wider">${band}</span>
+        <span class="opacity-70 font-medium">${intensityPercentLabel(intensity)}</span>
+      </span>
+    </div>`;
+
+  // Modifiers: names prominent, blurbs folded into one compact secondary line.
+  const modifierBlurbs = meta.pick.modifiers.map((m) => m.blurb).join(" · ");
+
+  // Glass + visual-effect notes, integrated as small inline heads-up chips.
+  const noteChips: string[] = [];
+  if (meta.pick.visualEffect) noteChips.push(visualChip(meta.pick.visualEffect));
+  if (meta.glassHandicap) noteChips.push("🪟 glass pillars — harder to read");
+  const notesRow =
+    noteChips.length > 0
+      ? `<div class="flex flex-wrap items-center justify-center gap-2">
+          ${noteChips
+            .map(
+              (c) =>
+                `<span class="rounded-full bg-white/5 px-3 py-1 text-[11px] opacity-80">${c}</span>`,
+            )
+            .join("")}
+        </div>`
+      : "";
 
   const remaining = Math.max(0, meta.maxAttempts - meta.attemptsUsed);
   const exhausted = remaining <= 0;
-  const attemptRow = `<div class="text-[11px] opacity-70">attempt <span class="font-bold">${Math.min(meta.attemptsUsed + 1, meta.maxAttempts)}</span> of ${meta.maxAttempts} · best counts</div>`;
 
-  const bestRow =
-    meta.bestScore != null
-      ? `<div class="text-[11px] opacity-70">your daily best: <span class="font-bold">${meta.bestScore}</span></div>`
-      : `<div class="text-[11px] opacity-50">no daily PB yet — set one.</div>`;
-
-  const streakRow =
+  // The three essentials, side by side: difficulty band, daily best, attempts.
+  const bestValue = meta.bestScore != null ? String(meta.bestScore) : "—";
+  const attemptsValue = `${remaining}/${meta.maxAttempts}`;
+  const streakNote =
     meta.streakDays > 0
-      ? `<div class="text-[11px] opacity-70">streak: <span class="font-bold">${meta.streakDays}</span> ${meta.streakDays === 1 ? "day" : "days"}</div>`
-      : "";
+      ? `<div class="text-[11px] opacity-60">🔥 ${meta.streakDays}-day streak · ${formatPlays(meta.playsCount)} played today</div>`
+      : `<div class="text-[11px] opacity-50">${formatPlays(meta.playsCount)} played today</div>`;
+
+  const statCell = (label: string, value: string, color?: string) => `
+    <div class="rounded-xl bg-white/5 px-3 py-2.5">
+      <div class="text-base font-bold leading-none"${color ? ` style="color:${color}"` : ""}>${value}</div>
+      <div class="mt-1 text-[9px] uppercase tracking-wider opacity-50">${label}</div>
+    </div>`;
+  const statsGrid = `
+    <div class="mt-2 grid grid-cols-3 gap-2 text-center w-full max-w-[280px]">
+      ${statCell("difficulty", band, bandColor)}
+      ${statCell("daily best", bestValue)}
+      ${statCell("attempts left", attemptsValue)}
+    </div>`;
 
   wrap.innerHTML = `
     <div class="px-5 pt-5 pb-3 flex items-center justify-between">
@@ -90,29 +115,14 @@ export function renderDailyLanding(
       <div class="text-[11px] opacity-60 uppercase tracking-wider">today's daily</div>
       <div style="width: 40px;"></div>
     </div>
-    <div class="flex-1 flex flex-col items-center justify-center px-6 text-center gap-4">
+    <div class="flex-1 flex flex-col items-center justify-center px-6 text-center gap-3">
       <div class="text-[10px] uppercase tracking-wider opacity-60">${escapeHtml(meta.date)}</div>
-      <div class="inline-block rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider"
-           style="background:${tierColor}22; color:${tierColor}">${tierLabel}</div>
-      <div>${intensityRow}</div>
-      <div class="text-2xl font-bold leading-tight">${escapeHtml(modifierList)}</div>
-      <div class="text-[12px] opacity-70 leading-tight">${escapeHtml(modifierBlurbs)}</div>
-      ${meta.pick.visualEffect ? `<div class="text-[12px] opacity-80">${visualChip(meta.pick.visualEffect)}</div>` : ""}
-      ${meta.glassHandicap ? `<div class="text-[11px] text-amber-300">🪟 glass pillars equipped — harder to read today</div>` : ""}
-      <div class="text-[12px] opacity-60 mt-2">${escapeHtml(warningCopy)}</div>
-      <div class="mt-4 grid grid-cols-2 gap-3 text-center min-w-[200px]">
-        <div class="rounded-xl bg-white/5 px-3 py-2">
-          <div class="text-[9px] uppercase tracking-wider opacity-50">played today</div>
-          <div class="text-base font-bold">${formatPlays(meta.playsCount)}</div>
-        </div>
-        <div class="rounded-xl bg-white/5 px-3 py-2">
-          <div class="text-[9px] uppercase tracking-wider opacity-50">your streak</div>
-          <div class="text-base font-bold">${meta.streakDays}</div>
-        </div>
-      </div>
-      ${attemptRow}
-      ${bestRow}
-      ${streakRow}
+      ${tierIntensityRow}
+      <div class="mt-1 text-2xl font-bold leading-tight">${escapeHtml(modifierList)}</div>
+      <div class="text-[12px] opacity-60 leading-snug max-w-[300px]">${escapeHtml(modifierBlurbs)}</div>
+      ${notesRow}
+      ${statsGrid}
+      ${streakNote}
     </div>
     <div class="px-5 pb-6">
       ${

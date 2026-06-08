@@ -21,10 +21,24 @@ export const DEFAULT_SETTINGS: Settings = {
   ghostOpacity: 25,
 };
 
+/** OS-level "reduce motion" preference — used ONLY to seed the first-run
+ *  default. Once the player has settings stored, their in-game toggle is the
+ *  single source of truth (so they can turn motion back on even if the OS
+ *  asks to reduce it). */
+function prefersReducedMotion(): boolean {
+  try {
+    return typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  } catch {
+    return false;
+  }
+}
+
 export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return { ...DEFAULT_SETTINGS };
+    // First run: honour the OS reduce-motion preference as the default, but
+    // persist it so the toggle stays in control from here on.
+    if (!raw) return { ...DEFAULT_SETTINGS, reducedMotion: prefersReducedMotion() };
     const parsed = JSON.parse(raw) as Partial<Settings>;
     return { ...DEFAULT_SETTINGS, ...parsed };
   } catch {

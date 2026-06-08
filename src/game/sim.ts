@@ -105,7 +105,17 @@ export class Sim {
     const speed = this.currentScrollSpeed();
     for (const p of this.pipes) p.x -= speed * dt;
 
-    while (this.pipes.length > 0 && this.pipes[0].x + this.cfg.pipeWidth < 0) {
+    // Keep passed pipes around until they're well past the WORLD's left edge,
+    // not just touching it. On wide (e.g. desktop) screens the world is
+    // letterboxed with a side band, so a pipe retired at x=0 would pop out of
+    // existence while still visually inside that band instead of sliding off
+    // the physical screen edge. The margin is a fixed world-space constant
+    // (screen-independent) so the sim stays deterministic / replay-safe, and
+    // these pipes are already behind the bird so collision + scoring are
+    // untouched. OFFSCREEN_MARGIN comfortably covers the side band on any
+    // realistic aspect ratio (incl. ultrawide).
+    const OFFSCREEN_MARGIN = this.cfg.worldWidth * 2;
+    while (this.pipes.length > 0 && this.pipes[0].x + this.cfg.pipeWidth < -OFFSCREEN_MARGIN) {
       this.pipes.shift();
     }
     const lastPipe = this.pipes[this.pipes.length - 1];

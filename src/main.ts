@@ -221,7 +221,7 @@ const renderer = new Renderer(canvas, DEFAULT_CONFIG, {
   skin: DEFAULT_SKIN,
   shape: equippedShapeId,
   theme: equippedThemeId,
-  reducedMotion: settings.reducedMotion || matchMedia("(prefers-reduced-motion: reduce)").matches,
+  reducedMotion: settings.reducedMotion,
   ghostOpacity: settings.ghostOpacity,
 });
 const observer = new ResizeObserver(() => renderer.resize());
@@ -726,7 +726,7 @@ function onToggleSetting(key: keyof Settings): void {
   settings[k] = !settings[k];
   saveSettings(settings);
   renderer.options.highContrast = settings.highContrast;
-  renderer.options.reducedMotion = settings.reducedMotion || matchMedia("(prefers-reduced-motion: reduce)").matches;
+  renderer.options.reducedMotion = settings.reducedMotion;
   // Update the toggle button in-place so the settings panel stays open.
   const btn = overlays.querySelector<HTMLButtonElement>(`[data-toggle="${k}"]`);
   if (btn) {

@@ -137,7 +137,7 @@ export function playCheer(): void {
   src.start();
 }
 
-export function playGatePass(): void {
+export function playGatePass(gapCenterNorm = 0.5): void {
   if (reducedMotion()) return;
   const ac = getCtx();
   if (!ac) return;
@@ -146,7 +146,12 @@ export function playGatePass(): void {
   master.gain.value = 0.72;
   master.connect(ac.destination);
   const t = ac.currentTime + 0.005;
-  const notes = [523.25, 783.99];
+  // Map the gap's vertical centre to pitch: a high gap (norm→0) rings higher,
+  // a low gap (norm→1) lower. Span ≈ one octave, centred on the original
+  // notes so the average run sounds unchanged. Clamp for safety.
+  const norm = Math.min(1, Math.max(0, gapCenterNorm));
+  const mult = Math.pow(2, 0.5 - norm);
+  const notes = [523.25 * mult, 783.99 * mult];
   notes.forEach((freq, i) => {
     tone(ac, master, { freq, startAt: t + i * 0.06, duration: 0.13, type: "sine", peak: 0.22 });
   });

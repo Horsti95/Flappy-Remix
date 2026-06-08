@@ -5,8 +5,10 @@ import { GhostSim } from "./ghost";
 export interface LoopHandlers {
   render(sim: Sim, alpha: number, ghost: GhostSim | null): void;
   onDeath?(sim: Sim): void;
-  /** Fired (visual/audio only) whenever the score increases. */
-  onScore?(score: number): void;
+  /** Fired (visual/audio only) whenever the score increases. `gapCenterNorm`
+   *  is the just-passed gap's vertical centre in [0,1] (0 = top of the
+   *  playfield, 1 = bottom). */
+  onScore?(score: number, gapCenterNorm: number): void;
 }
 
 export class GameLoop {
@@ -111,7 +113,8 @@ export class GameLoop {
       if (this.ghost) this.ghost.step();
       if (this.sim.score > this.prevScore) {
         this.prevScore = this.sim.score;
-        this.handlers.onScore?.(this.sim.score);
+        const gapCenterNorm = this.sim.lastPassedGapCenter / this.sim.cfg.worldHeight;
+        this.handlers.onScore?.(this.sim.score, gapCenterNorm);
       }
       this.accumulator -= this.dtMs;
       if (!this.sim.alive && !this.notifiedDeath) {

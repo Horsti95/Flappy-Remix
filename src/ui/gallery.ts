@@ -15,10 +15,19 @@ import {
   FLAP_SOUND_OPTIONS,
   getActiveFlapSound,
   playFlap,
+  playGatePass,
   setActiveFlapSound,
   flapSoundUnlock,
   type FlapSoundId,
 } from "../game/sfx";
+import {
+  GATE_SOUNDS,
+  getEquippedGateSound,
+  setEquippedGateSound,
+  gateSoundUnlocked,
+  type GateSoundId,
+  type GateSoundStyle,
+} from "../game/gate-sounds";
 import { THEMES, isThemesLabMode, type Theme, type ThemeId } from "../game/themes";
 import { hasZones } from "../game/depth-zones";
 import { getGrantedShapesLocal } from "../social/grants";
@@ -402,6 +411,29 @@ export function renderGallery(
       }));
     }
     body.appendChild(soundsList);
+
+    // Gate (score) sound style — lives here so ALL sound customisation is in
+    // one place (the settings panel only toggles sound on/off).
+    const gateHeader = document.createElement("div");
+    gateHeader.className = "px-3 mt-5 mb-2 text-[10px] uppercase tracking-wider opacity-60 font-bold";
+    gateHeader.textContent = "gate sound";
+    body.appendChild(gateHeader);
+    const gateDesc = document.createElement("div");
+    gateDesc.className = "px-2 mb-3 text-[10px] opacity-60";
+    gateDesc.textContent = "the chime when you clear a gap. preview, then pick.";
+    body.appendChild(gateDesc);
+    const gateList = document.createElement("div");
+    gateList.className = "space-y-2 px-2";
+    const activeGate = getEquippedGateSound();
+    for (const g of GATE_SOUNDS) {
+      gateList.appendChild(gateSoundCard(g, achStats, activeGate === g.id, (id) => {
+        setEquippedGateSound(id);
+        playGatePass(0.5);
+        renderEffects();
+      }));
+    }
+    body.appendChild(gateList);
+
     // Separator
     const sep = document.createElement("div");
     sep.className = "my-4 border-t border-white/10";
@@ -1181,6 +1213,46 @@ function previewFxBurst(id: FlapFxId, anchor: HTMLElement): void {
   // Reference the imported spawn so it isn't tree-shaken — keeps the
   // sim+lab spawn flow alive even if no run has run yet.
   void spawnFlapFx;
+}
+
+function gateSoundCard(
+  style: GateSoundStyle,
+  stats: AchievementStats,
+  active: boolean,
+  onPick: (id: GateSoundId) => void,
+): HTMLElement {
+  const state = gateSoundUnlocked(style, stats);
+  const el = document.createElement("div");
+  el.dataset.noFlap = "true";
+  el.className = `rounded-2xl p-3 border-2 ${active ? "border-paper bg-paper/10" : state.unlocked ? "border-white/10 bg-white/5" : "border-white/5 bg-white/5 opacity-60"}`;
+  el.innerHTML = `
+    <div class="flex items-center justify-between gap-3">
+      <div class="text-left flex-1 min-w-0">
+        <div class="text-sm font-bold truncate">${escapeHtml(style.name)}</div>
+        <div class="text-[11px] opacity-70 mt-0.5 truncate">${state.unlocked ? escapeHtml(style.blurb) : escapeHtml(state.hint ?? "locked")}</div>
+      </div>
+      ${state.unlocked
+        ? `<button data-preview class="rounded-full bg-white/15 px-3 py-1.5 text-[11px] font-bold">▶</button>
+           <button data-pick class="rounded-full ${active ? "bg-emerald-400/30 text-emerald-100" : "bg-paper text-ink"} px-3 py-1.5 text-[11px] font-bold">${active ? "active" : "pick"}</button>`
+        : `<div class="text-[10px] uppercase tracking-wider opacity-50 font-bold">locked</div>`
+      }
+    </div>
+  `;
+  if (state.unlocked) {
+    el.querySelector("[data-preview]")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      // Preview without committing: briefly equip the candidate, play, restore.
+      const prev = getEquippedGateSound();
+      setEquippedGateSound(style.id);
+      playGatePass(0.5);
+      setEquippedGateSound(prev);
+    });
+    el.querySelector("[data-pick]")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      onPick(style.id);
+    });
+  }
+  return el;
 }
 
 function soundCard(

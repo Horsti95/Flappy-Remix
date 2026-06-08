@@ -13,16 +13,8 @@ import {
   renderPauseOverlay,
   removePauseOverlay,
   renderGameOver,
-  type MenuMeta,
 } from "./ui/menu";
-import {
-  GATE_SOUNDS,
-  getEquippedGateSound,
-  setEquippedGateSound,
-  gateSoundUnlocked,
-  setGateSoundLabMode,
-  type GateSoundId,
-} from "./game/gate-sounds";
+import { setGateSoundLabMode } from "./game/gate-sounds";
 import { initAuth, authState, subscribeAuth } from "./social/auth";
 import { renderAccountPanel } from "./ui/account";
 import { renderGallery } from "./ui/gallery";
@@ -474,11 +466,6 @@ function showMenu(): void {
         saveSettings(settings);
         renderer.options.ghostOpacity = pct;
       },
-      onSetGateSound: (id: string) => {
-        setEquippedGateSound(id as GateSoundId);
-        // Preview the chosen style at a mid-height gap so the player hears it.
-        playGatePass(0.5);
-      },
       onShowChangelog: () => { pushSubView(); panelOpen = true; renderWhatsNew(overlays, CHANGELOG, () => showMenu()); },
       onHowToPlay: () => { pushSubView(); panelOpen = true; renderTutorial(overlays, { onClose: () => showMenu(), onPractice: () => startRun("training") }); },
       onOpenAccount: () => { pushSubView(); panelOpen = true; renderAccountPanel(overlays, () => showMenu(), (username) => openProfile(username)); },
@@ -588,21 +575,6 @@ function showMenu(): void {
       equippedTheme: equippedThemeId,
       showEquippedInMenu: getShowEquippedInMenu(),
       inboxUnseen,
-      gateSounds: ((): MenuMeta["gateSounds"] => {
-        const stats = loadAchievementStats();
-        const equipped = getEquippedGateSound();
-        return GATE_SOUNDS.map((g) => {
-          const u = gateSoundUnlocked(g, stats);
-          return {
-            id: g.id,
-            name: g.name,
-            blurb: g.blurb,
-            locked: !u.unlocked,
-            hint: u.hint,
-            equipped: g.id === equipped,
-          };
-        });
-      })(),
     },
   );
 }

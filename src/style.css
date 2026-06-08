@@ -197,3 +197,13 @@ a:focus-visible {
     rgba(255, 255, 255, 0.06) 16px
   );
 }
+
+/* The banner carries the `flex` utility, whose `display:flex` (author rule)
+   overrides the UA `[hidden]{display:none}`. That left a dismissed/hidden
+   banner still painted and still eating clicks over the settings + profile
+   buttons. This attribute selector out-specifies `.flex`, so toggling the
+   `hidden` attribute genuinely hides it. */
+.house-ad[hidden] {
+  display: none;
+}
+

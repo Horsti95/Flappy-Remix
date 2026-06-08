@@ -13,7 +13,16 @@ import {
   renderPauseOverlay,
   removePauseOverlay,
   renderGameOver,
+  type MenuMeta,
 } from "./ui/menu";
+import {
+  GATE_SOUNDS,
+  getEquippedGateSound,
+  setEquippedGateSound,
+  gateSoundUnlocked,
+  setGateSoundLabMode,
+  type GateSoundId,
+} from "./game/gate-sounds";
 import { initAuth, authState, subscribeAuth } from "./social/auth";
 import { renderAccountPanel } from "./ui/account";
 import { renderGallery } from "./ui/gallery";
@@ -151,20 +160,15 @@ function announce(msg: string): void {
 // canvas play area, so it never resizes the stage or perturbs the
 // ResizeObserver-driven canvas sizing.
 const appBanner = document.getElementById("app-banner") as HTMLDivElement | null;
-let bannerDismissed = false;
 if (appBanner) {
   if (BANNER.enabled) {
     const content = BANNER.href
       ? `<a href="${escapeHtmlAttr(BANNER.href)}" target="_blank" rel="noopener noreferrer" class="truncate hover:underline">${escapeHtmlAttr(BANNER.label)}</a>`
       : `<span class="truncate">${escapeHtmlAttr(BANNER.label)}</span>`;
-    appBanner.innerHTML = `${content}<button data-banner-dismiss class="absolute right-2 opacity-50 hover:opacity-100 px-1" aria-label="Dismiss banner">✕</button>`;
-    appBanner.querySelector("[data-banner-dismiss]")?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      bannerDismissed = true;
-      appBanner.hidden = true;
-      applyBannerOffset(false);
-    });
+    // No dismiss control: a dismissed banner used to linger as an invisible
+    // click-blocker over the top-bar buttons. It's a thin, non-tracking bar
+    // and the menu is offset to sit below it, so it simply stays put.
+    appBanner.innerHTML = content;
   } else {
     appBanner.remove();
   }
@@ -185,7 +189,7 @@ function applyBannerOffset(active: boolean): void {
 }
 
 function setBannerVisible(visible: boolean): void {
-  if (!appBanner || !BANNER.enabled || bannerDismissed) {
+  if (!appBanner || !BANNER.enabled) {
     applyBannerOffset(false);
     return;
   }
@@ -315,7 +319,7 @@ const deepLink = (() => {
     return { from: null, dailyDate: null, challenge: null, soundsLab: false, themesLab: false, fxLab: false, colorsLab: false };
   }
 })();
-if (deepLink.soundsLab) setSoundLabMode(true);
+if (deepLink.soundsLab) { setSoundLabMode(true); setGateSoundLabMode(true); }
 if (deepLink.themesLab) setThemesLabMode(true);
 if (deepLink.fxLab) setFxLabMode(true);
 if (deepLink.colorsLab) setPresetLabMode(true);
@@ -470,6 +474,11 @@ function showMenu(): void {
         saveSettings(settings);
         renderer.options.ghostOpacity = pct;
       },
+      onSetGateSound: (id: string) => {
+        setEquippedGateSound(id as GateSoundId);
+        // Preview the chosen style at a mid-height gap so the player hears it.
+        playGatePass(0.5);
+      },
       onShowChangelog: () => { pushSubView(); panelOpen = true; renderWhatsNew(overlays, CHANGELOG, () => showMenu()); },
       onHowToPlay: () => { pushSubView(); panelOpen = true; renderTutorial(overlays, { onClose: () => showMenu(), onPractice: () => startRun("training") }); },
       onOpenAccount: () => { pushSubView(); panelOpen = true; renderAccountPanel(overlays, () => showMenu(), (username) => openProfile(username)); },
@@ -579,6 +588,21 @@ function showMenu(): void {
       equippedTheme: equippedThemeId,
       showEquippedInMenu: getShowEquippedInMenu(),
       inboxUnseen,
+      gateSounds: ((): MenuMeta["gateSounds"] => {
+        const stats = loadAchievementStats();
+        const equipped = getEquippedGateSound();
+        return GATE_SOUNDS.map((g) => {
+          const u = gateSoundUnlocked(g, stats);
+          return {
+            id: g.id,
+            name: g.name,
+            blurb: g.blurb,
+            locked: !u.unlocked,
+            hint: u.hint,
+            equipped: g.id === equipped,
+          };
+        });
+      })(),
     },
   );
 }
@@ -841,6 +865,10 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
           let updatedStats = updateStatsAfterRun(currentStats, {
             score,
             mode: currentRunMode,
+            // Daily difficulty tier — needed for the hard / super-hard daily
+            // achievements (storm_survivor, iron_will). Previously omitted, so
+            // those could never unlock.
+            tier: currentRunMode === "daily" ? dailyInfo?.pick.tier : undefined,
             inputCount: loop?.getRecordedInputs().length,
           });
           // A finished ranked match folds in its match-level unlocks (total

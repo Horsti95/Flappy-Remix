@@ -16,6 +16,8 @@ export interface MenuCallbacks {
   onPlayDaily(): void;
   onToggleSetting(key: keyof Settings): void;
   onSetGhostOpacity(pct: number): void;
+  /** Equip a gate-sound style by id (only fired for unlocked styles). */
+  onSetGateSound(id: string): void;
   onShowChangelog(): void;
   onHowToPlay(): void;
   onOpenAccount(): void;
@@ -49,6 +51,15 @@ export interface MenuMeta {
   showEquippedInMenu?: boolean;
   /** Count of unseen incoming challenges — drives the inbox badge. */
   inboxUnseen?: number;
+  /** Gate-sound styles for the settings picker, with unlock + equipped state. */
+  gateSounds?: Array<{
+    id: string;
+    name: string;
+    blurb: string;
+    locked: boolean;
+    hint?: string;
+    equipped: boolean;
+  }>;
 }
 
 export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallbacks, meta: MenuMeta): void {
@@ -155,6 +166,7 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
           ${toggle("gateSound", "Gate ding", settings.gateSound)}
           ${toggle("deathSound", "Death thud", settings.deathSound)}
         </div>
+        ${gateSoundPicker(meta.gateSounds)}
 
         <div class="panel-group-label">Display</div>
         <div class="grid grid-cols-1 gap-2 text-[11px]">
@@ -277,6 +289,18 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
     if (val) val.textContent = `${pct}%`;
     cbs.onSetGhostOpacity(pct);
   });
+  wrap.querySelectorAll<HTMLButtonElement>("[data-gatesound]:not([disabled])").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.gatesound!;
+      // Move the "equipped" highlight without re-rendering (which would close
+      // the settings sheet); the callback persists the choice + plays a preview.
+      wrap.querySelectorAll("[data-gatesound]").forEach((b) =>
+        b.classList.remove("ring-2", "ring-paper"));
+      btn.classList.add("ring-2", "ring-paper");
+      cbs.onSetGateSound(id);
+    });
+  });
   wrap.querySelector("[data-whatsnew]")?.addEventListener("click", (e) => {
     e.stopPropagation();
     cbs.onShowChangelog();
@@ -285,6 +309,26 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
     e.stopPropagation();
     cbs.onHowToPlay();
   });
+}
+
+function gateSoundPicker(styles: MenuMeta["gateSounds"]): string {
+  if (!styles || styles.length === 0) return "";
+  const buttons = styles
+    .map((g) => {
+      const ring = g.equipped ? "ring-2 ring-paper" : "";
+      const lockHint = g.locked
+        ? `<span class="opacity-50">🔒 ${escapeHtml(g.hint ?? "locked")}</span>`
+        : `<span class="opacity-50">${escapeHtml(g.blurb)}</span>`;
+      return `<button data-gatesound="${escapeHtml(g.id)}" ${g.locked ? "disabled" : ""}
+        class="text-left rounded-2xl bg-white/5 px-3 py-2 ${ring} ${g.locked ? "opacity-50 cursor-not-allowed" : "hover:bg-white/10"}">
+        <div class="font-bold">${escapeHtml(g.name)}</div>
+        <div class="text-[10px] leading-tight mt-0.5">${lockHint}</div>
+      </button>`;
+    })
+    .join("");
+  return `
+    <div class="panel-group-label">Gate sound style</div>
+    <div class="grid grid-cols-2 gap-2 text-[11px]">${buttons}</div>`;
 }
 
 function escapeHtml(s: string): string {

@@ -1,5 +1,6 @@
 import type { Rarity } from "./rarity";
 import type { AchievementStats } from "./achievements";
+import { getEquippedGateSound } from "./gate-sounds";
 
 let ctx: AudioContext | null = null;
 
@@ -147,14 +148,66 @@ export function playGatePass(gapCenterNorm = 0.5): void {
   master.connect(ac.destination);
   const t = ac.currentTime + 0.005;
   // Map the gap's vertical centre to pitch: a high gap (norm→0) rings higher,
-  // a low gap (norm→1) lower. Span ≈ one octave, centred on the original
-  // notes so the average run sounds unchanged. Clamp for safety.
+  // a low gap (norm→1) lower. Clamp for safety.
   const norm = Math.min(1, Math.max(0, gapCenterNorm));
+  switch (getEquippedGateSound()) {
+    case "glide":
+      gateGlide(ac, master, t, norm);
+      break;
+    case "wide":
+      gateWide(ac, master, t, norm);
+      break;
+    case "marimba":
+      gateMarimba(ac, master, t, norm);
+      break;
+    case "classic":
+    default:
+      gateClassic(ac, master, t, norm);
+      break;
+  }
+}
+
+// Classic: the original two-note chirp, pitched ±~half-octave by gap height.
+function gateClassic(ac: AudioContext, master: GainNode, t: number, norm: number): void {
   const mult = Math.pow(2, 0.5 - norm);
-  const notes = [523.25 * mult, 783.99 * mult];
-  notes.forEach((freq, i) => {
+  [523.25 * mult, 783.99 * mult].forEach((freq, i) => {
     tone(ac, master, { freq, startAt: t + i * 0.06, duration: 0.13, type: "sine", peak: 0.22 });
   });
+}
+
+// Glide: a single tone that slides upward into its target pitch, so "pitch
+// follows the gap" reads clearly. Target spans ~one octave by gap height.
+function gateGlide(ac: AudioContext, master: GainNode, t: number, norm: number): void {
+  const target = 660 * Math.pow(2, 0.5 - norm);
+  const dur = 0.18;
+  const osc = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(target * 0.72, t);
+  osc.frequency.exponentialRampToValueAtTime(target, t + dur * 0.7);
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(0.24, t + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(gain).connect(master);
+  osc.start(t);
+  osc.stop(t + dur + 0.02);
+}
+
+// Wide: the two-note chirp but with a full two-octave pitch span, so a high
+// gap and a low gap sound dramatically different.
+function gateWide(ac: AudioContext, master: GainNode, t: number, norm: number): void {
+  const mult = Math.pow(2, 1 - 2 * norm);
+  [523.25 * mult, 783.99 * mult].forEach((freq, i) => {
+    tone(ac, master, { freq, startAt: t + i * 0.06, duration: 0.14, type: "triangle", peak: 0.2 });
+  });
+}
+
+// Marimba: warm mallet tone — a fast-decaying fundamental plus a soft fourth
+// harmonic for the wooden "bonk". Pitched ~one octave by gap height.
+function gateMarimba(ac: AudioContext, master: GainNode, t: number, norm: number): void {
+  const freq = 523.25 * Math.pow(2, 0.5 - norm);
+  tone(ac, master, { freq, startAt: t, duration: 0.22, type: "sine", peak: 0.24 });
+  tone(ac, master, { freq: freq * 4, startAt: t, duration: 0.07, type: "sine", peak: 0.06 });
 }
 
 export function playDeath(): void {

@@ -59,8 +59,8 @@ import { loadAchievementStats, updateStatsAfterRun, updateRankedMatchStats, save
 import { getShowEquippedInMenu } from "./game/menu-prefs";
 import { renderDailyLanding } from "./ui/daily-landing";
 import { renderRankedPanel } from "./ui/ranked";
-import { playFlap, playCheer, playGatePass, playDeath, setSoundLabMode } from "./game/sfx";
-import { clearParticles, getActiveFlapFx, setFxLabMode, spawnFlapFx } from "./game/flap-fx";
+import { playFlap, playCheer, playGatePass, playDeath, setSoundLabMode, setActiveFlapSound, FLAP_SOUND_OPTIONS } from "./game/sfx";
+import { clearParticles, getActiveFlapFx, setFxLabMode, spawnFlapFx, setActiveFlapFx, FLAP_FX_OPTIONS } from "./game/flap-fx";
 import { type RankedMatch, createRankedChallenge } from "./social/ranked";
 import { createChallenge, fetchChallenge, fetchBestRunChallenge, ghostSkinFromChallenge, fetchUnseenChallengeCount, type FetchedChallenge } from "./social/challenges";
 import { renderInbox } from "./ui/inbox";
@@ -402,7 +402,7 @@ async function loadEquippedSkin(): Promise<void> {
   const achColorId = getEquippedAchievementColorLocal();
   if (achColorId) {
     const a = ACHIEVEMENTS.find((x) => x.id === achColorId);
-    if (a) {
+    if (a && a.reward.type === "color") {
       equippedSkin = null;
       renderer.options.skin = { body: a.reward.body, accent: a.reward.accent };
       renderer.options.glow = false;
@@ -526,7 +526,7 @@ function showMenu(): void {
               setEquippedAchievementColorLocal(achId);
               if (achId) {
                 const a = ACHIEVEMENTS.find((x) => x.id === achId);
-                if (a) {
+                if (a && a.reward.type === "color") {
                   equippedSkin = null;
                   setEquippedPresetLocal(null);
                   renderer.options.skin = { body: a.reward.body, accent: a.reward.accent };
@@ -905,6 +905,12 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
         for (const c of questCompletions) {
           applyQuestReward(c);
         }
+        // Auto-equip non-color rewards: an fx/sound reward equips itself the
+        // moment it's unlocked (color rewards stay opt-in via the gallery).
+        for (const a of newAchievements) {
+          if (a.reward.type === "fx") setActiveFlapFx(a.reward.fxId);
+          else if (a.reward.type === "sound") setActiveFlapSound(a.reward.soundId);
+        }
         const share = (): void => {
           void openShare(score, result);
         };
@@ -925,12 +931,23 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
             : undefined,
           result,
           ticks,
-          achievements: newAchievements.map((a) => ({
-            name: a.name,
-            blurb: a.blurb,
-            body: a.reward.body,
-            accent: a.reward.accent,
-          })),
+          achievements: newAchievements.map((a) => {
+            if (a.reward.type === "fx") {
+              const fxId = a.reward.fxId;
+              const label = FLAP_FX_OPTIONS.find((o) => o.id === fxId)?.label ?? fxId;
+              return { name: a.name, blurb: a.blurb, reward: { type: "fx" as const, label } };
+            }
+            if (a.reward.type === "sound") {
+              const soundId = a.reward.soundId;
+              const label = FLAP_SOUND_OPTIONS.find((o) => o.id === soundId)?.label ?? soundId;
+              return { name: a.name, blurb: a.blurb, reward: { type: "sound" as const, label } };
+            }
+            return {
+              name: a.name,
+              blurb: a.blurb,
+              reward: { type: "color" as const, body: a.reward.body, accent: a.reward.accent },
+            };
+          }),
           onShare: share,
           raceContext: currentRunMode === "race" && activeChallenge
             ? {

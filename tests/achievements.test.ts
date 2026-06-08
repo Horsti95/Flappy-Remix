@@ -7,6 +7,8 @@ import {
   updateRankedMatchStats,
   type AchievementStats,
 } from "../src/game/achievements";
+import { FLAP_FX_OPTIONS } from "../src/game/flap-fx";
+import { FLAP_SOUND_OPTIONS } from "../src/game/sfx";
 
 const EMPTY: AchievementStats = {
   totalGames: 0,
@@ -180,14 +182,37 @@ describe("achievements", () => {
     expect(s.bestRankedTotal).toBe(280);
   });
 
-  it("every achievement has a valid reward color", () => {
+  it("every color achievement has valid 0-255 rgb", () => {
     for (const a of ACHIEVEMENTS) {
+      if (a.reward.type !== "color") continue;
       expect(a.reward.body).toHaveLength(3);
       expect(a.reward.accent).toHaveLength(3);
       for (const c of [...a.reward.body, ...a.reward.accent]) {
         expect(c).toBeGreaterThanOrEqual(0);
         expect(c).toBeLessThanOrEqual(255);
       }
+    }
+  });
+
+  it("every reward is a known discriminated-union variant", () => {
+    for (const a of ACHIEVEMENTS) {
+      expect(["color", "fx", "sound"]).toContain(a.reward.type);
+    }
+  });
+
+  it("fx/sound rewards reference valid ids", () => {
+    const fxIds = new Set(FLAP_FX_OPTIONS.map((o) => o.id));
+    const soundIds = new Set(FLAP_SOUND_OPTIONS.map((o) => o.id));
+    const fxRewards = ACHIEVEMENTS.filter((a) => a.reward.type === "fx");
+    const soundRewards = ACHIEVEMENTS.filter((a) => a.reward.type === "sound");
+    // The feature is actually demonstrated by at least one of each.
+    expect(fxRewards.length).toBeGreaterThan(0);
+    expect(soundRewards.length).toBeGreaterThan(0);
+    for (const a of fxRewards) {
+      if (a.reward.type === "fx") expect(fxIds).toContain(a.reward.fxId);
+    }
+    for (const a of soundRewards) {
+      if (a.reward.type === "sound") expect(soundIds).toContain(a.reward.soundId);
     }
   });
 });

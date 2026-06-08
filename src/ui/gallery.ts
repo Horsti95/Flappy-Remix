@@ -292,7 +292,7 @@ export function renderGallery(
 
   function renderPillars(): void {
     const body = wrap.querySelector("[data-body]") as HTMLDivElement;
-    body.innerHTML = `<div class="text-[11px] opacity-70 px-2 mb-3">pick your pillar look. glass is see-through — it adds a difficulty level on the daily.</div>`;
+    body.innerHTML = "";
     const stats = loadAchievementStats();
     const equippedPillar = getEquippedPillarLocal();
     // Resolve the chosen pillar colour for the previews ("theme" → default green).
@@ -300,19 +300,10 @@ export function renderGallery(
     const previewBody = pc ? pc.body : "#3d8b58";
     const previewCap = pc ? pc.cap : "#2b6f4d";
 
-    // Pillar colour picker — sits at the TOP of the section, right under the
-    // intro, so it reads as a property of the pillars you're choosing rather
-    // than a stray row at the bottom. Overrides the theme's pipe colours.
-    const colHeader = document.createElement("div");
-    colHeader.className = "px-3 mt-1 mb-2 text-[10px] uppercase tracking-wider opacity-60 font-bold";
-    colHeader.textContent = "pillar colour";
-    body.appendChild(colHeader);
-    const colDesc = document.createElement("div");
-    colDesc.className = "px-2 mb-2 text-[10px] opacity-60";
-    colDesc.textContent = "recolour your pillars — or keep the theme's colours. unlock more by playing.";
-    body.appendChild(colDesc);
+    // Pillar colour picker — sits at the TOP of the section, right above the
+    // style grid. The swatches are self-explanatory, so no header/blurb.
     const swatches = document.createElement("div");
-    swatches.className = "flex flex-wrap gap-2 px-2 mb-4";
+    swatches.className = "flex flex-wrap gap-2 px-2 pt-1 mb-4";
     const activeColor = getEquippedPillarColorLocal();
     for (const c of PILLAR_COLORS) {
       const u = pillarColorUnlocked(c, stats);
@@ -430,16 +421,9 @@ export function renderGallery(
     // TOP of the FX section (right under the intro, above the effect list) to
     // read as a property of the effect you're picking. Hidden when "off".
     if (activeFx !== "off") {
-      const colHeader = document.createElement("div");
-      colHeader.className = "px-3 mt-1 mb-2 text-[10px] uppercase tracking-wider opacity-60 font-bold";
-      colHeader.textContent = "effect colour";
-      body.appendChild(colHeader);
-      const colDesc = document.createElement("div");
-      colDesc.className = "px-2 mb-2 text-[10px] opacity-60";
-      colDesc.textContent = "tint your flap effect — pick a swatch or keep the default. unlock more by playing.";
-      body.appendChild(colDesc);
+      // Self-explanatory swatches — no header/blurb (matches the pillar picker).
       const swatches = document.createElement("div");
-      swatches.className = "flex flex-wrap gap-2 px-2 mb-4";
+      swatches.className = "flex flex-wrap gap-2 px-2 pt-1 mb-4";
       const activeColor = getFlapFxColor();
       for (const c of FX_COLORS) {
         const u = fxColorUnlocked(c, achStats);

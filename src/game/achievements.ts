@@ -4,7 +4,7 @@ export interface AchievementDef {
   id: string;
   name: string;
   blurb: string;
-  category: "score" | "efficiency" | "streak" | "daily" | "social" | "milestone" | "special";
+  category: "score" | "efficiency" | "streak" | "daily" | "social" | "milestone" | "special" | "ranked";
   reward: { type: "color"; body: [number, number, number]; accent: [number, number, number] };
   /** Prestige rewards stay a blacked-out mystery while locked (the color is
    *  a surprise). Most rewards preview their real color when locked; only a
@@ -33,6 +33,17 @@ export interface AchievementStats {
   lateNightGames: number;
   /** Set once a run scores 25+ using fewer than 80 taps (the "minimalist" goal). */
   minimalistDone: boolean;
+  /** Lifetime count of runs that scored over 100 (not necessarily in a row). */
+  runsOver100: number;
+  /** Current streak of consecutive runs scoring under 100 (resets on a 100+). */
+  consecutiveUnder100: number;
+  /** Current streak of consecutive runs scoring over 50 (resets on a 50 or under). */
+  consecutiveOver50: number;
+  /** Best total score (sum of your round scores) in a single ranked match. */
+  bestRankedTotal: number;
+  /** Highest "floor" (lowest round score) across ranked matches where you
+   *  played all three rounds. Drives the "every round above X" unlocks. */
+  bestRankedFloor: number;
 }
 
 export const ACHIEVEMENTS: AchievementDef[] = [
@@ -298,6 +309,105 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     secret: true,
     check: (s) => s.dailyStreakDays >= 5 && s.bestScoreDaily >= 20,
   },
+  {
+    id: "centurion",
+    name: "centurion",
+    blurb: "score 100+ in five separate runs",
+    category: "score",
+    reward: { type: "color", body: [229, 228, 226], accent: [200, 150, 40] },
+    check: (s) => s.runsOver100 >= 5,
+  },
+  {
+    id: "bridesmaid",
+    name: "bridesmaid",
+    blurb: "score under 100 in 3 runs in a row — so close, so often",
+    category: "special",
+    reward: { type: "color", body: [170, 170, 175], accent: [120, 90, 60] },
+    check: (s) => s.consecutiveUnder100 >= 3,
+  },
+  {
+    id: "metronome",
+    name: "metronome",
+    blurb: "score over 50 in 20 runs in a row",
+    category: "special",
+    reward: { type: "color", body: [60, 200, 140], accent: [12, 60, 55] },
+    secret: true,
+    check: (s) => s.consecutiveOver50 >= 20,
+  },
+
+  // --- Cumulative score, elite tier ---
+  {
+    id: "points_12345",
+    name: "ascendant",
+    blurb: "score 12,345 points total — the perfect climb",
+    category: "milestone",
+    reward: { type: "color", body: [120, 220, 255], accent: [180, 60, 220] },
+    secret: true,
+    check: (s) => s.totalScore >= 12345,
+  },
+
+  // --- Ranked: match total (sum of your three rounds) ---
+  {
+    id: "ranked_total_100",
+    name: "contender",
+    blurb: "score 100+ total across a ranked match",
+    category: "ranked",
+    reward: { type: "color", body: [100, 140, 180], accent: [25, 45, 75] },
+    check: (s) => s.bestRankedTotal >= 100,
+  },
+  {
+    id: "ranked_total_300",
+    name: "challenger",
+    blurb: "score 300+ total across a ranked match",
+    category: "ranked",
+    reward: { type: "color", body: [165, 95, 230], accent: [55, 20, 95] },
+    check: (s) => s.bestRankedTotal >= 300,
+  },
+  {
+    id: "ranked_total_500",
+    name: "grandmaster",
+    blurb: "score 500+ total across a ranked match",
+    category: "ranked",
+    reward: { type: "color", body: [255, 190, 50], accent: [150, 25, 25] },
+    secret: true,
+    check: (s) => s.bestRankedTotal >= 500,
+  },
+
+  // --- Ranked: floor (every round of a 3-round match above a bar) ---
+  {
+    id: "ranked_floor_50",
+    name: "qualified",
+    blurb: "score over 50 in every round of a ranked match",
+    category: "ranked",
+    reward: { type: "color", body: [80, 200, 160], accent: [15, 70, 55] },
+    check: (s) => s.bestRankedFloor >= 50,
+  },
+  {
+    id: "ranked_floor_75",
+    name: "seeded",
+    blurb: "score over 75 in every round of a ranked match",
+    category: "ranked",
+    reward: { type: "color", body: [120, 180, 255], accent: [30, 60, 120] },
+    check: (s) => s.bestRankedFloor >= 75,
+  },
+  {
+    id: "ranked_floor_100",
+    name: "dominant",
+    blurb: "score over 100 in every round of a ranked match",
+    category: "ranked",
+    reward: { type: "color", body: [255, 140, 60], accent: [120, 40, 10] },
+    secret: true,
+    check: (s) => s.bestRankedFloor >= 100,
+  },
+  {
+    id: "ranked_floor_250",
+    name: "untouchable",
+    blurb: "score over 250 in every round of a ranked match",
+    category: "ranked",
+    reward: { type: "color", body: [225, 245, 255], accent: [120, 90, 200] },
+    secret: true,
+    check: (s) => s.bestRankedFloor >= 250,
+  },
 ];
 
 const STATS_KEY = "pflug.achievementStats.v1";
@@ -318,6 +428,11 @@ export function loadAchievementStats(): AchievementStats {
     friendCount: 0,
     lateNightGames: 0,
     minimalistDone: false,
+    runsOver100: 0,
+    consecutiveUnder100: 0,
+    consecutiveOver50: 0,
+    bestRankedTotal: 0,
+    bestRankedFloor: 0,
   };
   try {
     const raw = localStorage.getItem(STATS_KEY);
@@ -351,6 +466,11 @@ export function updateStatsAfterRun(
     s.minimalistDone = true;
   }
 
+  // Score-band streak tracking (used by centurion / bridesmaid / metronome).
+  if (run.score > 100) s.runsOver100++;
+  s.consecutiveUnder100 = run.score < 100 ? s.consecutiveUnder100 + 1 : 0;
+  s.consecutiveOver50 = run.score > 50 ? s.consecutiveOver50 + 1 : 0;
+
   if (run.mode === "daily") {
     if (run.score > s.bestScoreDaily) s.bestScoreDaily = run.score;
     if (run.tier === "hard" && run.score > s.hardDailyBest) s.hardDailyBest = run.score;
@@ -367,6 +487,27 @@ export function updateStatsAfterRun(
   if (hour === 23 || hour < 4) s.lateNightGames++;
   if (hour >= 5 && hour < 7) s.morningGames++;
 
+  return s;
+}
+
+/**
+ * Fold a completed ranked match into the stats. `roundScores` is the
+ * player's own per-round scores (nulls already stripped). The "floor"
+ * unlocks only count matches where all three rounds were actually played,
+ * so an early 2-0 sweep doesn't satisfy "every round above X".
+ */
+export function updateRankedMatchStats(
+  stats: AchievementStats,
+  roundScores: number[],
+): AchievementStats {
+  if (roundScores.length === 0) return stats;
+  const s = { ...stats };
+  const total = roundScores.reduce((a, b) => a + b, 0);
+  if (total > s.bestRankedTotal) s.bestRankedTotal = total;
+  if (roundScores.length >= 3) {
+    const floor = Math.min(...roundScores);
+    if (floor > s.bestRankedFloor) s.bestRankedFloor = floor;
+  }
   return s;
 }
 

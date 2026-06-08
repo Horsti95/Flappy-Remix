@@ -46,7 +46,7 @@ import { type ShareCardData } from "./social/share-card";
 import { renderFriendsPanel } from "./ui/friends";
 import { refreshChallengeWins, refreshFriendCount, type Friend } from "./social/friends";
 import { refreshGrantedShapes } from "./social/grants";
-import { loadAchievementStats, updateStatsAfterRun, saveAchievementStats, getNewlyUnlocked } from "./game/achievements";
+import { loadAchievementStats, updateStatsAfterRun, updateRankedMatchStats, saveAchievementStats, getNewlyUnlocked } from "./game/achievements";
 import { getShowEquippedInMenu } from "./game/menu-prefs";
 import { renderDailyLanding } from "./ui/daily-landing";
 import { renderRankedPanel } from "./ui/ranked";
@@ -847,11 +847,20 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
         let newAchievements: ReturnType<typeof getNewlyUnlocked> = [];
         {
           const currentStats = loadAchievementStats();
-          const updatedStats = updateStatsAfterRun(currentStats, {
+          let updatedStats = updateStatsAfterRun(currentStats, {
             score,
             mode: currentRunMode,
             inputCount: loop?.getRecordedInputs().length,
           });
+          // A finished ranked match folds in its match-level unlocks (total
+          // across rounds / per-round floor) once the server marks it complete.
+          const rs = result?.ranked;
+          if (rs && rs.state === "completed") {
+            const mine = (rs.you === "a" ? rs.a_scores : rs.b_scores).filter(
+              (x): x is number => x != null,
+            );
+            updatedStats = updateRankedMatchStats(updatedStats, mine);
+          }
           saveAchievementStats(updatedStats);
           newAchievements = getNewlyUnlocked(currentStats, updatedStats);
         }

@@ -4,6 +4,7 @@ import {
   getNewlyUnlocked,
   getUnlockedAchievements,
   updateStatsAfterRun,
+  updateRankedMatchStats,
   type AchievementStats,
 } from "../src/game/achievements";
 
@@ -22,6 +23,11 @@ const EMPTY: AchievementStats = {
   friendCount: 0,
   lateNightGames: 0,
   minimalistDone: false,
+  runsOver100: 0,
+  consecutiveUnder100: 0,
+  consecutiveOver50: 0,
+  bestRankedTotal: 0,
+  bestRankedFloor: 0,
 };
 
 describe("achievements", () => {
@@ -109,6 +115,69 @@ describe("achievements", () => {
     // No tap data available → can't earn it.
     const noData = updateStatsAfterRun(EMPTY, { score: 99, mode: "casual" });
     expect(getUnlockedAchievements(noData).map((a) => a.id)).not.toContain("minimalist");
+  });
+
+  it("tracks lifetime runs over 100 (centurion)", () => {
+    let s = EMPTY;
+    for (let i = 0; i < 5; i++) {
+      s = updateStatsAfterRun(s, { score: 101, mode: "casual" });
+    }
+    expect(s.runsOver100).toBe(5);
+    expect(getUnlockedAchievements(s).map((a) => a.id)).toContain("centurion");
+  });
+
+  it("tracks a 3-run sub-100 streak (bridesmaid) and resets on a 100+", () => {
+    let s = updateStatsAfterRun(EMPTY, { score: 90, mode: "casual" });
+    s = updateStatsAfterRun(s, { score: 99, mode: "casual" });
+    expect(getUnlockedAchievements(s).map((a) => a.id)).not.toContain("bridesmaid");
+    s = updateStatsAfterRun(s, { score: 10, mode: "casual" });
+    expect(getUnlockedAchievements(s).map((a) => a.id)).toContain("bridesmaid");
+    // A 100+ run breaks the streak.
+    const after = updateStatsAfterRun(s, { score: 150, mode: "casual" });
+    expect(after.consecutiveUnder100).toBe(0);
+  });
+
+  it("tracks a 20-run over-50 streak (metronome) and resets on a <=50", () => {
+    let s = EMPTY;
+    for (let i = 0; i < 20; i++) s = updateStatsAfterRun(s, { score: 51, mode: "casual" });
+    expect(s.consecutiveOver50).toBe(20);
+    expect(getUnlockedAchievements(s).map((a) => a.id)).toContain("metronome");
+    const after = updateStatsAfterRun(s, { score: 50, mode: "casual" });
+    expect(after.consecutiveOver50).toBe(0);
+  });
+
+  it("ascendant unlocks at 12,345 lifetime points", () => {
+    const s = { ...EMPTY, totalScore: 12344 };
+    expect(getUnlockedAchievements(s).map((a) => a.id)).not.toContain("points_12345");
+    const s2 = { ...EMPTY, totalScore: 12345 };
+    expect(getUnlockedAchievements(s2).map((a) => a.id)).toContain("points_12345");
+  });
+
+  it("ranked match total unlocks (contender/challenger/grandmaster)", () => {
+    const s = updateRankedMatchStats(EMPTY, [120, 120, 120]); // total 360
+    const ids = getUnlockedAchievements(s).map((a) => a.id);
+    expect(ids).toContain("ranked_total_100");
+    expect(ids).toContain("ranked_total_300");
+    expect(ids).not.toContain("ranked_total_500");
+  });
+
+  it("ranked floor needs all three rounds above the bar", () => {
+    // Only two rounds played → no floor credit even if both are high.
+    const partial = updateRankedMatchStats(EMPTY, [300, 300]);
+    expect(partial.bestRankedFloor).toBe(0);
+    // Full three rounds; floor is the lowest round.
+    const full = updateRankedMatchStats(EMPTY, [260, 300, 280]);
+    expect(full.bestRankedFloor).toBe(260);
+    const ids = getUnlockedAchievements(full).map((a) => a.id);
+    expect(ids).toContain("ranked_floor_250");
+    expect(ids).toContain("ranked_floor_50");
+  });
+
+  it("ranked stats keep the best across matches", () => {
+    let s = updateRankedMatchStats(EMPTY, [60, 60, 60]); // floor 60, total 180
+    s = updateRankedMatchStats(s, [40, 200, 40]); // floor 40 (worse), total 280 (better)
+    expect(s.bestRankedFloor).toBe(60);
+    expect(s.bestRankedTotal).toBe(280);
   });
 
   it("every achievement has a valid reward color", () => {

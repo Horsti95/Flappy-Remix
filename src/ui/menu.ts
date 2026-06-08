@@ -210,6 +210,14 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
             <span class="opacity-90">📜 What's new (history)</span>
             <span class="opacity-50">v${APP_VERSION} ›</span>
           </button>
+          ${
+            SUPPORT_ENABLED
+              ? `<a href="${escapeHtml(SUPPORT_URL)}" target="_blank" rel="noopener noreferrer" data-support class="panel-row hover:bg-white/5">
+                   <span class="opacity-90">☕ About the creator — buy me a coffee</span>
+                   <span class="opacity-50">›</span>
+                 </a>`
+              : ""
+          }
         </div>
       </div>
     </div>

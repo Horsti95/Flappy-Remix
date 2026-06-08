@@ -25,12 +25,13 @@ import { getGrantedShapesLocal } from "../social/grants";
 import { PRESET_SKINS, presetUnlock, type PresetSkin } from "../game/preset-skins";
 import { evaluateCriteria, isEventActive, type CriterionDef } from "../game/unlock-criteria";
 import { PILLAR_STYLES, getEquippedPillarLocal, setEquippedPillarLocal, type PillarStyle } from "../game/pillars";
-import { PILLAR_COLORS, getPillarColor, getEquippedPillarColorLocal, setEquippedPillarColorLocal } from "../game/pillar-colors";
+import { PILLAR_COLORS, getPillarColor, getEquippedPillarColorLocal, setEquippedPillarColorLocal, pillarColorUnlocked } from "../game/pillar-colors";
 import { setEquippedAchievementColorLocal } from "../game/achievement-equip";
 import {
   FLAP_FX_OPTIONS,
   FX_COLORS,
   flapFxUnlock,
+  fxColorUnlocked,
   getActiveFlapFx,
   getFlapFxColor,
   isFxLabMode,
@@ -291,14 +292,47 @@ export function renderGallery(
 
   function renderPillars(): void {
     const body = wrap.querySelector("[data-body]") as HTMLDivElement;
-    body.innerHTML = `<div class="text-[11px] opacity-70 px-2 mb-3">pick your pillar look. glass is see-through — it adds a difficulty level on the daily.</div><div class="grid grid-cols-2 gap-4 px-2 pt-1" data-pillar-grid></div>`;
-    const grid = body.querySelector("[data-pillar-grid]") as HTMLDivElement;
+    body.innerHTML = `<div class="text-[11px] opacity-70 px-2 mb-3">pick your pillar look. glass is see-through — it adds a difficulty level on the daily.</div>`;
     const stats = loadAchievementStats();
     const equippedPillar = getEquippedPillarLocal();
     // Resolve the chosen pillar colour for the previews ("theme" → default green).
     const pc = getPillarColor(getEquippedPillarColorLocal());
     const previewBody = pc ? pc.body : "#3d8b58";
     const previewCap = pc ? pc.cap : "#2b6f4d";
+
+    // Pillar colour picker — sits at the TOP of the section, right under the
+    // intro, so it reads as a property of the pillars you're choosing rather
+    // than a stray row at the bottom. Overrides the theme's pipe colours.
+    const colHeader = document.createElement("div");
+    colHeader.className = "px-3 mt-1 mb-2 text-[10px] uppercase tracking-wider opacity-60 font-bold";
+    colHeader.textContent = "pillar colour";
+    body.appendChild(colHeader);
+    const colDesc = document.createElement("div");
+    colDesc.className = "px-2 mb-2 text-[10px] opacity-60";
+    colDesc.textContent = "recolour your pillars — or keep the theme's colours. unlock more by playing.";
+    body.appendChild(colDesc);
+    const swatches = document.createElement("div");
+    swatches.className = "flex flex-wrap gap-2 px-2 mb-4";
+    const activeColor = getEquippedPillarColorLocal();
+    for (const c of PILLAR_COLORS) {
+      const u = pillarColorUnlocked(c, stats);
+      const bg =
+        c.id === "theme"
+          ? "linear-gradient(135deg, #87ceeb 0 50%, #3d8b58 50% 100%)"
+          : `linear-gradient(135deg, ${c.body} 0 60%, ${c.cap} 60% 100%)`;
+      swatches.appendChild(
+        colorSwatch(c.id, c.name, bg, c.id === activeColor, u, () => {
+          setEquippedPillarColorLocal(c.id);
+          renderLoadout();
+          renderPillars();
+        }),
+      );
+    }
+    body.appendChild(swatches);
+
+    const grid = document.createElement("div");
+    grid.className = "grid grid-cols-2 gap-4 px-2 pt-1";
+    body.appendChild(grid);
     const sorted = byTier(PILLAR_STYLES, (p) => p.unlock(stats).unlocked, (p) => tierForUnlock(p.unlock));
     for (const style of sorted) {
       const st = style.unlock(stats);
@@ -311,41 +345,6 @@ export function renderGallery(
         }, tierForUnlock(style.unlock), previewBody, previewCap),
       );
     }
-
-    // Pillar colour picker — overrides the theme's pipe colours for the pillar.
-    const colHeader = document.createElement("div");
-    colHeader.className = "px-3 mt-5 mb-2 text-[10px] uppercase tracking-wider opacity-60 font-bold";
-    colHeader.textContent = "pillar colour";
-    body.appendChild(colHeader);
-    const colDesc = document.createElement("div");
-    colDesc.className = "px-2 mb-2 text-[10px] opacity-60";
-    colDesc.textContent = "recolour your pillars — or keep the theme's colours.";
-    body.appendChild(colDesc);
-    const swatches = document.createElement("div");
-    swatches.className = "flex flex-wrap gap-2 px-2";
-    const activeColor = getEquippedPillarColorLocal();
-    for (const c of PILLAR_COLORS) {
-      const sw = document.createElement("button");
-      sw.dataset.noFlap = "true";
-      const isActive = c.id === activeColor;
-      sw.className =
-        "h-7 w-7 rounded-full border transition " +
-        (isActive ? "border-white ring-2 ring-white/60 scale-110" : "border-white/20 hover:border-white/50");
-      sw.style.background =
-        c.id === "theme"
-          ? "linear-gradient(135deg, #87ceeb 0 50%, #3d8b58 50% 100%)"
-          : `linear-gradient(135deg, ${c.body} 0 60%, ${c.cap} 60% 100%)`;
-      sw.title = c.name;
-      sw.setAttribute("aria-label", c.name);
-      sw.addEventListener("click", (e) => {
-        e.stopPropagation();
-        setEquippedPillarColorLocal(c.id);
-        renderLoadout();
-        renderPillars();
-      });
-      swatches.appendChild(sw);
-    }
-    body.appendChild(swatches);
   }
 
   async function renderBadges(): Promise<void> {
@@ -425,9 +424,41 @@ export function renderGallery(
     fxDesc.className = "px-2 mb-3 text-[10px] opacity-60";
     fxDesc.textContent = "visual burst when you tap. preview the unlocked ones — your pick fires every flap mid-run.";
     body.appendChild(fxDesc);
+    const activeFx = getActiveFlapFx();
+
+    // FX colour picker — tints whichever effect is active, so it sits at the
+    // TOP of the FX section (right under the intro, above the effect list) to
+    // read as a property of the effect you're picking. Hidden when "off".
+    if (activeFx !== "off") {
+      const colHeader = document.createElement("div");
+      colHeader.className = "px-3 mt-1 mb-2 text-[10px] uppercase tracking-wider opacity-60 font-bold";
+      colHeader.textContent = "effect colour";
+      body.appendChild(colHeader);
+      const colDesc = document.createElement("div");
+      colDesc.className = "px-2 mb-2 text-[10px] opacity-60";
+      colDesc.textContent = "tint your flap effect — pick a swatch or keep the default. unlock more by playing.";
+      body.appendChild(colDesc);
+      const swatches = document.createElement("div");
+      swatches.className = "flex flex-wrap gap-2 px-2 mb-4";
+      const activeColor = getFlapFxColor();
+      for (const c of FX_COLORS) {
+        const u = fxColorUnlocked(c, achStats);
+        const bg =
+          c.id === "default"
+            ? "linear-gradient(135deg, #888 0 50%, #ddd 50% 100%)"
+            : `rgb(${c.rgb[0]},${c.rgb[1]},${c.rgb[2]})`;
+        swatches.appendChild(
+          colorSwatch(c.id, c.name, bg, c.id === activeColor, u, () => {
+            setFlapFxColor(c.id);
+            renderEffects();
+          }),
+        );
+      }
+      body.appendChild(swatches);
+    }
+
     const fxList = document.createElement("div");
     fxList.className = "space-y-2 px-2";
-    const activeFx = getActiveFlapFx();
     for (const opt of FLAP_FX_OPTIONS) {
       fxList.appendChild(fxCard(opt.id, opt.label, opt.blurb, achStats, activeFx === opt.id, (id) => {
         setActiveFlapFx(id);
@@ -435,40 +466,6 @@ export function renderGallery(
       }));
     }
     body.appendChild(fxList);
-
-    // FX colour picker — tints whichever effect is active. Hidden when "off".
-    if (activeFx !== "off") {
-      const colHeader = document.createElement("div");
-      colHeader.className = "px-3 mt-4 mb-2 text-[10px] uppercase tracking-wider opacity-60 font-bold";
-      colHeader.textContent = "effect colour";
-      body.appendChild(colHeader);
-      const colDesc = document.createElement("div");
-      colDesc.className = "px-2 mb-2 text-[10px] opacity-60";
-      colDesc.textContent = "tint your flap effect — pick a swatch or keep the default.";
-      body.appendChild(colDesc);
-      const swatches = document.createElement("div");
-      swatches.className = "flex flex-wrap gap-2 px-2";
-      const activeColor = getFlapFxColor();
-      for (const c of FX_COLORS) {
-        const sw = document.createElement("button");
-        const isActive = c.id === activeColor;
-        sw.className =
-          "h-7 w-7 rounded-full border transition " +
-          (isActive ? "border-white ring-2 ring-white/60 scale-110" : "border-white/20 hover:border-white/50");
-        sw.style.background =
-          c.id === "default"
-            ? "linear-gradient(135deg, #888 0 50%, #ddd 50% 100%)"
-            : `rgb(${c.rgb[0]},${c.rgb[1]},${c.rgb[2]})`;
-        sw.title = c.name;
-        sw.setAttribute("aria-label", c.name);
-        sw.addEventListener("click", () => {
-          setFlapFxColor(c.id);
-          renderEffects();
-        });
-        swatches.appendChild(sw);
-      }
-      body.appendChild(swatches);
-    }
   }
 
   function renderQuestsTab(): void {
@@ -1471,6 +1468,44 @@ function pillarCard(
     onTap();
   });
   return el;
+}
+
+/** A 7x7 colour-picker swatch with unlock gating. Locked swatches are dimmed,
+ *  show a small lock glyph, expose the hint via title, and ignore taps. */
+function colorSwatch(
+  _id: string,
+  name: string,
+  background: string,
+  isActive: boolean,
+  unlock: { unlocked: boolean; hint?: string },
+  onPick: () => void,
+): HTMLButtonElement {
+  const sw = document.createElement("button");
+  sw.dataset.noFlap = "true";
+  const locked = !unlock.unlocked;
+  sw.className =
+    "relative h-7 w-7 rounded-full border transition flex items-center justify-center " +
+    (locked
+      ? "border-white/10 opacity-40 cursor-not-allowed"
+      : isActive
+        ? "border-white ring-2 ring-white/60 scale-110"
+        : "border-white/20 hover:border-white/50");
+  sw.style.background = background;
+  sw.title = locked ? `${name} — locked: ${unlock.hint ?? "keep playing"}` : name;
+  sw.setAttribute("aria-label", locked ? `${name} (locked)` : name);
+  if (locked) {
+    sw.disabled = true;
+    const lock = document.createElement("span");
+    lock.className = "text-[9px] leading-none drop-shadow";
+    lock.textContent = "🔒";
+    sw.appendChild(lock);
+  }
+  sw.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (locked) return;
+    onPick();
+  });
+  return sw;
 }
 
 function escapeHtml(s: string): string {

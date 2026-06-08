@@ -43,6 +43,10 @@ export class Sim {
   startGrace = true;
   prevBirdY: number;
   prevPipeXs = new Map<number, number>();
+  /** World-Y centre of the most recently passed pipe's gap. Cosmetic only
+   *  (drives the pitch of the gate-pass sound); never read by the sim, so it
+   *  doesn't touch determinism. */
+  lastPassedGapCenter: number;
 
   constructor(seed: number, cfg: SimConfig, noFail = false) {
     this.seed = seed >>> 0;
@@ -51,6 +55,7 @@ export class Sim {
     this.rng = new Rng(this.seed);
     this.birdY = cfg.birdStartY;
     this.prevBirdY = cfg.birdStartY;
+    this.lastPassedGapCenter = cfg.worldHeight / 2;
     this.spawnInitialPipes();
   }
 
@@ -112,6 +117,7 @@ export class Sim {
       if (!p.passed && p.x + this.cfg.pipeWidth < this.cfg.birdX) {
         p.passed = true;
         this.score++;
+        this.lastPassedGapCenter = p.gapY + p.gapH / 2;
       }
     }
 

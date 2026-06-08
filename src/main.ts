@@ -46,7 +46,7 @@ import { type ShareCardData } from "./social/share-card";
 import { renderFriendsPanel } from "./ui/friends";
 import { refreshChallengeWins, refreshFriendCount, type Friend } from "./social/friends";
 import { refreshGrantedShapes } from "./social/grants";
-import { loadAchievementStats, updateStatsAfterRun, saveAchievementStats, getNewlyUnlocked } from "./game/achievements";
+import { loadAchievementStats, updateStatsAfterRun, updateRankedMatchStats, saveAchievementStats, getNewlyUnlocked } from "./game/achievements";
 import { getShowEquippedInMenu } from "./game/menu-prefs";
 import { renderDailyLanding } from "./ui/daily-landing";
 import { renderRankedPanel } from "./ui/ranked";
@@ -783,8 +783,8 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
     runCfg,
     {
       render: (sim, alpha, g) => renderer.draw(sim, alpha, g),
-      onScore: (sc) => {
-        if (settings.sound && settings.gateSound) playGatePass();
+      onScore: (sc, gapCenterNorm) => {
+        if (settings.sound && settings.gateSound) playGatePass(gapCenterNorm);
         // Stadium theme: the crowd cheers every 20 points. Audio-only,
         // gated on the sound setting; never affects the deterministic sim.
         if (settings.sound && equippedThemeId === "stadium" && sc > 0 && sc % 20 === 0) {
@@ -814,18 +814,9 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
           });
           return;
         }
-        // Racing a player's best run: a local ghost race, nothing submitted.
-        // Show the head-to-head result with Play again / menu.
-        if (currentRunMode === "race" && activeChallenge) {
-          const them = activeChallenge.creator_score;
-          const who = activeChallenge.creator_username ?? "them";
-          announce(`Race ended. You ${score}, @${who} ${them}. Press R to play again.`);
-          renderGameOver(overlays, score, () => startRun("race"), showMenu, {
-            ticks,
-            raceContext: { creator: who, creatorScore: them },
-          });
-          return;
-        }
+        // Racing a player's best run is a real scored run: it submits (as a
+        // casual run), counts toward your total, and can set your record. The
+        // head-to-head result is shown via raceContext on the game-over below.
         if (currentRunMode === "daily" && dailyInfo) {
           recordDailyBest(dailyInfo.date, score);
           bumpDailyAttempt(dailyInfo.date);
@@ -847,11 +838,20 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
         let newAchievements: ReturnType<typeof getNewlyUnlocked> = [];
         {
           const currentStats = loadAchievementStats();
-          const updatedStats = updateStatsAfterRun(currentStats, {
+          let updatedStats = updateStatsAfterRun(currentStats, {
             score,
             mode: currentRunMode,
             inputCount: loop?.getRecordedInputs().length,
           });
+          // A finished ranked match folds in its match-level unlocks (total
+          // across rounds / per-round floor) once the server marks it complete.
+          const rs = result?.ranked;
+          if (rs && rs.state === "completed") {
+            const mine = (rs.you === "a" ? rs.a_scores : rs.b_scores).filter(
+              (x): x is number => x != null,
+            );
+            updatedStats = updateRankedMatchStats(updatedStats, mine);
+          }
           saveAchievementStats(updatedStats);
           newAchievements = getNewlyUnlocked(currentStats, updatedStats);
         }
@@ -904,6 +904,12 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
             accent: a.reward.accent,
           })),
           onShare: share,
+          raceContext: currentRunMode === "race" && activeChallenge
+            ? {
+                creator: activeChallenge.creator_username ?? "them",
+                creatorScore: activeChallenge.creator_score,
+              }
+            : undefined,
           challengeCreate: challengeTarget
             ? {
                 friendName: challengeTarget.friend?.username ?? null,
@@ -933,7 +939,7 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
                 },
               }
             : undefined,
-          challengeContext: activeChallenge
+          challengeContext: currentRunMode === "challenge" && activeChallenge
             ? {
                 creator: activeChallenge.creator_username ?? "anon",
                 creatorScore: activeChallenge.creator_score,

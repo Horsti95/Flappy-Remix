@@ -25,6 +25,11 @@ const FRESH: UnlockStats = {
   friendCount: 0,
   lateNightGames: 0,
   minimalistDone: false,
+  runsOver100: 0,
+  consecutiveUnder100: 0,
+  consecutiveOver50: 0,
+  bestRankedTotal: 0,
+  bestRankedFloor: 0,
 };
 
 const MAXED: UnlockStats = {
@@ -42,6 +47,11 @@ const MAXED: UnlockStats = {
   friendCount: 10000,
   lateNightGames: 10000,
   minimalistDone: true,
+  runsOver100: 10000,
+  consecutiveUnder100: 10000,
+  consecutiveOver50: 10000,
+  bestRankedTotal: 100000,
+  bestRankedFloor: 100000,
 };
 
 describe("unlockables registry", () => {

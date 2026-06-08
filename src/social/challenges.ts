@@ -37,24 +37,48 @@ export async function fetchChallenge(shortId: string): Promise<FetchedChallenge 
  * dedicated endpoint or migration needed. Returns null if the player has no
  * scoring run yet.
  */
+/**
+ * Retry a Supabase query a couple of times on transient failure. Many
+ * "challenge didn't load" reports are a single dropped request, not missing
+ * data — so we distinguish an *error* (worth retrying) from an empty result
+ * (genuinely no data; return as-is).
+ */
+async function withRetry<T>(
+  label: string,
+  run: () => PromiseLike<{ data: T | null; error: { message: string } | null }>,
+): Promise<T | null> {
+  let lastErr: { message: string } | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { data, error } = await run();
+    if (!error) return data;
+    lastErr = error;
+    if (attempt < 2) await new Promise((res) => setTimeout(res, 250 * 2 ** attempt));
+  }
+  console.warn(`[challenge] ${label} failed after retries:`, lastErr?.message);
+  return null;
+}
+
 export async function fetchBestRunChallenge(username: string): Promise<FetchedChallenge | null> {
   const sb = getSupabase();
   if (!sb) return null;
-  const { data: prof } = await sb
-    .from("profiles")
-    .select("user_id, equipped_shape")
-    .eq("username", username)
-    .maybeSingle();
+  // Usernames are stored lowercased; match case-insensitively so a display-case
+  // name (e.g. from a profile card) still resolves.
+  const uname = username.toLowerCase();
+  const prof = await withRetry("profile lookup", () =>
+    sb.from("profiles").select("user_id, equipped_shape").eq("username", uname).maybeSingle(),
+  );
   if (!prof) return null;
   const p = prof as { user_id: string; equipped_shape: string | null };
-  const { data: run } = await sb
-    .from("runs")
-    .select("seed, score, inputs, equipped_skin_id")
-    .eq("user_id", p.user_id)
-    .order("score", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const run = await withRetry("best run lookup", () =>
+    sb
+      .from("runs")
+      .select("seed, score, inputs, equipped_skin_id")
+      .eq("user_id", p.user_id)
+      .order("score", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  );
   if (!run) return null;
   const r = run as { seed: number; score: number; inputs: InputEvent[]; equipped_skin_id: string | null };
   if (!r.score || r.score <= 0) return null;

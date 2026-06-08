@@ -14,6 +14,18 @@ export interface SubmitResult {
     body: [number, number, number];
     accent: [number, number, number];
   }>;
+  /** Present on ranked submissions; mirrors the match state server-side. */
+  ranked?: {
+    match_id: string;
+    round: number;
+    you: "a" | "b";
+    state: "pending" | "in_progress" | "completed" | "expired" | "cancelled";
+    a_scores: Array<number | null>;
+    b_scores: Array<number | null>;
+    a_rating_after?: number | null;
+    b_rating_after?: number | null;
+    winner_id?: string | null;
+  };
 }
 
 export interface SubmitPayload {

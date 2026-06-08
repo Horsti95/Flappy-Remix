@@ -22,6 +22,11 @@ const MAXED: AchievementStats = {
   friendCount: 10000,
   lateNightGames: 10000,
   minimalistDone: true,
+  runsOver100: 10000,
+  consecutiveUnder100: 10000,
+  consecutiveOver50: 10000,
+  bestRankedTotal: 100000,
+  bestRankedFloor: 100000,
 };
 
 describe("unlock-criteria catalog", () => {

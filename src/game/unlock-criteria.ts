@@ -302,4 +302,9 @@ const ZERO_STATS: AchievementStats = {
   friendCount: 0,
   lateNightGames: 0,
   minimalistDone: false,
+  runsOver100: 0,
+  consecutiveUnder100: 0,
+  consecutiveOver50: 0,
+  bestRankedTotal: 0,
+  bestRankedFloor: 0,
 };

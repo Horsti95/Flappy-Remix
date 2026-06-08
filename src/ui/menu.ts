@@ -85,7 +85,7 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
 
   wrap.innerHTML = `
     ${offlineBadge}
-    <button data-settings class="absolute top-3 left-3 text-[18px] opacity-50 hover:opacity-100 transition-opacity" aria-label="Settings">⚙</button>
+    <button data-settings class="absolute top-3 left-3 text-[18px] leading-none rounded-full px-3 py-1 bg-white/15 opacity-80 hover:opacity-100 transition-opacity" aria-label="Settings">⚙</button>
     <button data-account class="absolute top-3 right-3 text-[11px] rounded-full px-3 py-1 bg-white/15">${escapeHtml(meta.accountLabel)}${streakBadge}</button>
     <div data-menu-content class="px-6 max-w-sm w-full">
       <div class="relative h-16 mb-2">
@@ -114,26 +114,26 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
       </div>
 
       <div class="mt-3 grid grid-cols-2 gap-2">
+        <button data-action="ranked" class="rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
+          Ranked
+        </button>
         <button data-action="inbox" class="relative rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
           Challenges
           ${meta.inboxUnseen && meta.inboxUnseen > 0
             ? `<span class="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center">${meta.inboxUnseen > 9 ? "9+" : meta.inboxUnseen}</span>`
             : ""}
         </button>
-        <button data-action="friends" class="rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
-          Friends
-        </button>
       </div>
 
       <div class="mt-3 grid grid-cols-3 gap-1.5">
-        <button data-action="ranked" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
-          Ranked
-        </button>
-        <button data-action="skins" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
-          Gallery
+        <button data-action="friends" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
+          Friends
         </button>
         <button data-action="leaderboard" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
           Board
+        </button>
+        <button data-action="skins" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
+          Gallery
         </button>
       </div>
       <button data-action="training" class="block mx-auto mt-3 text-[11px] opacity-50 hover:opacity-90 transition-opacity underline">🪶 practice mode (untracked)</button>
@@ -148,16 +148,16 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
       <div class="relative bg-gradient-to-t from-black/95 to-black/80 rounded-t-3xl px-5 py-6 pb-10 max-h-[85vh] overflow-y-auto">
         <div class="text-sm font-bold mb-2">Settings</div>
 
-        <div class="panel-group-label">Game</div>
+        <div class="panel-group-label">Audio</div>
         <div class="grid grid-cols-2 gap-2 text-[11px]">
           ${toggle("sound", "Sound", settings.sound)}
-          ${toggle("reducedMotion", "Reduced motion", settings.reducedMotion)}
           ${toggle("gateSound", "Gate ding", settings.gateSound)}
           ${toggle("deathSound", "Death thud", settings.deathSound)}
         </div>
 
         <div class="panel-group-label">Display</div>
-        <div class="grid grid-cols-1 gap-2 text-[11px]">
+        <div class="grid grid-cols-2 gap-2 text-[11px]">
+          ${toggle("reducedMotion", "Reduced motion", settings.reducedMotion)}
           ${toggle("highContrast", "High contrast", settings.highContrast)}
         </div>
         <label class="panel-row mt-2 rounded-2xl bg-white/5 cursor-pointer">
@@ -165,7 +165,7 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
           <input type="checkbox" data-show-equipped ${getShowEquippedInMenu() ? "checked" : ""} class="w-5 h-5 accent-paper" />
         </label>
 
-        <div class="panel-group-label">Challenge</div>
+        <div class="panel-group-label">Gameplay</div>
         <div class="panel-group">
           <div class="panel-row flex-col items-stretch gap-1">
             <div class="flex items-center justify-between">

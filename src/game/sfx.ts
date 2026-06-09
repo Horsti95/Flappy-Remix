@@ -582,10 +582,37 @@ const HAPTIC: Record<Rarity, number | number[]> = {
 
 export function triggerUnlockHaptic(rarity: Rarity): void {
   if (reducedMotion()) return;
+  vibrate(HAPTIC[rarity]);
+}
+
+// ---- Gameplay haptics ------------------------------------------------------
+// Distinct, short patterns so flap / score / crash each *feel* different in
+// the hand. Callers gate these on the `haptics` setting (independent of sound),
+// so there's no reducedMotion check here — the toggle is the control. iOS
+// Safari ignores navigator.vibrate (no-op today); a native Taptic bridge takes
+// over once the app is wrapped.
+
+/** Tiny tick on every flap — the lightest pattern so rapid tapping isn't buzzy. */
+export function triggerFlapHaptic(): void {
+  vibrate(8);
+}
+
+/** Soft blip as a gate is cleared (one per point). */
+export function triggerGateHaptic(): void {
+  vibrate(12);
+}
+
+/** A heavier, two-stage thud when the run ends. */
+export function triggerDeathHaptic(): void {
+  vibrate([35, 40, 70]);
+}
+
+/** Feature-detected vibration. Silent no-op where unsupported or blocked. */
+function vibrate(pattern: number | number[]): void {
   if (typeof navigator === "undefined" || typeof navigator.vibrate !== "function") return;
   try {
-    navigator.vibrate(HAPTIC[rarity]);
+    navigator.vibrate(pattern);
   } catch {
-    /* some browsers throw if not user-gesture */
+    /* some browsers throw if not in a user-gesture */
   }
 }

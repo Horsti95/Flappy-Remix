@@ -58,6 +58,10 @@ export interface AchievementStats {
   /** Highest "floor" (lowest round score) across ranked matches where you
    *  played all three rounds. Drives the "every round above X" unlocks. */
   bestRankedFloor: number;
+  /** Latched once the player opens the feedback flow. Honour-system (we can't
+   *  verify an external form was sent) — fine for a cosmetic reward. Optional
+   *  so existing stored stats / test fixtures stay valid without a migration. */
+  feedbackGiven?: boolean;
 }
 
 export const ACHIEVEMENTS: AchievementDef[] = [
@@ -348,6 +352,15 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     secret: true,
     check: (s) => s.consecutiveOver50 >= 20,
   },
+  {
+    id: "kinda_game_dev",
+    name: "kinda game dev",
+    blurb: "send us feedback — you basically work here now",
+    category: "special",
+    reward: { type: "color", body: [57, 255, 20], accent: [12, 35, 12] },
+    secret: true,
+    check: (s) => s.feedbackGiven === true,
+  },
 
   // --- Cumulative score, elite tier ---
   {
@@ -527,6 +540,20 @@ export function updateRankedMatchStats(
 
 export function getUnlockedAchievements(stats: AchievementStats): AchievementDef[] {
   return ACHIEVEMENTS.filter((a) => a.check(stats));
+}
+
+/**
+ * Latch the "gave feedback" flag and report the reviewer achievement if this
+ * call is what *newly* earned it, so the caller can celebrate exactly once.
+ * Idempotent — calling again after it's set is a no-op that unlocks nothing.
+ */
+export function markFeedbackGiven(): { newlyUnlocked: AchievementDef | null } {
+  const before = loadAchievementStats();
+  if (before.feedbackGiven) return { newlyUnlocked: null };
+  const after: AchievementStats = { ...before, feedbackGiven: true };
+  saveAchievementStats(after);
+  const unlocked = getNewlyUnlocked(before, after);
+  return { newlyUnlocked: unlocked.find((a) => a.id === "kinda_game_dev") ?? null };
 }
 
 export function getNewlyUnlocked(before: AchievementStats, after: AchievementStats): AchievementDef[] {

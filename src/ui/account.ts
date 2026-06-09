@@ -1,6 +1,17 @@
 import { authState, claimUsername, signInWithGoogle, signOut, subscribeAuth } from "../social/auth";
 import { validateUsername } from "../social/profanity";
 import { refreshGrantedShapes } from "../social/grants";
+import { markFeedbackGiven } from "../game/achievements";
+import { playUnlockSound, triggerUnlockHaptic } from "../game/sfx";
+
+/**
+ * Where the "send feedback" button points. Defaults to the public repo's
+ * issue form; override with VITE_FEEDBACK_URL to send people to a mailto,
+ * Google Form, Canny board, etc. without touching code.
+ */
+const FEEDBACK_URL =
+  (import.meta.env as Record<string, string | undefined>).VITE_FEEDBACK_URL ||
+  "https://github.com/horsti95/flappy-remix/issues/new";
 
 export function renderAccountPanel(host: HTMLElement, onClose: () => void, onViewProfile?: (username: string) => void): () => void {
   const wrap = document.createElement("div");
@@ -71,6 +82,13 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void, onVie
             <button class="btn-primary shrink-0 px-4 py-2 text-sm">use</button>
           </form>
           <div data-redeem-status class="mt-2 text-[12px] min-h-[1em] opacity-70"></div>
+        </div>
+
+        <div class="panel-group-label">Feedback</div>
+        <div class="rounded-2xl bg-white/5 p-4">
+          <p class="text-xs opacity-70 mb-2">Found a bug or have an idea? Tell us — there's a little something in it for you.</p>
+          <button data-feedback class="btn-secondary w-full py-2.5 text-sm">send feedback</button>
+          <div data-feedback-status class="mt-2 text-[12px] min-h-[1em] opacity-70"></div>
         </div>
 
         <div class="panel-group-label">Data</div>
@@ -149,6 +167,23 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void, onVie
       } catch {
         status.className = "mt-2 text-[12px] min-h-[1em] text-red-300";
         status.textContent = "network error. try again.";
+      }
+    });
+    wrap.querySelector("[data-feedback]")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const status = wrap.querySelector("[data-feedback-status]") as HTMLDivElement;
+      // Open the feedback channel first (the click is still a user gesture),
+      // then latch the reward. Honour-system: we can't verify a form was sent.
+      window.open(FEEDBACK_URL, "_blank", "noopener,noreferrer");
+      const { newlyUnlocked } = markFeedbackGiven();
+      if (newlyUnlocked) {
+        playUnlockSound("epic");
+        triggerUnlockHaptic("epic");
+        status.className = "mt-2 text-[12px] min-h-[1em] text-emerald-300";
+        status.textContent = `thanks! unlocked “${newlyUnlocked.name}” — open Gallery to equip the skin.`;
+      } else {
+        status.className = "mt-2 text-[12px] min-h-[1em] opacity-70";
+        status.textContent = "thanks for the feedback!";
       }
     });
     wrap.querySelector("[data-export]")?.addEventListener("click", async (e) => {

@@ -51,7 +51,7 @@ import { loadAchievementStats, updateStatsAfterRun, updateRankedMatchStats, save
 import { getShowEquippedInMenu } from "./game/menu-prefs";
 import { renderDailyLanding } from "./ui/daily-landing";
 import { renderRankedPanel } from "./ui/ranked";
-import { playFlap, playCheer, playGatePass, playDeath, setSoundLabMode, setActiveFlapSound, FLAP_SOUND_OPTIONS } from "./game/sfx";
+import { playFlap, playCheer, playGatePass, playDeath, setSoundLabMode, setActiveFlapSound, FLAP_SOUND_OPTIONS, triggerFlapHaptic, triggerGateHaptic, triggerDeathHaptic } from "./game/sfx";
 import { clearParticles, getActiveFlapFx, setFxLabMode, spawnFlapFx, setActiveFlapFx, FLAP_FX_OPTIONS } from "./game/flap-fx";
 import { type RankedMatch, createRankedChallenge } from "./social/ranked";
 import { createChallenge, fetchChallenge, fetchBestRunChallenge, ghostSkinFromChallenge, fetchUnseenChallengeCount, type FetchedChallenge } from "./social/challenges";
@@ -224,6 +224,7 @@ const input = new InputController(stage, {
     if (mode === "playing") {
       loop?.flap();
       if (settings.sound) playFlap();
+      if (settings.haptics) triggerFlapHaptic();
       // First flap of the guided onboarding: clear the start prompt and
       // immediately drip the first coaching card so it doesn't conflict.
       if (onboardingActive && !onboardingFlapped) {
@@ -683,7 +684,7 @@ function applyQuestReward(c: QuestCompletion): void {
   }
 }
 
-type BoolSetting = "sound" | "gateSound" | "deathSound" | "highContrast" | "reducedMotion";
+type BoolSetting = "sound" | "gateSound" | "deathSound" | "highContrast" | "reducedMotion" | "haptics";
 function onToggleSetting(key: keyof Settings): void {
   // Only the boolean toggles route here; ghostOpacity uses its own slider.
   if (
@@ -691,12 +692,16 @@ function onToggleSetting(key: keyof Settings): void {
     key !== "gateSound" &&
     key !== "deathSound" &&
     key !== "highContrast" &&
-    key !== "reducedMotion"
+    key !== "reducedMotion" &&
+    key !== "haptics"
   )
     return;
   const k = key as BoolSetting;
   settings[k] = !settings[k];
   saveSettings(settings);
+  // Confirm the vibration toggle with a single buzz so the player feels it
+  // works (and learns the device supports it) the moment they enable it.
+  if (k === "haptics" && settings.haptics) triggerFlapHaptic();
   renderer.options.highContrast = settings.highContrast;
   renderer.options.reducedMotion = settings.reducedMotion;
   // Update the toggle button in-place so the settings panel stays open.
@@ -781,6 +786,7 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
       render: (sim, alpha, g) => renderer.draw(sim, alpha, g),
       onScore: (sc, gapCenterNorm) => {
         if (settings.sound && settings.gateSound) playGatePass(gapCenterNorm);
+        if (settings.haptics) triggerGateHaptic();
         // Stadium theme: the crowd cheers every 20 points. Audio-only,
         // gated on the sound setting; never affects the deterministic sim.
         if (settings.sound && equippedThemeId === "stadium" && sc > 0 && sc % 20 === 0) {
@@ -796,6 +802,7 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
       },
       onDeath: async (sim) => {
         if (settings.sound && settings.deathSound) playDeath();
+        if (settings.haptics) triggerDeathHaptic();
         mode = "dead";
         pauseBtn.classList.add("hidden");
         const score = sim.score;

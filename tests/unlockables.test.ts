@@ -52,6 +52,7 @@ const MAXED: UnlockStats = {
   consecutiveOver50: 10000,
   bestRankedTotal: 100000,
   bestRankedFloor: 100000,
+  feedbackGiven: true,
 };
 
 describe("unlockables registry", () => {

@@ -6,6 +6,11 @@ export interface Settings {
   deathSound: boolean;
   highContrast: boolean;
   reducedMotion: boolean;
+  /** Haptic feedback (vibration) on flap / score / crash. Independent of
+   *  `sound` so silent-with-vibration play works. No-op where the platform
+   *  has no vibration API (notably iOS Safari, which ignores navigator.vibrate
+   *  — a native Taptic bridge replaces it when the app is wrapped). */
+  haptics: boolean;
   /** Challenge-ghost opacity 0..100 (%), in 5% steps. 0 = ghost hidden. */
   ghostOpacity: number;
 }
@@ -18,6 +23,7 @@ export const DEFAULT_SETTINGS: Settings = {
   deathSound: true,
   highContrast: false,
   reducedMotion: false,
+  haptics: true,
   ghostOpacity: 25,
 };
 

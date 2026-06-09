@@ -73,6 +73,15 @@ describe("achievements", () => {
     expect(getUnlockedAchievements(s2).map((a) => a.id)).toContain("storm_survivor");
   });
 
+  it("kinda_game_dev unlocks only once feedback is given", () => {
+    const dev = ACHIEVEMENTS.find((a) => a.id === "kinda_game_dev");
+    expect(dev).toBeDefined();
+    expect(dev!.check(EMPTY)).toBe(false);
+    expect(dev!.check({ ...EMPTY, feedbackGiven: true })).toBe(true);
+    // It's a secret reward — hidden until earned.
+    expect(dev!.secret).toBe(true);
+  });
+
   it("getNewlyUnlocked detects transitions", () => {
     const before = { ...EMPTY, totalGames: 0 };
     const after = updateStatsAfterRun(before, { score: 5, mode: "casual" });

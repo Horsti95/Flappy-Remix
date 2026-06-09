@@ -148,11 +148,12 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
       <div class="relative bg-gradient-to-t from-black/95 to-black/80 rounded-t-3xl px-5 py-6 pb-10 max-h-[85vh] overflow-y-auto">
         <div class="text-sm font-bold mb-2">Settings</div>
 
-        <div class="panel-group-label">Audio</div>
+        <div class="panel-group-label">Audio &amp; feel</div>
         <div class="grid grid-cols-2 gap-2 text-[11px]">
           ${toggle("sound", "All sound", settings.sound)}
           ${toggle("gateSound", "Score sound", settings.gateSound)}
           ${toggle("deathSound", "Crash sound", settings.deathSound)}
+          ${toggle("haptics", "Vibration", settings.haptics)}
         </div>
 
         <div class="panel-group-label">Display</div>

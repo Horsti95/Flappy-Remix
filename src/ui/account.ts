@@ -1,4 +1,4 @@
-import { authState, claimUsername, signInWithGoogle, signOut, subscribeAuth } from "../social/auth";
+import { authState, claimUsername, signInWithGoogle, signInWithDiscord, signInWithEmail, signOut, subscribeAuth } from "../social/auth";
 import { validateUsername } from "../social/profanity";
 import { refreshGrantedShapes } from "../social/grants";
 import { markFeedbackGiven } from "../game/achievements";
@@ -30,7 +30,15 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void, onVie
       return;
     }
     const hasUsername = !!s.profile?.username;
-    const isGoogle = (s.user?.app_metadata?.providers as string[] | undefined)?.includes("google");
+    const providers = (s.user?.app_metadata?.providers as string[] | undefined) ?? [];
+    const linked = s.user?.is_anonymous === false;
+    const providerLabel = providers.includes("google")
+      ? "Google"
+      : providers.includes("discord")
+        ? "Discord"
+        : providers.includes("email")
+          ? "email"
+          : "your account";
     wrap.innerHTML = `
       <div class="w-full max-w-sm max-h-[88vh] overflow-y-auto">
         <div class="flex items-center justify-between">
@@ -55,10 +63,20 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void, onVie
           }
           <div class="mt-3 pt-3 border-t border-white/5">
             ${
-              isGoogle
-                ? `<div class="text-[12px] opacity-70">✓ signed in with Google</div>`
+              linked
+                ? `<div class="text-[12px] opacity-70">✓ signed in with ${providerLabel}</div>`
                 : `<p class="text-xs opacity-70 mb-2">anonymous — sign in to keep your runs across devices.</p>
-                   <button data-google class="btn-primary w-full py-2.5 text-sm">continue with Google</button>`
+                   <div class="grid grid-cols-2 gap-2">
+                     <button data-google class="btn-primary py-2.5 text-sm">Google</button>
+                     <button data-discord class="btn-primary py-2.5 text-sm">Discord</button>
+                   </div>
+                   <form data-email-form class="mt-2 flex gap-2 items-stretch">
+                     <input data-email name="email" type="email" autocomplete="email" autocapitalize="none" spellcheck="false"
+                            class="flex-1 min-w-0 rounded-xl bg-white/10 px-3 py-2 text-base outline-none focus:bg-white/20"
+                            placeholder="you@email.com" />
+                     <button class="btn-secondary shrink-0 px-4 py-2 text-sm">email me</button>
+                   </form>
+                   <div data-auth-status class="mt-2 text-[12px] min-h-[1em] opacity-70"></div>`
             }
           </div>
         </div>
@@ -95,7 +113,7 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void, onVie
         <div class="rounded-2xl bg-white/5 p-4">
           <button data-export class="btn-secondary w-full py-2.5 text-sm">export my data</button>
           ${
-            isGoogle
+            linked
               ? `<button data-signout class="btn-quiet w-full text-xs py-2 mt-1">log out</button>`
               : ""
           }
@@ -112,6 +130,26 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void, onVie
     wrap.querySelector("[data-google]")?.addEventListener("click", (e) => {
       e.stopPropagation();
       signInWithGoogle();
+    });
+    wrap.querySelector("[data-discord]")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      signInWithDiscord();
+    });
+    wrap.querySelector("[data-email-form]")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const input = wrap.querySelector("[data-email]") as HTMLInputElement;
+      const status = wrap.querySelector("[data-auth-status]") as HTMLDivElement;
+      status.className = "mt-2 text-[12px] min-h-[1em] opacity-70";
+      status.textContent = "sending…";
+      const res = await signInWithEmail(input.value);
+      if (res.ok) {
+        status.className = "mt-2 text-[12px] min-h-[1em] text-emerald-300";
+        status.textContent = "check your email for a sign-in link.";
+      } else {
+        status.className = "mt-2 text-[12px] min-h-[1em] text-red-300";
+        status.textContent = res.reason;
+      }
     });
     wrap.querySelector("[data-view-profile]")?.addEventListener("click", (e) => {
       e.stopPropagation();

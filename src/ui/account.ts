@@ -66,16 +66,17 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void, onVie
               linked
                 ? `<div class="text-[12px] opacity-70">✓ signed in with ${providerLabel}</div>`
                 : `<p class="text-xs opacity-70 mb-2">anonymous — sign in to keep your runs across devices.</p>
-                   <div class="grid grid-cols-2 gap-2">
-                     <button data-google class="btn-primary py-2.5 text-sm">Google</button>
-                     <button data-discord class="btn-primary py-2.5 text-sm">Discord</button>
+                   <div class="space-y-2">
+                     <button data-mail class="btn-primary w-full py-2.5 text-sm">✉️ Continue with email</button>
+                     <form data-email-form class="hidden gap-2 items-stretch">
+                       <input data-email name="email" type="email" autocomplete="email" autocapitalize="none" spellcheck="false"
+                              class="flex-1 min-w-0 rounded-xl bg-white/10 px-3 py-2 text-base outline-none focus:bg-white/20"
+                              placeholder="you@email.com" />
+                       <button class="btn-secondary shrink-0 px-4 py-2 text-sm">send link</button>
+                     </form>
+                     <button data-google class="btn-primary w-full py-2.5 text-sm">Continue with Google</button>
+                     <button data-discord class="btn-primary w-full py-2.5 text-sm">Continue with Discord</button>
                    </div>
-                   <form data-email-form class="mt-2 flex gap-2 items-stretch">
-                     <input data-email name="email" type="email" autocomplete="email" autocapitalize="none" spellcheck="false"
-                            class="flex-1 min-w-0 rounded-xl bg-white/10 px-3 py-2 text-base outline-none focus:bg-white/20"
-                            placeholder="you@email.com" />
-                     <button class="btn-secondary shrink-0 px-4 py-2 text-sm">email me</button>
-                   </form>
                    <div data-auth-status class="mt-2 text-[12px] min-h-[1em] opacity-70"></div>`
             }
           </div>
@@ -134,6 +135,15 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void, onVie
     wrap.querySelector("[data-discord]")?.addEventListener("click", (e) => {
       e.stopPropagation();
       signInWithDiscord();
+    });
+    // "Continue with email" reveals the address input rather than going
+    // straight to a form, so the default sign-in row stays a clean 3 buttons.
+    wrap.querySelector("[data-mail]")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const form = wrap.querySelector("[data-email-form]") as HTMLElement | null;
+      if (!form) return;
+      form.className = "flex gap-2 items-stretch";
+      (form.querySelector("[data-email]") as HTMLInputElement | null)?.focus();
     });
     wrap.querySelector("[data-email-form]")?.addEventListener("submit", async (e) => {
       e.preventDefault();

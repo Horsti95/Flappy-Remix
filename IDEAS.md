@@ -404,11 +404,14 @@ Implementation: equipped state becomes `{ shape, skin }` instead of
 just `skin`. Skin picker becomes a two-axis picker (or two pickers
 side by side).
 
-### Apple Sign-In + email magic link (`s`)
+### Apple Sign-In + ~~email magic link~~ + ~~Discord~~ — email & Discord SHIPPED 2026-06-09 (`s`)
 
-Supabase supports both natively. Add provider toggles + buttons in
-`account.ts`. Same plumbing as the Google button. Email magic link
-is the more user-friendly option for people who avoid OAuth.
+Email magic link + Discord buttons + anonymous→account linking shipped in
+`account.ts` / `social/auth.ts` (3-row sign-in: email / Google / Discord).
+Code is dormant until the providers are enabled in Supabase — see
+`docs/auth-setup.md`. **Apple Sign-In is still TODO** (iOS-only requirement;
+needs the Apple Developer Program). Note: email magic-link stores the address
+in `auth.users`; a truly anonymous "sync code" alternative is parked in TODO.md.
 
 ### Friends-test deploy on Vercel (`xs`)
 
@@ -497,7 +500,13 @@ notifications, or "your friend just played" pings — those are
 explicitly banned in `ETHICS.md`. Likewise, **never** unlock playtime
 for money. The cap is a feature, not a paywall.
 
-### Feedback panel (`s`)
+### ~~Feedback panel~~ — SHIPPED 2026-06-09 (`s`)
+
+Shipped as a **"send feedback" button** in the account panel: opens a
+configurable channel (`VITE_FEEDBACK_URL`, default GitHub issues) and grants
+the hidden "kinda game dev" skin + "reviewer" badge on first use. The
+table-backed form + weekly AI digest below remain a separate, still-open
+enhancement if we want structured feedback later.
 
 A simple form in the menu posting to a `feedback (id, user_id,
 text, created_at)` table. Free-text only. No "feature request" radio
@@ -698,6 +707,12 @@ streak, plays count. Still missing: friend scores + attempts counter
 
 | Date       | What                                                                |
 |------------|---------------------------------------------------------------------|
+| 2026-06-09 | feat: gameplay haptics (flap/score/crash) + Vibration setting; iOS Safari is a no-op until a native Taptic bridge |
+| 2026-06-09 | feat: feedback button + hidden "kinda game dev" skin + "reviewer" badge |
+| 2026-06-09 | feat: collectible badge system (badges-catalog.ts) surfaced in the gallery badges tab |
+| 2026-06-09 | feat: cosmetics variety pass — 4 pillar colors, 5 preset skins, "feather" flap sound, each gated on a different stat axis |
+| 2026-06-09 | feat: 3-row sign-in (email magic link / Google / Discord) + anonymous→account linking (dormant until providers configured) |
+| 2026-06-09 | chore: cleanup_stale_anonymous_users() migration; docs/packaging-notes.md + docs/auth-setup.md; README refresh |
 | 2026-05-26 | feat/challenge-friend-button: top-level menu entry + friend picker + auto-create challenge on death |
 | 2026-05-26 | feat/shape-gallery: 6 shapes (plane/v2/dart/kite/crane/butterfly) + gallery with unlock predicates replacing old skin picker |
 | 2026-05-26 | feat/pregame-daily-landing: pre-game screen with tier/modifier/PB/streak before daily starts |

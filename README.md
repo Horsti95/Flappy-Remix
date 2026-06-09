@@ -70,8 +70,10 @@ See [`IDEAS.md`](./IDEAS.md) for the running list of what to build next.
 - 281T-skin RGB system with rarity tiers driven by ΔE2000 color
   contrast and complementary-hue detection. Unlocks at 1, 10, 50, 100,
   200, 500, 1000, 2000, 5000 lifetime games.
-- Anonymous Supabase auth on first load, optional Google upgrade,
-  3–8 char alphanumeric usernames with a curated profanity blocklist.
+- Anonymous Supabase auth on first load; optional upgrade to Google,
+  Discord, or email (magic link) with anonymous→account linking so
+  progress carries over; 3–8 char alphanumeric usernames with a curated
+  profanity blocklist.
 - Server-side replay validation via a Vercel edge function. Every
   accepted run is re-simulated and rejected if its score doesn't match.
 - Daily seed shared by every player on a given UTC date, with a daily
@@ -97,6 +99,12 @@ See [`IDEAS.md`](./IDEAS.md) for the running list of what to build next.
   queue in localStorage and flush automatically when you're back
   online (or when the tab regains focus).
 - GDPR data export and account-delete endpoints in the account panel.
+- Haptic feedback on flap / score / crash, toggled by a Vibration setting
+  (no-op on iOS Safari until a native Taptic bridge in the wrapped app).
+- Collectible badges (earned from play / feedback / supporter) shown in the
+  gallery, plus a "send feedback" button that grants a hidden skin + badge.
+- Variety-pass cosmetics: pillar colors, preset skins, and flap sounds gated
+  on mixed axes (time-of-day, streaks, daily tiers) rather than one number.
 
 ## Local dev
 
@@ -111,7 +119,7 @@ only — runs aren't persisted and there is no leaderboard, friends, or
 ranked. The game itself plays the same.
 
 ```sh
-npm test                   # vitest — 85 unit + integration tests
+npm test                   # vitest — 186 unit + integration tests
 npm run typecheck          # tsc --noEmit
 npm run build              # production build to dist/
 npm run icons              # regenerate PWA / OG icons from the SVG
@@ -128,8 +136,12 @@ Both are free tier for the scale you're likely to start at.
 4. Apply migrations: `supabase db push`. Migrations live in
    `supabase/migrations/000{1,2,3,4}_*.sql`.
 5. In the Supabase dashboard: enable **Anonymous Sign-Ins**
-   (Authentication → Providers). Configure Google OAuth if you want
-   it.
+   (Authentication → Providers). To offer account sign-in, enable the
+   **Email**, **Google**, and **Discord** providers, turn on **Manual
+   Linking**, and set the URL config — full checklist in
+   [`docs/auth-setup.md`](./docs/auth-setup.md). Native-packaging and
+   store/monetization notes live in
+   [`docs/packaging-notes.md`](./docs/packaging-notes.md).
 6. Copy keys into `.env`:
 
    ```
@@ -251,7 +263,7 @@ fake notifications.
 
 ## Tests
 
-85 vitest tests cover: PRNG stability, sim determinism, ΔE2000 + rarity
+186 vitest tests cover: PRNG stability, sim determinism, ΔE2000 + rarity
 classification, replay validator (cadence, score mismatch, tampering),
 daily seed determinism + UTC boundary + leap-year math, all 8 streak
 rules, ELO math (16 cases), BO3 settlement, season soft-reset chain,

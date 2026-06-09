@@ -1,5 +1,30 @@
 # TODO
 
+## Parked — decided/started, picked up later (added 2026-06-09)
+
+- **Onboarding misses deep-link arrivals.** The first-launch guided practice
+  run only fires on the menu path (`!tutorialSeen()` in `main.ts`); the
+  challenge / run / daily deep-link branches `return` before it, so friends who
+  arrive via a shared link never get the intro. Plan: show a lightweight
+  first-time "new here? try Practice" pointer (arrow at the Practice button) on
+  the menu for anyone who hasn't seen the tutorial, regardless of entry path —
+  so deep-link arrivals get pointed to practice after their first run. (Owner
+  leaning toward replacing the auto guided run with this lighter pointer.)
+- **Supporter badge → redeem-code grant.** The badge exists (badges-catalog.ts,
+  `grantBadge`) and the redeem-code flow exists (`api/redeem-code.ts`); wire a
+  code to also grant the "supporter" badge so the BMC Glider tier is
+  end-to-end. Small server + client extension.
+- **Seasonal-event rewards.** The new-year / pride / red-ribbon criteria in
+  `unlock-criteria.ts` are date-gated. Needs date-latched stat flags (earned
+  during the window, then kept) before they can grant real rewards.
+- **Emailless "sync code".** Privacy-first cross-device option (generate a code
+  on one device, enter on another to move/link the account) so progress can
+  travel without collecting an email. Reuses the redeem-code pattern.
+- **Art-dependent TBA rewards.** The fx-trail / background / shape planned
+  rewards in `unlock-criteria.ts` need real particle/art work (the expensive
+  tier) — deferred from the cosmetics variety pass.
+
+
 ## #4 — Ranked ghost (replay the opponent's round)
 
 **Goal:** after both players finish a ranked round, let each player race the

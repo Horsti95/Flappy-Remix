@@ -270,7 +270,8 @@ export type FlapSoundId =
   | "glass_tap"
   | "string_pluck"
   | "vinyl_click"
-  | "shimmer";
+  | "shimmer"
+  | "feather";
 
 export interface FlapSoundUnlock {
   unlocked: boolean;
@@ -306,6 +307,8 @@ export const FLAP_SOUND_OPTIONS: { id: FlapSoundId; label: string; blurb: string
     unlock: (s) => ({ unlocked: s.totalGames >= 500, hint: "play 500 games" }) },
   { id: "shimmer",      label: "Shimmer",      blurb: "high triangle shimmer",
     unlock: (s) => ({ unlocked: s.totalGames >= 1000, hint: "play 1000 games" }) },
+  { id: "feather",      label: "Feather",      blurb: "soft airy chime — grace over force",
+    unlock: (s) => ({ unlocked: s.minimalistDone === true, hint: "earn the minimalist run (25+ with <80 taps)" }) },
 ];
 
 /** When true, every sound in the picker shows as unlocked so the
@@ -564,6 +567,37 @@ export function playFlap(id: FlapSoundId = getActiveFlapSound()): void {
         osc.start(at);
         osc.stop(at + 0.17);
       });
+      break;
+    }
+    case "feather": {
+      // A breathy band-passed noise puff with a faint high sine on top —
+      // soft and weightless, the "minimalist" reward.
+      const buf = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.12), ac.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) {
+        const env = Math.sin((Math.PI * i) / data.length); // gentle swell + fade
+        data[i] = (Math.random() * 2 - 1) * env * 0.5;
+      }
+      const src = ac.createBufferSource();
+      src.buffer = buf;
+      const bp = ac.createBiquadFilter();
+      bp.type = "bandpass";
+      bp.frequency.value = 2600;
+      bp.Q.value = 0.8;
+      const ng = ac.createGain();
+      ng.gain.value = 0.35;
+      src.connect(bp).connect(ng).connect(master);
+      src.start(t);
+      const osc = ac.createOscillator();
+      const g = ac.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(1760, t);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.05, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+      osc.connect(g).connect(master);
+      osc.start(t);
+      osc.stop(t + 0.13);
       break;
     }
   }

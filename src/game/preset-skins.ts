@@ -43,6 +43,18 @@ export const PRESET_SKINS: PresetSkin[] = [
     unlock: (s) => ({ unlocked: s.totalGames >= 300, hint: "play 300 games" }) },
   { id: "preset-germany", name: "Germany", body: [221, 0, 0], accent: [255, 206, 0],
     unlock: (s) => ({ unlocked: s.totalGames >= 20, hint: "play 20 games" }) },
+  // --- Variety pass: harder, character-driven unlocks across mixed axes,
+  //     so the higher tiers feel earned rather than "another number". ---
+  { id: "preset-brass", name: "burnished brass", body: [181, 140, 60], accent: [70, 50, 15],
+    unlock: (s) => ({ unlocked: s.totalGames >= 750, hint: "play 750 games" }) },
+  { id: "preset-evergreen", name: "evergreen", body: [34, 120, 68], accent: [12, 45, 28],
+    unlock: (s) => ({ unlocked: s.streakDays >= 60, hint: "60-day streak" }) },
+  { id: "preset-steel", name: "tempered steel", body: [120, 130, 140], accent: [40, 45, 52],
+    unlock: (s) => ({ unlocked: s.superHardDailyBest >= 40, hint: "score 40+ on a super-hard daily" }) },
+  { id: "preset-dawn", name: "dawn gold", body: [255, 196, 92], accent: [150, 90, 30],
+    unlock: (s) => ({ unlocked: s.morningGames >= 30, hint: "play 30 sunrise games (05:00–07:00)" }) },
+  { id: "preset-midnight", name: "midnight violet", body: [90, 60, 160], accent: [25, 15, 55],
+    unlock: (s) => ({ unlocked: s.lateNightGames >= 50, hint: "play 50 late-night games" }) },
   // Chameleon — legendary. Colours are placeholders; the real pair is rolled
   // fresh each run (see game/chameleon.ts). The gallery paints it as a rainbow
   // so it reads as "random every time".

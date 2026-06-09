@@ -38,6 +38,16 @@ export const PILLAR_COLORS: PillarColor[] = [
     unlock: (s) => ({ unlocked: s.totalScore >= 1000, hint: "score 1000 lifetime points" }) },
   { id: "mono",    name: "mono",    body: "#e6e6e6", cap: "#1a1a1a",
     unlock: (s) => ({ unlocked: s.streakDays >= 5, hint: "5-day streak" }) },
+  // --- Variety pass: each gated on a *different* axis so unlocks don't all
+  //     read as "reach a bigger number" (see docs / unlock-criteria ideas). ---
+  { id: "marble",     name: "marble",     body: "#e8e8ea", cap: "#9a9aa0",
+    unlock: (s) => ({ unlocked: s.bestScore >= 150, hint: "score 150 in a single run" }) },
+  { id: "sunrise",    name: "sunrise",    body: "#ff9e5e", cap: "#c63b6e",
+    unlock: (s) => ({ unlocked: s.dailyStreakDays >= 10, hint: "score 20+ on the daily 10 days running" }) },
+  { id: "thunderhead", name: "thunderhead", body: "#4b5563", cap: "#1f2937",
+    unlock: (s) => ({ unlocked: s.hardDailyBest >= 50, hint: "score 50+ on a hard daily" }) },
+  { id: "moonlit",    name: "moonlit",    body: "#3b4a8c", cap: "#161f3f",
+    unlock: (s) => ({ unlocked: s.nightGames >= 30, hint: "play 30 night games (22:00–04:00)" }) },
 ];
 
 const BY_ID = new Map(PILLAR_COLORS.map((c) => [c.id, c]));

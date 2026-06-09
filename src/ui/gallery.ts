@@ -51,6 +51,11 @@ import {
 } from "../game/flap-fx";
 import { getChainViews, type QuestChain, type QuestStep } from "../game/quests";
 import { listMyBadges, getCachedBadges, isDeveloper, type SeasonBadge } from "../social/badges";
+import {
+  earnedBadges,
+  lockedVisibleBadges,
+  type BadgeDef,
+} from "../game/badges-catalog";
 import { authState } from "../social/auth";
 import { isPlaytester } from "../game/playtester";
 
@@ -364,14 +369,8 @@ export function renderGallery(
     body.innerHTML = "";
     const playtester = isPlaytester(authState().profile?.created_at);
     const developer = isDeveloper(authState().profile?.username);
-    if (badges.length === 0 && !playtester && !developer) {
-      const empty = document.createElement("div");
-      empty.className = "px-4 mt-8 text-center text-[12px] opacity-60 leading-relaxed";
-      empty.textContent =
-        "No badges yet — finish top-100 in a ranked season to earn one.";
-      body.appendChild(empty);
-      return;
-    }
+    const stats = loadAchievementStats();
+
     const desc = document.createElement("div");
     desc.className = "text-[11px] opacity-70 px-2 mb-3";
     desc.textContent = "your badges — keepsakes you carry on your profile forever.";
@@ -379,12 +378,23 @@ export function renderGallery(
     const grid = document.createElement("div");
     grid.className = "grid grid-cols-2 gap-4 px-2 pt-1";
     body.appendChild(grid);
-    if (playtester) grid.appendChild(playtesterCard());
+
+    // Prestige / server-side badges first (rarest at the top).
     if (developer) grid.appendChild(devBadgeCard());
+    if (playtester) grid.appendChild(playtesterCard());
     const sorted = [...badges].sort((a, b) => b.season_id - a.season_id);
     const bestRank = sorted.length ? Math.min(...sorted.map((b) => b.rank)) : 0;
     for (const badge of sorted) {
       grid.appendChild(badgeCard(badge, badge.rank === bestRank));
+    }
+
+    // Then the collectible badges: earned ones in full, then non-secret
+    // locked ones as dimmed teasers so players see what's next.
+    for (const def of earnedBadges(stats)) {
+      grid.appendChild(collectibleBadgeCard(def, true));
+    }
+    for (const def of lockedVisibleBadges(stats)) {
+      grid.appendChild(collectibleBadgeCard(def, false));
     }
   }
 
@@ -1425,6 +1435,27 @@ function badgeCard(badge: SeasonBadge, isBest: boolean): HTMLElement {
     <div class="opacity-70 text-[12px]">Rank #${badge.rank}</div>
     <div class="opacity-50 text-[10px]">Rating ${badge.rating}</div>
     ${isBest ? `<div class="absolute top-1 right-1 text-[9px] bg-amber-300 text-ink rounded-full px-1.5 py-0.5">best</div>` : ""}
+  `;
+  return el;
+}
+
+/** A collectible badge (earned from play / feedback / supporter). */
+function collectibleBadgeCard(def: BadgeDef, unlocked: boolean): HTMLElement {
+  const el = document.createElement("div");
+  el.dataset.noFlap = "true";
+  el.className = `relative rounded-2xl p-4 flex flex-col items-center gap-2 text-center border-2 ${
+    unlocked ? "bg-white/5" : "bg-white/[0.02] border-white/10 opacity-60"
+  }`;
+  if (unlocked) el.style.borderColor = `${def.color}66`;
+  el.innerHTML = `
+    <div class="text-3xl ${unlocked ? "" : "grayscale opacity-60"}">${def.emoji}</div>
+    <div class="font-bold text-sm">${escapeHtml(def.name)}</div>
+    <div class="text-[10px] opacity-60 leading-snug">${escapeHtml(def.hint)}</div>
+    ${
+      unlocked
+        ? `<div class="text-[9px] uppercase tracking-wider font-bold" style="color:${def.color}">earned</div>`
+        : `<div class="absolute top-1 right-1 text-[9px] bg-white/10 rounded-full px-1.5 py-0.5">locked</div>`
+    }
   `;
   return el;
 }

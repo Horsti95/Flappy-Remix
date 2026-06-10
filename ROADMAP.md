@@ -129,6 +129,23 @@ Still open in Phase 0 (needs a focused pass + sequential DB migrations):
 Supabase SQL editor. Remaining Phase-0 item: speed-ramp cap (client +
 server sim together, own pass).
 
+## Shipped 2026-06-10 (session batch 4 — reward layer + Phase 0 complete)
+
+- ✅ `feat/pilot-xp` + `feat/death-screen-v2`: flat XP economy
+  (`src/game/xp.ts`, curve 100×1.12^level, gate milestones 50/100/250),
+  death screen now shows PB delta ("2 away from your best"), animated XP
+  bar + LEVEL UP, and a next-unlock breadcrumb (`src/game/next-unlock.ts`,
+  stat-probing — no per-item criterion metadata needed). Level shown on
+  the account panel. Practice runs grant nothing.
+- ✅ Speed-ramp cap at difficulty level 20 (score 400) — locked into the
+  replay contract (`maxDifficultyLevel` in config.ts), pinned by
+  tests/difficulty-cap.test.ts. **Phase 0 is now fully shipped.**
+
+Next up (Phase 2 continuation): `feat/pb-ghost` (earned at score 30),
+`feat/mint-choice`, `feat/trails`, `feat/gate-fx`, `feat/unlock-remap`,
+`feat/ascent-mastery`. Level-up *rewards* (livery tokens etc.) deferred
+to `feat/mint-choice` so tokens have something to spend on.
+
 ## Standing decisions
 - **Name: Glide** (domain glide.uno). Art direction: **Paper Sky**.
 - One branch per item, preview deploy per branch; `fix-pack` batching

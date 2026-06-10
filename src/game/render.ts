@@ -45,6 +45,10 @@ export class Renderer {
   private overscanY = 0;
   /** Wall-clock stamp of the last particle tick (cosmetic layer only). */
   private lastParticleTick: number | null = null;
+  /** Death-crumple animation clock — render-layer only, reset on revival. */
+  private deathAnimStart: number | null = null;
+  private deathAnimY = 0;
+  private deathDustAt: number | null = null;
   /** Interactive themes whose stage set we've already kicked off loading. */
   private stagesKicked = new Set<string>();
   options: RenderOptions;
@@ -297,8 +301,14 @@ export class Renderer {
     }
 
     const by = sim.alive ? sim.prevBirdY + (sim.birdY - sim.prevBirdY) * alpha : sim.birdY;
-    const tilt = this.options.reducedMotion ? 0 : Math.max(-0.6, Math.min(1.0, sim.birdVY / 600));
-    this.drawShape(cfg.birdX, by, tilt, this.options.skin, this.options.shape, sim.cfg.birdRadius, true);
+    if (sim.alive) {
+      this.deathAnimStart = null;
+      this.deathDustAt = null;
+      const tilt = this.options.reducedMotion ? 0 : Math.max(-0.6, Math.min(1.0, sim.birdVY / 600));
+      this.drawShape(cfg.birdX, by, tilt, this.options.skin, this.options.shape, sim.cfg.birdRadius, true);
+    } else {
+      this.drawDeathAnim(sim.birdY);
+    }
 
     // Flap-FX particles. Painted after the bird so they trail behind it
     // visually. Ticked with real elapsed wall-clock time (clamped so a
@@ -512,6 +522,102 @@ export class Renderer {
       }
     }
 
+    ctx.restore();
+  }
+
+  /**
+   * Paper-crumple death (Paper Sky): the plane collapses into a crumpled
+   * paper ball (~260ms), flutters down with a falling-leaf sway, and lands
+   * with a small dust puff. Pure render layer — the sim's frozen death
+   * position is the only input, and the game-over overlay / restart are
+   * never delayed by it. Reduced motion skips straight to the final state.
+   */
+  private drawDeathAnim(deathY: number): void {
+    const ctx = this.ctx;
+    const x = this.cfg.birdX;
+    const r = this.cfg.birdRadius;
+    const ground = this.cfg.worldHeight - r - 4;
+    if (this.options.reducedMotion) {
+      this.drawCrumpledBall(x, Math.min(deathY, ground), 1, 0);
+      return;
+    }
+    const now = performance.now();
+    if (this.deathAnimStart == null) {
+      this.deathAnimStart = now;
+      this.deathAnimY = Math.min(deathY, ground);
+    }
+    const t = (now - this.deathAnimStart) / 1000;
+    const CRUMPLE_S = 0.26;
+    if (t < CRUMPLE_S) {
+      // Phase 1: the shape shrinks and twists while the ball fades in over it.
+      const k = t / CRUMPLE_S;
+      ctx.save();
+      ctx.translate(x, this.deathAnimY);
+      ctx.scale(1 - 0.45 * k, 1 - 0.45 * k);
+      ctx.rotate(0.9 * k);
+      ctx.globalAlpha = 1 - k;
+      ctx.translate(-x, -this.deathAnimY);
+      this.drawShape(x, this.deathAnimY, 0.4, this.options.skin, this.options.shape, r);
+      ctx.restore();
+      this.drawCrumpledBall(x, this.deathAnimY, k, 0.9 * k);
+      return;
+    }
+    // Phase 2: flutter down — side-to-side sway with a slight wobble.
+    const ft = t - CRUMPLE_S;
+    let y = this.deathAnimY + 90 * ft + 420 * ft * ft;
+    const landed = y >= ground;
+    if (landed) y = ground;
+    const sway = landed ? 0 : Math.sin(ft * 7) * 10;
+    const wobble = landed ? 0 : Math.sin(ft * 7) * 0.35;
+    this.drawCrumpledBall(x + sway, y, 1, wobble);
+    if (landed && this.deathDustAt == null) this.deathDustAt = now;
+    if (this.deathDustAt != null) {
+      const dust = (now - this.deathDustAt) / 300;
+      if (dust < 1) {
+        ctx.save();
+        ctx.globalAlpha = 0.35 * (1 - dust);
+        ctx.fillStyle = "#d8d2c2";
+        for (const dir of [-1, 1]) {
+          ctx.beginPath();
+          ctx.arc(x + dir * (r * 0.9 + dust * r * 1.6), ground + r * 0.6, r * 0.35 * (1 + dust), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
+  }
+
+  /** An irregular paper-ball polygon in the equipped skin, crease lines in accent. */
+  private drawCrumpledBall(x: number, y: number, alpha: number, rot: number): void {
+    const ctx = this.ctx;
+    const r = this.cfg.birdRadius;
+    // Fixed jitter so the ball doesn't shimmer frame to frame.
+    const JITTER = [0.92, 0.74, 1.0, 0.81, 0.95, 0.7, 0.88, 0.78, 0.97, 0.73];
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.beginPath();
+    for (let i = 0; i < JITTER.length; i++) {
+      const a = (i / JITTER.length) * Math.PI * 2;
+      const rr = r * JITTER[i];
+      if (i === 0) ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+      else ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    }
+    ctx.closePath();
+    ctx.fillStyle = `rgb(${this.options.skin.body.join(",")})`;
+    ctx.fill();
+    // Crease lines: three short folds across the ball.
+    ctx.strokeStyle = `rgba(${this.options.skin.accent.join(",")},0.55)`;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.5, -r * 0.25);
+    ctx.lineTo(r * 0.3, r * 0.1);
+    ctx.moveTo(-r * 0.1, -r * 0.6);
+    ctx.lineTo(r * 0.15, r * 0.45);
+    ctx.moveTo(-r * 0.55, r * 0.35);
+    ctx.lineTo(r * 0.5, r * 0.3);
+    ctx.stroke();
     ctx.restore();
   }
 

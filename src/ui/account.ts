@@ -2,6 +2,7 @@ import { authState, claimUsername, signInWithGoogle, signInWithDiscord, signInWi
 import { validateUsername } from "../social/profanity";
 import { refreshGrantedShapes } from "../social/grants";
 import { markFeedbackGiven } from "../game/achievements";
+import { APP_VERSION } from "../game/changelog";
 import { playUnlockSound, triggerUnlockHaptic } from "../game/sfx";
 
 /**
@@ -106,7 +107,12 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void, onVie
         <div class="panel-group-label">Feedback</div>
         <div class="rounded-2xl bg-white/5 p-4">
           <p class="text-xs opacity-70 mb-2">Found a bug or have an idea? Tell us — there's a little something in it for you.</p>
-          <button data-feedback class="btn-secondary w-full py-2.5 text-sm">send feedback</button>
+          <form data-feedback-form class="flex flex-col gap-2">
+            <textarea data-feedback-input rows="3" maxlength="2000"
+                      class="w-full rounded-xl bg-white/10 px-3 py-2 text-sm outline-none focus:bg-white/20 resize-none"
+                      placeholder="what happened / what would you like?"></textarea>
+            <button data-feedback class="btn-secondary w-full py-2.5 text-sm">send feedback</button>
+          </form>
           <div data-feedback-status class="mt-2 text-[12px] min-h-[1em] opacity-70"></div>
         </div>
 
@@ -217,21 +223,72 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void, onVie
         status.textContent = "network error. try again.";
       }
     });
-    wrap.querySelector("[data-feedback]")?.addEventListener("click", (e) => {
+    wrap.querySelector("[data-feedback-form]")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
       e.stopPropagation();
       const status = wrap.querySelector("[data-feedback-status]") as HTMLDivElement;
-      // Open the feedback channel first (the click is still a user gesture),
-      // then latch the reward. Honour-system: we can't verify a form was sent.
-      window.open(FEEDBACK_URL, "_blank", "noopener,noreferrer");
-      const { newlyUnlocked } = markFeedbackGiven();
-      if (newlyUnlocked) {
-        playUnlockSound("epic");
-        triggerUnlockHaptic("epic");
-        status.className = "mt-2 text-[12px] min-h-[1em] text-emerald-300";
-        status.textContent = `thanks! unlocked “${newlyUnlocked.name}” — open Gallery to equip the skin.`;
-      } else {
-        status.className = "mt-2 text-[12px] min-h-[1em] opacity-70";
-        status.textContent = "thanks for the feedback!";
+      const input = wrap.querySelector("[data-feedback-input]") as HTMLTextAreaElement;
+      const btn = wrap.querySelector("[data-feedback]") as HTMLButtonElement;
+      const message = input.value.trim();
+      const session = s.session;
+
+      const celebrate = () => {
+        const { newlyUnlocked } = markFeedbackGiven();
+        if (newlyUnlocked) {
+          playUnlockSound("epic");
+          triggerUnlockHaptic("epic");
+          status.className = "mt-2 text-[12px] min-h-[1em] text-emerald-300";
+          status.textContent = `thanks! unlocked “${newlyUnlocked.name}” — open Gallery to equip the skin.`;
+        } else {
+          status.className = "mt-2 text-[12px] min-h-[1em] opacity-70";
+          status.textContent = "thanks for the feedback!";
+        }
+      };
+
+      // No session or empty box: fall back to the external feedback page
+      // (the submit click is still a user gesture). Honour-system latch.
+      if (!session || message.length < 10) {
+        if (message.length > 0 && message.length < 10) {
+          status.className = "mt-2 text-[12px] min-h-[1em] text-red-300";
+          status.textContent = "a few more words? (10 characters minimum)";
+          return;
+        }
+        window.open(FEEDBACK_URL, "_blank", "noopener,noreferrer");
+        celebrate();
+        return;
+      }
+
+      btn.disabled = true;
+      status.className = "mt-2 text-[12px] min-h-[1em] opacity-70";
+      status.textContent = "sending…";
+      try {
+        const res = await fetch("/api/feedback", {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${session.access_token}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ message, version: APP_VERSION }),
+        });
+        if (res.ok) {
+          input.value = "";
+          celebrate();
+        } else if (res.status === 503) {
+          // API not wired up (yet) — external page keeps the flow alive.
+          window.open(FEEDBACK_URL, "_blank", "noopener,noreferrer");
+          celebrate();
+        } else if (res.status === 429) {
+          status.className = "mt-2 text-[12px] min-h-[1em] text-red-300";
+          status.textContent = "easy there — try again in a few minutes.";
+        } else {
+          status.className = "mt-2 text-[12px] min-h-[1em] text-red-300";
+          status.textContent = "couldn't send. try again?";
+        }
+      } catch {
+        status.className = "mt-2 text-[12px] min-h-[1em] text-red-300";
+        status.textContent = "network error. try again.";
+      } finally {
+        btn.disabled = false;
       }
     });
     wrap.querySelector("[data-export]")?.addEventListener("click", async (e) => {

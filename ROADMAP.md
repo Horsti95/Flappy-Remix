@@ -110,6 +110,25 @@ Still open in Phase 0 (needs a focused pass + sequential DB migrations):
 `fix/security-profiles-rls`, `fix/security-replay-theft`,
 `fix/ranked-repair`, speed-ramp cap (client+server sim together).
 
+## Shipped 2026-06-10 (session batch 3 — security & ranked repair)
+
+- ✅ `fix/security-profiles-rls` → **migration 0023**: clients can only
+  update username / equipped_skin_id / equipped_shape; skin-ownership +
+  username-permanence trigger; progression counters server-only
+- ✅ `fix/security-replay-theft` → **migration 0024** + submit-run:
+  inputs-hash dedupe (cross-account = replay_theft, same-account =
+  idempotent duplicate), inputs-after-death rejected
+- ✅ `fix/ranked-repair` → **migration 0025** + api: seasonal Elo PK
+  (season rolls won't abort), optimistic-locked settlement (no lost
+  rounds / double Elo), W/L/D actually recorded, ranked leaderboard
+  bypass closed (validate before insert, orphans deleted), lazy match
+  expiry in queue/challenge/submit, ranked-challenge needs accepted
+  friendship + one live match per pair
+
+⚠ **Apply migrations 0022 → 0023 → 0024 → 0025 in order** in the
+Supabase SQL editor. Remaining Phase-0 item: speed-ramp cap (client +
+server sim together, own pass).
+
 ## Standing decisions
 - **Name: Glide** (domain glide.uno). Art direction: **Paper Sky**.
 - One branch per item, preview deploy per branch; `fix-pack` batching

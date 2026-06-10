@@ -16,16 +16,25 @@ export interface GeneratedSkin {
 }
 
 export function generateSkinForThreshold(userId: string, threshold: number): GeneratedSkin {
-  const rng = new Rng(hashStringToSeed(`pflug-skin:${userId}:${threshold}`));
   // Bias toward more interesting hues: pick two LCH-ish points by
   // sampling chroma > 30 and any hue. Higher thresholds widen the
   // chroma floor so unlocks at 1000 / 2000 / 5000 trend toward epic+.
   const minChroma = threshold >= 500 ? 80 : threshold >= 100 ? 60 : 30;
+  const { skin, rarity, encoded } = generateSkinFromKey(`pflug-skin:${userId}:${threshold}`, minChroma);
+  return { threshold, skin, rarity, encoded };
+}
+
+/** Deterministic skin mint for an arbitrary key (thresholds, daily champions, …). */
+export function generateSkinFromKey(
+  key: string,
+  minChroma: number,
+): { skin: SkinColors; rarity: Rarity; encoded: bigint } {
+  const rng = new Rng(hashStringToSeed(key));
   const body = sampleColor(rng, minChroma);
   const accent = sampleColor(rng, minChroma);
   const skin: SkinColors = { body, accent };
   const rarity = classifyRarity(skin).rarity;
-  return { threshold, skin, rarity, encoded: encodeSkin(skin) };
+  return { skin, rarity, encoded: encodeSkin(skin) };
 }
 
 function sampleColor(rng: Rng, minChromaTarget: number): [number, number, number] {

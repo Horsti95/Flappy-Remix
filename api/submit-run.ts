@@ -2,6 +2,7 @@ import { dailyDateString, dailySeed } from "../src/game/daily";
 import { applyModifiers, pickDaily } from "../src/game/daily-twist";
 import { DEFAULT_CONFIG } from "../src/game/config";
 import { getAdminClient } from "./_lib/supabaseAdmin";
+import { grantYesterdaysChampions } from "./_lib/champions";
 import { computeStreak } from "./_lib/streak";
 import {
   generateSkinForThreshold,
@@ -115,6 +116,17 @@ export default async function handler(req: Request): Promise<Response> {
     .select("id")
     .single();
   if (run.error) return json({ error: run.error.message }, 500);
+
+  // Lazy day-close: the first daily submission of a new UTC day mints
+  // champion skins for yesterday's podium. Strictly best-effort — a
+  // champion-grant hiccup must never fail the player's own submission.
+  if (body.mode === "daily") {
+    try {
+      await grantYesterdaysChampions(admin);
+    } catch {
+      // retried on the next daily submission
+    }
+  }
 
   // Ranked: post the run into the right round slot, settle ELO if
   // this finishes the BO3.

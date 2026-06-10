@@ -248,7 +248,18 @@ const input = new InputController(stage, {
     else if (mode === "paused") setPaused(false);
   },
   onRestart: () => {
-    if (mode === "dead") startRun(currentRunMode);
+    if (mode !== "dead") return;
+    // Mirror the game-over "play again" routing: a submitted ranked round
+    // must not be replayed (server rejects the re-submit), and a daily goes
+    // back through the landing so the 3-attempt cap stays in charge.
+    if (currentRunMode === "ranked") {
+      activeRanked = null;
+      openRankedPanel();
+    } else if (currentRunMode === "daily") {
+      openDailyLanding();
+    } else {
+      startRun(currentRunMode);
+    }
   },
 });
 input.attach();
@@ -584,7 +595,11 @@ function showMenu(): void {
 
 function openDailyLanding(): void {
   if (!dailyInfo) {
-    startRun("daily");
+    // No daily seed available (offline / fetch race). Never silently start
+    // a random-seed run labelled "daily" — play an honest casual run and
+    // kick a refresh so the next attempt has the real daily.
+    void refreshDaily();
+    startRun("casual");
     return;
   }
   overlays.innerHTML = "";
@@ -720,6 +735,13 @@ function onToggleSetting(key: keyof Settings): void {
 }
 
 function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {}): void {
+  // Safety net: a "daily" without dailyInfo would fall through to a random
+  // seed below while still being labelled (and submitted) as a daily, which
+  // the server can't validate. Downgrade honestly to casual instead.
+  if (runMode === "daily" && !dailyInfo) {
+    runMode = "casual";
+    void refreshDaily();
+  }
   overlays.innerHTML = "";
   mode = "playing";
   currentRunMode = runMode;

@@ -92,6 +92,24 @@ needs packages + a window, not a full season system.
   + "Contraband" gallery grouping
 - ✅ Docs: devlog/0005 decisions, design/prompts-paper-sky.md
 
+## Shipped 2026-06-10 (session batch 2 — Phase-0 trust fixes)
+
+- ✅ SW `navigateFallbackDenylist`: installed PWAs no longer swallow
+  `/run/:id` share links ("share loaded nothing" bug)
+- ✅ Challenge twist physics end-to-end: `challenges.daily_date`
+  (**migration 0022 — apply in Supabase**), ghost + responder + server
+  validator all replay daily-twist challenges under the right config
+- ✅ submit-run auths BEFORE running the replay simulation
+- ✅ Daily-without-seed fallback now starts an honest casual run (never a
+  mislabelled "daily"), both from the landing shortcut and inside startRun
+- ✅ `R`-key restart mirrors play-again routing (no ranked re-submit, no
+  daily-cap bypass)
+- ✅ Ranked match list actually shows "you won / you lost"
+
+Still open in Phase 0 (needs a focused pass + sequential DB migrations):
+`fix/security-profiles-rls`, `fix/security-replay-theft`,
+`fix/ranked-repair`, speed-ramp cap (client+server sim together).
+
 ## Standing decisions
 - **Name: Glide** (domain glide.uno). Art direction: **Paper Sky**.
 - One branch per item, preview deploy per branch; `fix-pack` batching

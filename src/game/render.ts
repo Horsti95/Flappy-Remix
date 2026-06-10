@@ -43,6 +43,8 @@ export class Renderer {
   private offsetY = 0;
   private overscanX = 0;
   private overscanY = 0;
+  /** Wall-clock stamp of the last particle tick (cosmetic layer only). */
+  private lastParticleTick: number | null = null;
   /** Interactive themes whose stage set we've already kicked off loading. */
   private stagesKicked = new Set<string>();
   options: RenderOptions;
@@ -299,12 +301,15 @@ export class Renderer {
     this.drawShape(cfg.birdX, by, tilt, this.options.skin, this.options.shape, sim.cfg.birdRadius, true);
 
     // Flap-FX particles. Painted after the bird so they trail behind it
-    // visually. Tick happens on each draw call using a fixed assumed
-    // dt — the sim is 60 Hz, render is whatever the browser gives us,
-    // so we approximate via 1/60. Particles are visual-only and never
-    // feed the sim back, so this is safe.
+    // visually. Ticked with real elapsed wall-clock time (clamped so a
+    // background tab doesn't fast-forward them) — a fixed 1/60 ran them
+    // 2× fast on 120 Hz displays. Particles are visual-only and never
+    // feed the sim back, so wall-clock dt is safe.
     if (!this.options.reducedMotion) {
-      tickParticles(1 / 60);
+      const now = performance.now();
+      const dt = this.lastParticleTick == null ? 1 / 60 : Math.min(0.05, (now - this.lastParticleTick) / 1000);
+      this.lastParticleTick = now;
+      tickParticles(dt);
       const particles = getParticles();
       if (particles.length > 0) {
         ctx.save();

@@ -222,9 +222,11 @@ observer.observe(stage);
 const input = new InputController(stage, {
   onFlap: () => {
     if (mode === "playing") {
+      // Haptic first: navigator.vibrate has OS-side latency we can't remove,
+      // so don't add our own by scheduling audio/sim work ahead of it.
+      if (settings.haptics) triggerFlapHaptic();
       loop?.flap();
       if (settings.sound) playFlap();
-      if (settings.haptics) triggerFlapHaptic();
       // First flap of the guided onboarding: clear the start prompt and
       // immediately drip the first coaching card so it doesn't conflict.
       if (onboardingActive && !onboardingFlapped) {

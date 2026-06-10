@@ -244,6 +244,67 @@ export const UNLOCK_CRITERIA: CriterionDef[] = [
     plannedReward: { kind: "badge", label: "TBA · red-ribbon badge" },
     check: () => true,
   },
+
+  // --- Drafts that need NEW stat plumbing (2026-06-10 studio review) ---
+  // Exception to this file's "existing counters only" rule, by owner
+  // decision: criteria may be drafted before either the reward OR the
+  // tracking exists. Each `check` below returns false until the noted
+  // counter lands in AchievementStats; the comment says what's missing.
+  {
+    // Needs: per-match Elo delta vs. opponent rating (ranked settle path).
+    id: "giant_slayer",
+    name: "giant slayer",
+    hint: "win a ranked match against someone rated 100+ above you",
+    plannedReward: { kind: "fx", label: "TBA · giant-slayer gate effect" },
+    check: () => false,
+  },
+  {
+    // Needs: same plumbing as giant_slayer, losing side. Secret — being
+    // upset isn't something we tease on a goals list.
+    id: "upset_victim",
+    name: "everyone has bad days",
+    hint: "lose a ranked match to someone rated 100+ below you",
+    secret: true,
+    plannedReward: { kind: "skin", label: "TBA · consolation colors" },
+    check: () => false,
+  },
+  {
+    // Needs: per-gate pass offset from gap center recorded in run results
+    // (sim exposes gap centers; collision code knows bird y at crossing).
+    id: "threading_needles",
+    name: "threading needles",
+    hint: "pass 10 gates dead-center in a single run",
+    plannedReward: { kind: "fx", label: "TBA · ink-stroke trail" },
+    check: () => false,
+  },
+  {
+    // Needs: per-tier daily-clear latches (hard / extreme cleared with a
+    // score worth bragging about). The extreme tier (~3.4% of days) has no
+    // achievement coverage at all today.
+    id: "storm_chaser",
+    name: "storm chaser",
+    hint: "score 25+ on an EXTREME daily",
+    plannedReward: { kind: "badge", label: "TBA · storm-chaser badge" },
+    check: () => false,
+  },
+  {
+    // Needs: rolling 7-day window of distinct daily_date plays (the streak
+    // counter resets on a miss, so it can't express "all 7 this week").
+    id: "perfect_week",
+    name: "perfect week",
+    hint: "play every daily for a full week",
+    plannedReward: { kind: "background", label: "TBA · seven-skies sunrise" },
+    check: () => false,
+  },
+  {
+    // Needs: PB-ghost race results once the PB ghost (score-30 unlock)
+    // ships — "beat the ghost while doubling its score".
+    id: "ghost_doubler",
+    name: "twice the plane you were",
+    hint: "beat your personal-best ghost with double its score",
+    plannedReward: { kind: "sound", label: "TBA · echo gate chime" },
+    check: () => false,
+  },
 ];
 
 /** Pad a number to a 2-digit string. */

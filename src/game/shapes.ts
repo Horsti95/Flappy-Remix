@@ -33,6 +33,15 @@ export type ShapeId =
   | "soccer-ball"
   | "pretzel";
 
+/**
+ * Visual-direction grouping ("Paper Sky"):
+ *  - "paper": the core fleet — things that belong in a paper sky
+ *    (folded paper, kites, petals, birds, weather…).
+ *  - "contraband": off-vibe novelty shapes that have no business flying,
+ *    kept around as a playful smugglers' section in the gallery.
+ */
+export type ShapeCategory = "paper" | "contraband";
+
 export interface ShapeUnlock {
   // Computed unlock state for the current player.
   // `null` means "no condition; always available."
@@ -45,6 +54,8 @@ export interface ShapeMeta {
   name: string;
   /** Human-readable copy for the gallery. */
   blurb: string;
+  /** Gallery grouping — see {@link ShapeCategory}. Purely presentational. */
+  category: ShapeCategory;
   /**
    * Returns the unlock state given the player's lifetime counters.
    * Pure function — no network. Extra optional counters give variety
@@ -697,6 +708,7 @@ export const SHAPES: ShapeMeta[] = [
   {
     id: "paper-plane",
     name: "paper plane",
+    category: "paper",
     blurb: "the classic. starts unlocked.",
     unlock: () => ({ unlocked: true, hint: null }),
     draw: drawPaperPlaneClassic,
@@ -704,6 +716,7 @@ export const SHAPES: ShapeMeta[] = [
   {
     id: "paper-plane-v2",
     name: "paper plane (refined)",
+    category: "paper",
     blurb: "longer dart proportions, cleaner fold.",
     unlock: ({ totalGames }) => ({
       unlocked: totalGames >= 10,
@@ -714,6 +727,7 @@ export const SHAPES: ShapeMeta[] = [
   {
     id: "pixel-bird",
     name: "8-bit bird",
+    category: "contraband",
     blurb: "retro pixel silhouette, beak forward.",
     unlock: ({ bestScore }) => ({
       unlocked: bestScore >= 30,
@@ -724,6 +738,7 @@ export const SHAPES: ShapeMeta[] = [
   {
     id: "kite",
     name: "kite",
+    category: "paper",
     blurb: "diamond proportion, with a tail.",
     unlock: ({ streakDays }) => ({
       unlocked: streakDays >= 3,
@@ -734,6 +749,7 @@ export const SHAPES: ShapeMeta[] = [
   {
     id: "cyber-plane",
     name: "cyber drone",
+    category: "contraband",
     blurb: "angular sci-fi craft with engine notches.",
     unlock: ({ challengeWins, totalGames }) => ({
       unlocked: (challengeWins ?? 0) >= 3 || totalGames >= 200,
@@ -744,6 +760,7 @@ export const SHAPES: ShapeMeta[] = [
   {
     id: "butterfly",
     name: "butterfly",
+    category: "paper",
     blurb: "front-view, two pairs of wings. legendary.",
     unlock: ({ totalGames, streakDays }) => ({
       unlocked: totalGames >= 500 || streakDays >= 14,
@@ -754,6 +771,7 @@ export const SHAPES: ShapeMeta[] = [
   {
     id: "rocket",
     name: "rocket",
+    category: "contraband",
     blurb: "finned capsule with a porthole.",
     unlock: ({ bestScore }) => ({
       unlocked: bestScore >= 25,
@@ -764,6 +782,7 @@ export const SHAPES: ShapeMeta[] = [
   {
     id: "heart",
     name: "heart",
+    category: "paper",
     blurb: "for the ones you challenge.",
     unlock: ({ challengeWins }) => ({
       unlocked: (challengeWins ?? 0) >= 1,
@@ -774,6 +793,7 @@ export const SHAPES: ShapeMeta[] = [
   {
     id: "star",
     name: "star",
+    category: "paper",
     blurb: "five points, glowing core.",
     unlock: ({ totalGames, streakDays }) => ({
       unlocked: totalGames >= 300 || streakDays >= 20,
@@ -784,6 +804,7 @@ export const SHAPES: ShapeMeta[] = [
   {
     id: "flower",
     name: "petal",
+    category: "paper",
     blurb: "six petals in bloom.",
     unlock: ({ streakDays }) => ({
       unlocked: streakDays >= 7,
@@ -794,6 +815,7 @@ export const SHAPES: ShapeMeta[] = [
   {
     id: "vector-bird",
     name: "birdie",
+    category: "paper",
     blurb: "a side-profile bird, mid-flight.",
     unlock: ({ bestScore }) => ({
       unlocked: bestScore >= 40,
@@ -804,6 +826,7 @@ export const SHAPES: ShapeMeta[] = [
   {
     id: "leaf",
     name: "leaf",
+    category: "paper",
     blurb: "a simple leaf with a vein.",
     unlock: ({ totalGames }) => ({
       unlocked: totalGames >= 50,
@@ -814,6 +837,7 @@ export const SHAPES: ShapeMeta[] = [
   {
     id: "lightning",
     name: "bolt",
+    category: "paper",
     blurb: "a classic lightning bolt.",
     unlock: ({ bestScore }) => ({
       unlocked: bestScore >= 55,
@@ -824,6 +848,7 @@ export const SHAPES: ShapeMeta[] = [
   {
     id: "ghost",
     name: "ghost",
+    category: "contraband",
     blurb: "a friendly ghost with a wavy hem.",
     unlock: ({ challengeWins }) => ({
       unlocked: (challengeWins ?? 0) >= 5,
@@ -837,6 +862,7 @@ export const SHAPES: ShapeMeta[] = [
   {
     id: "crane",
     name: "origami crane",
+    category: "paper",
     blurb: "folded-paper crane — a real sprite, tinted to your color.",
     unlock: ({ streakDays }) => ({
       unlocked: streakDays >= 5,
@@ -847,6 +873,7 @@ export const SHAPES: ShapeMeta[] = [
   {
     id: "submarine",
     name: "submarine",
+    category: "contraband",
     blurb: "dive the deep — periscope up.",
     unlock: ({ totalGames }) => ({
       unlocked: totalGames >= 60,
@@ -857,6 +884,7 @@ export const SHAPES: ShapeMeta[] = [
   {
     id: "soccer-ball",
     name: "football",
+    category: "contraband",
     blurb: "world-cup ready — score a goal.",
     unlock: ({ bestScore }) => ({
       unlocked: bestScore >= 20,
@@ -867,6 +895,7 @@ export const SHAPES: ShapeMeta[] = [
   {
     id: "pretzel",
     name: "pretzel",
+    category: "contraband",
     blurb: "Brezel — a taste of Germany.",
     unlock: ({ totalGames }) => ({
       unlocked: totalGames >= 30,

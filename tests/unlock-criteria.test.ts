@@ -32,7 +32,7 @@ const MAXED: AchievementStats = {
 describe("unlock-criteria catalog", () => {
   it("has a healthy catalog size", () => {
     expect(UNLOCK_CRITERIA.length).toBeGreaterThanOrEqual(16);
-    expect(UNLOCK_CRITERIA.length).toBeLessThanOrEqual(30);
+    expect(UNLOCK_CRITERIA.length).toBeLessThanOrEqual(40);
   });
 
   it("has unique ids", () => {
@@ -46,11 +46,19 @@ describe("unlock-criteria catalog", () => {
     results.forEach((r, i) => expect(r.def).toBe(UNLOCK_CRITERIA[i]));
   });
 
-  it("a maxed-out stats object unlocks every non-event criterion", () => {
+  it("a maxed-out stats object unlocks every non-event, non-pending criterion", () => {
     const results = evaluateCriteria(MAXED);
     for (const r of results) {
-      if (r.def.event) continue;
+      if (r.def.event || r.def.pending) continue;
       expect(r.unlocked, `${r.def.id} should unlock when maxed`).toBe(true);
+    }
+  });
+
+  it("pending drafts stay locked even when maxed (no plumbing yet)", () => {
+    const pending = evaluateCriteria(MAXED).filter((r) => r.def.pending);
+    expect(pending.length).toBeGreaterThan(0);
+    for (const r of pending) {
+      expect(r.unlocked, `${r.def.id} has no tracking yet`).toBe(false);
     }
   });
 

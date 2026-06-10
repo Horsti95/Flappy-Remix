@@ -40,6 +40,13 @@ export interface CriterionDef {
    * range may wrap across the new year (e.g. `from: "12-26", until: "01-02"`).
    */
   event?: { from: string; until: string };
+  /**
+   * True for drafts whose criterion needs stat plumbing that doesn't exist
+   * yet — their `check` is a stub returning false until the counter lands.
+   * (Owner decision 2026-06-10: criteria may be drafted before either the
+   * reward or the tracking exists.)
+   */
+  pending?: boolean;
   check(stats: AchievementStats): boolean;
 }
 
@@ -256,6 +263,7 @@ export const UNLOCK_CRITERIA: CriterionDef[] = [
     name: "giant slayer",
     hint: "win a ranked match against someone rated 100+ above you",
     plannedReward: { kind: "fx", label: "TBA · giant-slayer gate effect" },
+    pending: true,
     check: () => false,
   },
   {
@@ -266,6 +274,7 @@ export const UNLOCK_CRITERIA: CriterionDef[] = [
     hint: "lose a ranked match to someone rated 100+ below you",
     secret: true,
     plannedReward: { kind: "skin", label: "TBA · consolation colors" },
+    pending: true,
     check: () => false,
   },
   {
@@ -275,6 +284,7 @@ export const UNLOCK_CRITERIA: CriterionDef[] = [
     name: "threading needles",
     hint: "pass 10 gates dead-center in a single run",
     plannedReward: { kind: "fx", label: "TBA · ink-stroke trail" },
+    pending: true,
     check: () => false,
   },
   {
@@ -285,6 +295,7 @@ export const UNLOCK_CRITERIA: CriterionDef[] = [
     name: "storm chaser",
     hint: "score 25+ on an EXTREME daily",
     plannedReward: { kind: "badge", label: "TBA · storm-chaser badge" },
+    pending: true,
     check: () => false,
   },
   {
@@ -294,6 +305,7 @@ export const UNLOCK_CRITERIA: CriterionDef[] = [
     name: "perfect week",
     hint: "play every daily for a full week",
     plannedReward: { kind: "background", label: "TBA · seven-skies sunrise" },
+    pending: true,
     check: () => false,
   },
   {
@@ -303,6 +315,7 @@ export const UNLOCK_CRITERIA: CriterionDef[] = [
     name: "twice the plane you were",
     hint: "beat your personal-best ghost with double its score",
     plannedReward: { kind: "sound", label: "TBA · echo gate chime" },
+    pending: true,
     check: () => false,
   },
 ];

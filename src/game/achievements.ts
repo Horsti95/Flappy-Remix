@@ -62,6 +62,40 @@ export interface AchievementStats {
    *  verify an external form was sent) — fine for a cosmetic reward. Optional
    *  so existing stored stats / test fixtures stay valid without a migration. */
   feedbackGiven?: boolean;
+
+  // --- Secret-achievement latches. All optional (like `feedbackGiven`) so
+  // stored stats and fixtures predating them stay valid. Each latches true
+  // inside `updateStatsAfterRun` and is never reset, so once a secret is
+  // earned no later run can revoke it.
+
+  /** Score of the most recent completed run — drives the consecutive
+   *  exact-score secrets (6-then-7, déjà vu). Undefined until a run lands. */
+  prevRunScore?: number;
+  /** Scored exactly 6, then exactly 7 in the very next run. */
+  sixSevenDone?: boolean;
+  /** Scored exactly 67 in a single run. */
+  exact67Done?: boolean;
+  /** Scored exactly 42 in a single run. */
+  exact42Done?: boolean;
+  /** Scored exactly 100 in a single run — not 99, not 101. */
+  exact100Done?: boolean;
+  /** Scored exactly 13 in a single run. */
+  exact13Done?: boolean;
+  /** Scored exactly 1 in a single run. */
+  exact1Done?: boolean;
+  /** Scored a 3+ digit palindrome (101, 111, 121, … 1221, …) in a run. */
+  palindromeDone?: boolean;
+  /** Scored the exact same score (5+) in two consecutive runs. */
+  dejaVuDone?: boolean;
+  /** Finished a run without a single flap (input data present and zero). */
+  zeroFlapDone?: boolean;
+}
+
+/** True for scores that read the same backwards, 3+ digits (101, 1221, …). */
+function isPalindromeScore(score: number): boolean {
+  if (score < 101 || !Number.isInteger(score)) return false;
+  const s = String(score);
+  return s === [...s].reverse().join("");
 }
 
 export const ACHIEVEMENTS: AchievementDef[] = [
@@ -362,6 +396,116 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     check: (s) => s.feedbackGiven === true,
   },
 
+  // --- Secret numerology & odd behaviors (discover them in play!) ---
+  {
+    id: "six_seven",
+    name: "Six… Seven!",
+    blurb: "score exactly 6, then exactly 7 in the very next run",
+    category: "special",
+    reward: { type: "color", body: [167, 67, 255], accent: [255, 214, 67] },
+    secret: true,
+    check: (s) => s.sixSevenDone === true,
+  },
+  {
+    id: "exact_67",
+    name: "the whole sixty-seven",
+    blurb: "land a run on exactly 67 — no more, no less",
+    category: "special",
+    reward: { type: "color", body: [67, 167, 255], accent: [255, 103, 67] },
+    secret: true,
+    check: (s) => s.exact67Done === true,
+  },
+  {
+    id: "points_404",
+    name: "404: paint not found",
+    blurb: "cross 404 lifetime points — this skin could not be loaded",
+    category: "milestone",
+    reward: { type: "color", body: [45, 45, 50], accent: [190, 190, 200] },
+    secret: true,
+    check: (s) => s.totalScore >= 404,
+  },
+  {
+    id: "exact_42",
+    name: "the answer",
+    blurb: "score exactly 42 in a run — to life, the universe, and everything",
+    category: "special",
+    reward: { type: "color", body: [25, 55, 110], accent: [200, 220, 255] },
+    secret: true,
+    check: (s) => s.exact42Done === true,
+  },
+  {
+    id: "points_1337",
+    name: "elite mileage",
+    blurb: "cross 1,337 lifetime points — speak fluent keyboard",
+    category: "milestone",
+    reward: { type: "color", body: [12, 12, 12], accent: [57, 255, 120] },
+    secret: true,
+    check: (s) => s.totalScore >= 1337,
+  },
+  {
+    id: "points_3141",
+    name: "a slice of pi",
+    blurb: "cross 3,141 lifetime points — irrationally delicious",
+    category: "milestone",
+    reward: { type: "color", body: [230, 175, 110], accent: [200, 60, 60] },
+    secret: true,
+    check: (s) => s.totalScore >= 3141,
+  },
+  {
+    id: "zero_flap",
+    name: "gravity wins",
+    blurb: "finish a run without flapping even once",
+    category: "special",
+    reward: { type: "color", body: [125, 105, 85], accent: [70, 55, 40] },
+    secret: true,
+    check: (s) => s.zeroFlapDone === true,
+  },
+  {
+    id: "palindrome",
+    name: "racecar",
+    blurb: "score a palindrome of 101 or more — same forwards and backwards",
+    category: "special",
+    reward: { type: "color", body: [212, 218, 228], accent: [90, 95, 110] },
+    secret: true,
+    check: (s) => s.palindromeDone === true,
+  },
+  {
+    id: "exact_100",
+    name: "right on the nose",
+    blurb: "score exactly 100 — not 99, not 101",
+    category: "special",
+    reward: { type: "color", body: [255, 250, 245], accent: [220, 30, 30] },
+    secret: true,
+    check: (s) => s.exact100Done === true,
+  },
+  {
+    id: "exact_1",
+    name: "one and done",
+    blurb: "score exactly 1 — a single, perfect point",
+    category: "special",
+    reward: { type: "color", body: [255, 245, 200], accent: [255, 180, 0] },
+    secret: true,
+    check: (s) => s.exact1Done === true,
+  },
+  {
+    id: "lucky_13",
+    name: "black cat",
+    blurb: "score exactly 13 — who said it was unlucky?",
+    category: "special",
+    reward: { type: "color", body: [25, 25, 28], accent: [60, 200, 90] },
+    secret: true,
+    check: (s) => s.exact13Done === true,
+  },
+  {
+    id: "deja_vu",
+    name: "déjà vu",
+    blurb: "score the exact same score (5+) twice in a row",
+    category: "special",
+    reward: { type: "color", body: [150, 110, 200], accent: [150, 110, 200] },
+    secret: true,
+    check: (s) => s.dejaVuDone === true,
+  },
+
   // --- Cumulative score, elite tier ---
   {
     id: "points_12345",
@@ -492,6 +636,24 @@ export function updateStatsAfterRun(
   if (run.score >= 25 && run.inputCount != null && run.inputCount < 80) {
     s.minimalistDone = true;
   }
+
+  // Secret exact-score latches. Each is evaluated per completed run and
+  // latches once earned (never reset), mirroring how `minimalistDone` works.
+  if (run.score === 67) s.exact67Done = true;
+  if (run.score === 42) s.exact42Done = true;
+  if (run.score === 100) s.exact100Done = true;
+  if (run.score === 13) s.exact13Done = true;
+  if (run.score === 1) s.exact1Done = true;
+  if (isPalindromeScore(run.score)) s.palindromeDone = true;
+  if (run.inputCount != null && run.inputCount === 0) s.zeroFlapDone = true;
+
+  // Consecutive exact-score secrets compare against the *immediately previous*
+  // completed run. A run in between with any other score breaks the chain.
+  if (stats.prevRunScore === 6 && run.score === 7) s.sixSevenDone = true;
+  if (stats.prevRunScore != null && stats.prevRunScore === run.score && run.score >= 5) {
+    s.dejaVuDone = true;
+  }
+  s.prevRunScore = run.score;
 
   // Score-band streak tracking (used by centurion / bridesmaid / metronome).
   if (run.score > 100) s.runsOver100++;

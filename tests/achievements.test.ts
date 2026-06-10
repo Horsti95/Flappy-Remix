@@ -225,3 +225,72 @@ describe("achievements", () => {
     }
   });
 });
+
+describe("secret achievements", () => {
+  const ids = (s: AchievementStats) => getUnlockedAchievements(s).map((a) => a.id);
+
+  it("six_seven needs exactly 6 then exactly 7 in consecutive runs", () => {
+    let s = updateStatsAfterRun(EMPTY, { score: 6, mode: "casual" });
+    s = updateStatsAfterRun(s, { score: 7, mode: "casual" });
+    expect(ids(s)).toContain("six_seven");
+  });
+
+  it("six_seven does not fire when another run breaks the chain", () => {
+    let s = updateStatsAfterRun(EMPTY, { score: 6, mode: "casual" });
+    s = updateStatsAfterRun(s, { score: 12, mode: "casual" });
+    s = updateStatsAfterRun(s, { score: 7, mode: "casual" });
+    expect(ids(s)).not.toContain("six_seven");
+  });
+
+  it("six_seven latches once earned", () => {
+    let s = updateStatsAfterRun(EMPTY, { score: 6, mode: "casual" });
+    s = updateStatsAfterRun(s, { score: 7, mode: "casual" });
+    s = updateStatsAfterRun(s, { score: 3, mode: "casual" });
+    expect(ids(s)).toContain("six_seven");
+  });
+
+  it("exact_67 and exact_42 fire only on the exact score", () => {
+    const near = updateStatsAfterRun(EMPTY, { score: 68, mode: "casual" });
+    expect(ids(near)).not.toContain("exact_67");
+    const hit = updateStatsAfterRun(EMPTY, { score: 67, mode: "casual" });
+    expect(ids(hit)).toContain("exact_67");
+    expect(ids(updateStatsAfterRun(EMPTY, { score: 42, mode: "casual" }))).toContain("exact_42");
+  });
+
+  it("points_404 and points_1337 unlock on lifetime crossings", () => {
+    let s = updateStatsAfterRun(EMPTY, { score: 400, mode: "casual" });
+    expect(ids(s)).not.toContain("points_404");
+    s = updateStatsAfterRun(s, { score: 10, mode: "casual" });
+    expect(ids(s)).toContain("points_404");
+    expect(ids(s)).not.toContain("points_1337");
+    s = updateStatsAfterRun(s, { score: 1000, mode: "casual" });
+    expect(ids(s)).toContain("points_1337");
+  });
+
+  it("deja_vu needs the same score (5+) twice in a row", () => {
+    let low = updateStatsAfterRun(EMPTY, { score: 3, mode: "casual" });
+    low = updateStatsAfterRun(low, { score: 3, mode: "casual" });
+    expect(ids(low)).not.toContain("deja_vu");
+    let s = updateStatsAfterRun(EMPTY, { score: 23, mode: "casual" });
+    s = updateStatsAfterRun(s, { score: 23, mode: "casual" });
+    expect(ids(s)).toContain("deja_vu");
+  });
+
+  it("palindrome fires for 101+ palindromes only", () => {
+    expect(ids(updateStatsAfterRun(EMPTY, { score: 99, mode: "casual" }))).not.toContain(
+      "palindrome",
+    );
+    expect(ids(updateStatsAfterRun(EMPTY, { score: 121, mode: "casual" }))).toContain(
+      "palindrome",
+    );
+  });
+
+  it("zero_flap requires input data showing zero flaps", () => {
+    expect(ids(updateStatsAfterRun(EMPTY, { score: 0, mode: "casual" }))).not.toContain(
+      "zero_flap",
+    );
+    expect(ids(updateStatsAfterRun(EMPTY, { score: 0, mode: "casual", inputCount: 0 }))).toContain(
+      "zero_flap",
+    );
+  });
+});

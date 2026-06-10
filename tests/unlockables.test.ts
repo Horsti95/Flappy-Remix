@@ -53,6 +53,15 @@ const MAXED: UnlockStats = {
   bestRankedTotal: 100000,
   bestRankedFloor: 100000,
   feedbackGiven: true,
+  sixSevenDone: true,
+  exact67Done: true,
+  exact42Done: true,
+  exact100Done: true,
+  exact13Done: true,
+  exact1Done: true,
+  palindromeDone: true,
+  dejaVuDone: true,
+  zeroFlapDone: true,
 };
 
 describe("unlockables registry", () => {

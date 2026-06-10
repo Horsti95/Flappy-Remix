@@ -77,6 +77,21 @@ needs packages + a window, not a full season system.
 | `feat/seasons-v1` | 8-week free cosmetic track fed by daily/weekly goals; first season themed = event reuse (World Cup learnings) | `xl` | |
 | `arcade/mode-v1` | Existing arcade plan — long-lived separate branch, feeds pilot XP when it lands | `xl` | Deliberately **after** the reward layer |
 
+## Shipped 2026-06-10 (session batch 1, on `claude/trusting-rubin-1jevio`)
+
+- ✅ 13 secret achievements (undocumented by design) + 6 plumbing-pending
+  draft criteria (elo upsets, precision, extreme daily, perfect week…)
+- ✅ `/api/feedback` → GitHub issue + in-app textarea form (owner wires
+  `GITHUB_FEEDBACK_TOKEN` + `GITHUB_FEEDBACK_REPO`; falls back to the
+  external link until then)
+- ✅ Daily champion skins: lazy day-close mint for yesterday's top 3
+- ✅ Flap haptic fired before sim/audio work (rumble-lag fix)
+- ✅ Particle tick on wall-clock dt (120 Hz fix)
+- ✅ Paper-crumple death animation (crumple → flutter → dust puff)
+- ✅ Paper Sky v1: chip buttons + grain, daily tagline, shape categories
+  + "Contraband" gallery grouping
+- ✅ Docs: devlog/0005 decisions, design/prompts-paper-sky.md
+
 ## Standing decisions
 - **Name: Glide** (domain glide.uno). Art direction: **Paper Sky**.
 - One branch per item, preview deploy per branch; `fix-pack` batching

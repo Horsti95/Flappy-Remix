@@ -35,6 +35,14 @@ export default async function handler(req: Request): Promise<Response> {
   const seasonId = seasonRes.data as number;
 
   // Are we already in a live match? Block joining.
+  // Lazily close anything past its deadline first — an abandoned opponent
+  // must never wedge a player out of matchmaking forever.
+  await admin
+    .from("ranked_matches")
+    .update({ state: "expired" })
+    .eq("state", "in_progress")
+    .lt("expires_at", new Date().toISOString());
+
   const live = await admin
     .from("ranked_matches")
     .select("id")

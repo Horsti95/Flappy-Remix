@@ -71,6 +71,34 @@ export default async function handler(req: Request): Promise<Response> {
   const v = validateRun(body, cfg);
   if (!v.ok) return json({ accepted: false, reason: v.reason }, 200);
 
+  // No inputs past the death tick: trailing taps can't change the replay,
+  // so allowing them would let a thief re-hash someone else's run by
+  // padding it (defeating the duplicate check below).
+  if (body.inputs.some((i) => i.tick > v.ticks)) {
+    return json({ accepted: false, reason: "inputs_after_death" }, 200);
+  }
+
+  // Anti replay-theft / idempotency: hash the canonical (seed, input ticks)
+  // of every non-trivial run. An identical prior submission is rejected —
+  // as theft when it came from another account, as a duplicate (e.g. an
+  // offline-queue retry after a lost response) from the same one. Trivial
+  // runs are exempt: two zero-flap deaths on the same daily seed are
+  // legitimately identical.
+  let inputsHash: string | null = null;
+  if (body.score >= 10) {
+    inputsHash = await sha256Hex(`${body.seed >>> 0}|${body.inputs.map((i) => i.tick).join(",")}`);
+    const dupe = await admin
+      .from("runs")
+      .select("user_id")
+      .eq("inputs_hash", inputsHash)
+      .limit(1)
+      .maybeSingle();
+    if (dupe.data) {
+      const reason = (dupe.data.user_id as string | null) === userId ? "duplicate_run" : "replay_theft";
+      return json({ accepted: false, reason }, 200);
+    }
+  }
+
   const profile = await admin
     .from("profiles")
     .select("total_games, streak_days, last_play_at, last_daily_play_at")
@@ -111,6 +139,23 @@ export default async function handler(req: Request): Promise<Response> {
     }
   }
 
+  // Ranked submissions are checked against the match BEFORE the run row is
+  // inserted: a reject must not leave an orphan run on the leaderboards.
+  // `mode: "ranked"` without match coordinates used to skip every check and
+  // still count on the ranked board — now it's rejected outright.
+  let rankedRound: number | null = null;
+  if (body.mode === "ranked") {
+    if (body.ranked_match_id == null || body.ranked_round == null) {
+      return json({ accepted: false, reason: "bad_ranked_payload" }, 200);
+    }
+    rankedRound = body.ranked_round | 0;
+    if (rankedRound < 0 || rankedRound > 2) {
+      return json({ accepted: false, reason: "bad_round" }, 200);
+    }
+    const pre = await fetchAndCheckMatch(admin, body.ranked_match_id, userId, rankedRound, body.seed);
+    if ("reason" in pre) return json({ accepted: false, reason: pre.reason }, 200);
+  }
+
   const run = await admin
     .from("runs")
     .insert({
@@ -120,6 +165,7 @@ export default async function handler(req: Request): Promise<Response> {
       ticks: v.ticks,
       inputs: body.inputs,
       inputs_count: body.inputs.length,
+      inputs_hash: inputsHash,
       equipped_skin_id: body.equipped_skin_id ?? null,
       mode: effectiveMode,
       daily_date: effectiveDailyDate,
@@ -153,117 +199,138 @@ export default async function handler(req: Request): Promise<Response> {
     winner_id?: string | null;
   } | null = null;
 
-  if (body.mode === "ranked" && body.ranked_match_id != null && body.ranked_round != null) {
-    const round = body.ranked_round | 0;
-    if (round < 0 || round > 2) {
-      return json({ accepted: false, reason: "bad_round" }, 200);
-    }
-    const m = await admin
-      .from("ranked_matches")
-      .select(
-        "id, season_id, player_a, player_b, seeds, a_scores, b_scores, a_run_ids, b_run_ids, state, expires_at, a_rating_before, b_rating_before",
-      )
-      .eq("id", body.ranked_match_id)
-      .maybeSingle();
-    if (m.error || !m.data) return json({ accepted: false, reason: "match_not_found" }, 200);
-    if (m.data.state !== "in_progress") return json({ accepted: false, reason: "match_closed" }, 200);
-    if (new Date(m.data.expires_at as string).getTime() < Date.now()) {
-      return json({ accepted: false, reason: "match_expired" }, 200);
-    }
-    const youAreA = m.data.player_a === userId;
-    if (!youAreA && m.data.player_b !== userId) {
-      return json({ accepted: false, reason: "not_participant" }, 200);
-    }
-    const expectedSeed = (m.data.seeds as number[])[round];
-    if ((body.seed >>> 0) !== ((expectedSeed as number) >>> 0)) {
-      return json({ accepted: false, reason: "wrong_ranked_seed" }, 200);
-    }
-    const aScores = ((m.data.a_scores as number[]) ?? []).slice();
-    const bScores = ((m.data.b_scores as number[]) ?? []).slice();
-    const aRunIds = ((m.data.a_run_ids as string[]) ?? []).slice();
-    const bRunIds = ((m.data.b_run_ids as string[]) ?? []).slice();
-    const mineScores = youAreA ? aScores : bScores;
-    const mineRunIds = youAreA ? aRunIds : bRunIds;
-    if (mineScores[round] != null) {
-      return json({ accepted: false, reason: "round_already_played" }, 200);
-    }
-    mineScores[round] = body.score;
-    mineRunIds[round] = run.data.id;
+  if (body.mode === "ranked" && rankedRound !== null) {
+    const round = rankedRound;
+    // Optimistic-concurrency settle: re-read, compute, then write guarded by
+    // the match's version stamp. If both players settle concurrently the
+    // loser of the race re-reads (now seeing the other's score) and retries,
+    // so neither round score is lost and Elo settles exactly once.
+    for (let attempt = 0; attempt < 3 && !rankedSummary; attempt++) {
+      const pre = await fetchAndCheckMatch(admin, body.ranked_match_id!, userId, round, body.seed);
+      if ("reason" in pre) {
+        // Lost a race (settled/expired/replayed between our pre-check and
+        // now). Remove the just-inserted run so no orphan hits the boards.
+        await admin.from("runs").delete().eq("id", run.data.id);
+        return json({ accepted: false, reason: pre.reason }, 200);
+      }
+      const m = pre.m;
+      const youAreA = pre.youAreA;
+      const aScores = ((m.a_scores as number[]) ?? []).slice();
+      const bScores = ((m.b_scores as number[]) ?? []).slice();
+      const aRunIds = ((m.a_run_ids as string[]) ?? []).slice();
+      const bRunIds = ((m.b_run_ids as string[]) ?? []).slice();
+      (youAreA ? aScores : bScores)[round] = body.score;
+      (youAreA ? aRunIds : bRunIds)[round] = run.data.id;
 
-    // Decide outcome based on the rounds that have both players' scores.
-    const a = aScores;
-    const b = bScores;
-    const definedPaired = [0, 1, 2].filter((i) => a[i] != null && b[i] != null);
-    const outcome = tallyOutcome(
-      definedPaired.map((i) => a[i]),
-      definedPaired.map((i) => b[i]),
-    );
-    const complete = isBestOfThreeComplete(outcome, definedPaired.length);
+      // Decide outcome based on the rounds that have both players' scores.
+      const definedPaired = [0, 1, 2].filter((i) => aScores[i] != null && bScores[i] != null);
+      const outcome = tallyOutcome(
+        definedPaired.map((i) => aScores[i]),
+        definedPaired.map((i) => bScores[i]),
+      );
+      const complete = isBestOfThreeComplete(outcome, definedPaired.length);
 
-    let aAfter: number | undefined;
-    let bAfter: number | undefined;
-    let winnerId: string | null | undefined;
-    let nextState: "in_progress" | "completed" = "in_progress";
+      let aAfter: number | undefined;
+      let bAfter: number | undefined;
+      let winnerId: string | null | undefined;
+      let result: ReturnType<typeof decideResult> | null = null;
+      let nextState: "in_progress" | "completed" = "in_progress";
 
-    if (complete) {
-      const result = decideResult(outcome);
-      const aBefore = (m.data.a_rating_before as number) ?? 1200;
-      const bBefore = (m.data.b_rating_before as number) ?? 1200;
-      const next = applyElo(aBefore, bBefore, result);
-      // Winner-only flat bonus scaled by aggregate score margin over the
-      // rounds actually played. Applied after the core Elo math.
-      const aTotal = definedPaired.reduce((sum, i) => sum + (a[i] as number), 0);
-      const bTotal = definedPaired.reduce((sum, i) => sum + (b[i] as number), 0);
-      const bonus = marginBonus(aTotal, bTotal, result);
-      aAfter = next.a + bonus.a;
-      bAfter = next.b + bonus.b;
-      winnerId = result === "draw" ? null : result === "a_win" ? (m.data.player_a as string) : (m.data.player_b as string);
-      nextState = "completed";
+      if (complete) {
+        result = decideResult(outcome);
+        const aBefore = (m.a_rating_before as number) ?? 1200;
+        const bBefore = (m.b_rating_before as number) ?? 1200;
+        const next = applyElo(aBefore, bBefore, result);
+        // Winner-only flat bonus scaled by aggregate score margin over the
+        // rounds actually played. Applied after the core Elo math.
+        const aTotal = definedPaired.reduce((sum, i) => sum + (aScores[i] as number), 0);
+        const bTotal = definedPaired.reduce((sum, i) => sum + (bScores[i] as number), 0);
+        const bonus = marginBonus(aTotal, bTotal, result);
+        aAfter = next.a + bonus.a;
+        bAfter = next.b + bonus.b;
+        winnerId = result === "draw" ? null : result === "a_win" ? (m.player_a as string) : (m.player_b as string);
+        nextState = "completed";
+      }
 
-      // Update both elo_ratings rows.
-      const seasonId = m.data.season_id as number;
-      await admin
-        .from("elo_ratings")
-        .upsert({
-          user_id: m.data.player_a as string,
-          season_id: seasonId,
-          rating: aAfter,
-        }, { onConflict: "user_id" });
-      await admin
-        .from("elo_ratings")
-        .upsert({
-          user_id: m.data.player_b as string,
-          season_id: seasonId,
-          rating: bAfter,
-        }, { onConflict: "user_id" });
-    }
+      const version = (m.version as number) ?? 0;
+      const upd = await admin
+        .from("ranked_matches")
+        .update({
+          a_scores: aScores,
+          b_scores: bScores,
+          a_run_ids: aRunIds,
+          b_run_ids: bRunIds,
+          state: nextState,
+          winner_id: winnerId ?? null,
+          a_rating_after: aAfter ?? null,
+          b_rating_after: bAfter ?? null,
+          completed_at: complete ? new Date().toISOString() : null,
+          version: version + 1,
+        })
+        .eq("id", m.id as string)
+        .eq("version", version)
+        .select("id");
+      if (upd.error || (upd.data?.length ?? 0) === 0) {
+        // Version conflict — someone else wrote first. Re-read and retry.
+        continue;
+      }
 
-    const upd = await admin
-      .from("ranked_matches")
-      .update({
-        a_scores: youAreA ? mineScores : aScores,
-        b_scores: youAreA ? bScores : mineScores,
-        a_run_ids: youAreA ? mineRunIds : aRunIds,
-        b_run_ids: youAreA ? bRunIds : mineRunIds,
+      // Elo + W/L/D only after we definitively won the settle write, so a
+      // concurrent settle can't apply ratings twice.
+      if (complete && result) {
+        const seasonId = m.season_id as number;
+        const playerA = m.player_a as string;
+        const playerB = m.player_b as string;
+        const rows = await admin
+          .from("elo_ratings")
+          .select("user_id, games_played, wins, losses, draws")
+          .eq("season_id", seasonId)
+          .in("user_id", [playerA, playerB]);
+        const counters = (uid: string, won: boolean, lost: boolean) => {
+          const r = rows.data?.find((x) => (x.user_id as string) === uid);
+          return {
+            games_played: ((r?.games_played as number) ?? 0) + 1,
+            wins: ((r?.wins as number) ?? 0) + (won ? 1 : 0),
+            losses: ((r?.losses as number) ?? 0) + (lost ? 1 : 0),
+            draws: ((r?.draws as number) ?? 0) + (result === "draw" ? 1 : 0),
+          };
+        };
+        await admin
+          .from("elo_ratings")
+          .upsert({
+            user_id: playerA,
+            season_id: seasonId,
+            rating: aAfter,
+            updated_at: new Date().toISOString(),
+            ...counters(playerA, result === "a_win", result === "b_win"),
+          }, { onConflict: "user_id,season_id" });
+        await admin
+          .from("elo_ratings")
+          .upsert({
+            user_id: playerB,
+            season_id: seasonId,
+            rating: bAfter,
+            updated_at: new Date().toISOString(),
+            ...counters(playerB, result === "b_win", result === "a_win"),
+          }, { onConflict: "user_id,season_id" });
+      }
+
+      rankedSummary = {
+        match_id: m.id as string,
+        round,
+        you: youAreA ? "a" : "b",
         state: nextState,
+        a_scores: aScores,
+        b_scores: bScores,
+        a_rating_after: aAfter,
+        b_rating_after: bAfter,
         winner_id: winnerId ?? null,
-        a_rating_after: aAfter ?? null,
-        b_rating_after: bAfter ?? null,
-        completed_at: complete ? new Date().toISOString() : null,
-      })
-      .eq("id", m.data.id);
-    if (upd.error) console.error("[submit-run] ranked update", upd.error);
-    rankedSummary = {
-      match_id: m.data.id as string,
-      round,
-      you: youAreA ? "a" : "b",
-      state: nextState,
-      a_scores: youAreA ? mineScores : aScores,
-      b_scores: youAreA ? bScores : mineScores,
-      a_rating_after: aAfter,
-      b_rating_after: bAfter,
-      winner_id: winnerId ?? null,
-    };
+      };
+    }
+    if (!rankedSummary) {
+      await admin.from("runs").delete().eq("id", run.data.id);
+      return json({ accepted: false, reason: "settle_conflict" }, 200);
+    }
   }
 
   // If this submission is responding to a challenge, attach the run
@@ -358,4 +425,50 @@ export default async function handler(req: Request): Promise<Response> {
     })),
     ranked: rankedSummary,
   }, 200);
+}
+
+/** Hex SHA-256 via Web Crypto (available in the edge runtime). */
+async function sha256Hex(s: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+const MATCH_SELECT =
+  "id, season_id, player_a, player_b, seeds, a_scores, b_scores, a_run_ids, b_run_ids, state, expires_at, a_rating_before, b_rating_before, version";
+
+/**
+ * Load a ranked match and run every submission precondition. Expired
+ * in_progress matches are lazily flipped to 'expired' here, which also
+ * unblocks matchmaking for both players (queue joins are refused while an
+ * in_progress match exists).
+ */
+async function fetchAndCheckMatch(
+  admin: ReturnType<typeof getAdminClient>,
+  matchId: string,
+  userId: string,
+  round: number,
+  seed: number,
+): Promise<{ m: Record<string, unknown>; youAreA: boolean } | { reason: string }> {
+  const m = await admin
+    .from("ranked_matches")
+    .select(MATCH_SELECT)
+    .eq("id", matchId)
+    .maybeSingle();
+  if (m.error || !m.data) return { reason: "match_not_found" };
+  if (m.data.state !== "in_progress") return { reason: "match_closed" };
+  if (new Date(m.data.expires_at as string).getTime() < Date.now()) {
+    await admin
+      .from("ranked_matches")
+      .update({ state: "expired" })
+      .eq("id", matchId)
+      .eq("state", "in_progress");
+    return { reason: "match_expired" };
+  }
+  const youAreA = m.data.player_a === userId;
+  if (!youAreA && m.data.player_b !== userId) return { reason: "not_participant" };
+  const expectedSeed = (m.data.seeds as number[])[round];
+  if ((seed >>> 0) !== ((expectedSeed as number) >>> 0)) return { reason: "wrong_ranked_seed" };
+  const mine = (youAreA ? m.data.a_scores : m.data.b_scores) as number[] | null;
+  if (mine?.[round] != null) return { reason: "round_already_played" };
+  return { m: m.data as Record<string, unknown>, youAreA };
 }

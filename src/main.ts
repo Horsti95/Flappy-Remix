@@ -13,7 +13,10 @@ import {
   renderPauseOverlay,
   removePauseOverlay,
   renderGameOver,
+  type GameOverResult,
 } from "./ui/menu";
+import { addRunXp } from "./game/xp";
+import { nextUnlockHint } from "./game/next-unlock";
 import { setGateSoundLabMode } from "./game/gate-sounds";
 import { initAuth, authState, subscribeAuth } from "./social/auth";
 import { renderAccountPanel } from "./ui/account";
@@ -872,6 +875,7 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
         // not flashed by in a toast. Training returns earlier, so the stats
         // update + unlock check only run for tracked modes here.
         let newAchievements: ReturnType<typeof getNewlyUnlocked> = [];
+        let runProgress: NonNullable<GameOverResult["progress"]> | null = null;
         {
           const currentStats = loadAchievementStats();
           let updatedStats = updateStatsAfterRun(currentStats, {
@@ -894,6 +898,16 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
           }
           saveAchievementStats(updatedStats);
           newAchievements = getNewlyUnlocked(currentStats, updatedStats);
+          // Per-run progression beat: PB delta + pilot XP + the nearest
+          // next-unlock breadcrumb, all rendered on the death screen.
+          const prevBest = currentStats.bestScore;
+          const isNewPb = score > prevBest;
+          const xp = addRunXp({
+            score,
+            mode: currentRunMode as Exclude<RunMode, "training">,
+            isNewPb,
+          });
+          runProgress = { prevBest, isNewPb, xp, nextUnlock: nextUnlockHint(updatedStats) };
         }
         // Responding to a challenge resolves the duel server-side, so the
         // win tally may have changed — re-sync it for the achievement check.
@@ -941,6 +955,7 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
           rankedRound: currentRunMode === "ranked" && activeRanked
             ? { round: activeRanked.round, total: 3 }
             : undefined,
+          progress: runProgress ?? undefined,
           result,
           ticks,
           achievements: newAchievements.map((a) => {

@@ -4,6 +4,7 @@ import { refreshGrantedShapes } from "../social/grants";
 import { markFeedbackGiven } from "../game/achievements";
 import { APP_VERSION } from "../game/changelog";
 import { playUnlockSound, triggerUnlockHaptic } from "../game/sfx";
+import { levelFromTotalXp, loadTotalXp } from "../game/xp";
 
 /**
  * Where the "send feedback" button points. Defaults to the public repo's
@@ -85,7 +86,8 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void, onVie
 
         <div class="panel-group-label">Progress</div>
         <div class="rounded-2xl bg-white/5 p-4">
-          <div class="grid grid-cols-3 gap-2 text-center text-xs">
+          <div class="grid grid-cols-4 gap-2 text-center text-xs">
+            <div><div class="opacity-60">level</div><div class="font-bold text-base">${levelFromTotalXp(loadTotalXp()).level}</div></div>
             <div><div class="opacity-60">games</div><div class="font-bold text-base">${s.profile?.total_games ?? 0}</div></div>
             <div><div class="opacity-60">streak</div><div class="font-bold text-base">${s.profile?.streak_days ?? 0}</div></div>
             <div><div class="opacity-60">id</div><div class="font-mono text-[10px] truncate opacity-70">${s.user?.id?.slice(0, 8) ?? "—"}</div></div>

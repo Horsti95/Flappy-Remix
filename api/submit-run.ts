@@ -43,22 +43,33 @@ export default async function handler(req: Request): Promise<Response> {
   if ("error" in shape) return json({ error: shape.error }, 400);
   const body = shape;
 
-  // Derive the daily twist server-side so the replay validator uses
-  // the same physics the client would have. Casual / challenge / ranked
-  // all replay against DEFAULT_CONFIG.
+  // Auth before the replay: validateRun simulates up to the whole run,
+  // so don't burn that CPU for unauthenticated callers.
+  const admin = getAdminClient();
+  const userRes = await admin.auth.getUser(jwt);
+  if (userRes.error || !userRes.data.user) return json({ error: "invalid token" }, 401);
+  const userId = userRes.data.user.id;
+
+  // Derive the twist config server-side so the replay validator uses the
+  // same physics the client would have. Daily: today's pick. Challenge:
+  // the challenge row's daily_date (derived from its source run at create
+  // time — never client-claimed). Casual / ranked replay DEFAULT_CONFIG.
   let cfg = DEFAULT_CONFIG;
   if (body.mode === "daily") {
     const date = body.daily_date ?? dailyDateString();
     const pick = pickDaily(date);
     cfg = applyModifiers(DEFAULT_CONFIG, pick.modifiers);
+  } else if (body.mode === "challenge" && body.challenge_short_id) {
+    const ch = await admin
+      .from("challenges")
+      .select("daily_date")
+      .eq("short_id", body.challenge_short_id)
+      .maybeSingle();
+    const twistDate = (ch.data?.daily_date as string | null | undefined) ?? null;
+    if (twistDate) cfg = applyModifiers(DEFAULT_CONFIG, pickDaily(twistDate).modifiers);
   }
   const v = validateRun(body, cfg);
   if (!v.ok) return json({ accepted: false, reason: v.reason }, 200);
-
-  const admin = getAdminClient();
-  const userRes = await admin.auth.getUser(jwt);
-  if (userRes.error || !userRes.data.user) return json({ error: "invalid token" }, 401);
-  const userId = userRes.data.user.id;
 
   const profile = await admin
     .from("profiles")

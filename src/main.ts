@@ -1,7 +1,7 @@
 import "./style.css";
 import { setupPWA } from "./pwa";
 import { DEFAULT_CONFIG } from "./game/config";
-import { applyModifiers } from "./game/daily-twist";
+import { applyModifiers, pickDaily } from "./game/daily-twist";
 import { GameLoop } from "./game/loop";
 import { Renderer } from "./game/render";
 import { InputController } from "./game/input";
@@ -741,10 +741,19 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
   let ghost: GhostSim | undefined;
   // Daily twist: apply the modifier(s) on top of DEFAULT_CONFIG for
   // the run so physics match what the server will replay against.
+  // Challenges minted from a daily run carry that date — the ghost was
+  // recorded under that day's physics, so both the ghost replay AND the
+  // responder's run must use the same twisted config or they desync.
+  const challengeTwistDate =
+    (runMode === "challenge" || runMode === "race") && activeChallenge
+      ? activeChallenge.daily_date
+      : null;
   const runCfg =
     runMode === "daily" && dailyInfo
       ? applyModifiers(DEFAULT_CONFIG, dailyInfo.pick.modifiers)
-      : DEFAULT_CONFIG;
+      : challengeTwistDate
+        ? applyModifiers(DEFAULT_CONFIG, pickDaily(challengeTwistDate).modifiers)
+        : DEFAULT_CONFIG;
   // Visual overlay applies to the daily only (global, fair worldwide);
   // cleared for every other mode below.
   renderer.options.visualEffect = null;

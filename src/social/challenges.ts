@@ -16,6 +16,10 @@ export interface FetchedChallenge {
    *  world. Null on legacy challenges — render falls back to defaults. */
   creator_shape: ShapeId | null;
   creator_theme: ThemeId | null;
+  /** Set when the source run was a daily: replays of this challenge must
+   *  use that day's twist physics, not DEFAULT_CONFIG. Null on legacy rows
+   *  and non-daily runs. */
+  daily_date: string | null;
   depth: number;
   can_respond_again: boolean;
 }
@@ -72,7 +76,7 @@ export async function fetchBestRunChallenge(username: string): Promise<FetchedCh
   const run = await withRetry("best run lookup", () =>
     sb
       .from("runs")
-      .select("seed, score, inputs, equipped_skin_id")
+      .select("seed, score, inputs, equipped_skin_id, mode, daily_date")
       .eq("user_id", p.user_id)
       .order("score", { ascending: false })
       .order("created_at", { ascending: false })
@@ -80,7 +84,7 @@ export async function fetchBestRunChallenge(username: string): Promise<FetchedCh
       .maybeSingle(),
   );
   if (!run) return null;
-  const r = run as { seed: number; score: number; inputs: InputEvent[]; equipped_skin_id: string | null };
+  const r = run as { seed: number; score: number; inputs: InputEvent[]; equipped_skin_id: string | null; mode: string | null; daily_date: string | null };
   if (!r.score || r.score <= 0) return null;
 
   let creator_skin: FetchedChallenge["creator_skin"] = null;
@@ -109,6 +113,7 @@ export async function fetchBestRunChallenge(username: string): Promise<FetchedCh
     creator_skin,
     creator_shape: (p.equipped_shape ?? null) as ShapeId | null,
     creator_theme: null,
+    daily_date: r.mode === "daily" ? (r.daily_date ?? null) : null,
     depth: 0,
     can_respond_again: true,
   };

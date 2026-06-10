@@ -543,22 +543,37 @@ export function renderGallery(
 
   function renderShapes(): void {
     const body = wrap.querySelector("[data-body]") as HTMLDivElement;
-    body.innerHTML = `<div class="grid grid-cols-2 gap-4 px-2 pt-1"></div>`;
-    const grid = body.firstElementChild as HTMLDivElement;
+    body.innerHTML = "";
     const granted = new Set(getGrantedShapesLocal());
     const isUnlocked = (sh: ShapeMeta): boolean => granted.has(sh.id) || sh.unlock(stats).unlocked;
-    const sorted = byTier(SHAPES, isUnlocked, (sh) => tierForUnlock(sh.unlock));
-    for (const shape of sorted) {
-      const unlocked = isUnlocked(shape);
-      grid.appendChild(
-        shapeCard(shape, currentEquipped.shapeId === shape.id, stats, () => {
-          if (!unlocked) return;
-          currentEquipped.shapeId = shape.id;
-          cbs.onEquipShape(shape.id);
-          renderLoadout();
-          renderShapes();
-        }, unlocked, tierForUnlock(shape.unlock)),
-      );
+    // Paper fleet first (the game's identity), then the clearly-labelled
+    // novelty section so off-vibe shapes read as a joke, not a grab bag.
+    const groups: Array<{ label: string; shapes: ShapeMeta[] }> = [
+      { label: "paper fleet", shapes: SHAPES.filter((sh) => sh.category === "paper") },
+      {
+        label: "contraband — things that have no business flying",
+        shapes: SHAPES.filter((sh) => sh.category === "contraband"),
+      },
+    ];
+    for (const group of groups) {
+      if (group.shapes.length === 0) continue;
+      body.appendChild(headerLabel(group.label));
+      const grid = document.createElement("div");
+      grid.className = "grid grid-cols-2 gap-4 px-2 pt-1";
+      body.appendChild(grid);
+      const sorted = byTier(group.shapes, isUnlocked, (sh) => tierForUnlock(sh.unlock));
+      for (const shape of sorted) {
+        const unlocked = isUnlocked(shape);
+        grid.appendChild(
+          shapeCard(shape, currentEquipped.shapeId === shape.id, stats, () => {
+            if (!unlocked) return;
+            currentEquipped.shapeId = shape.id;
+            cbs.onEquipShape(shape.id);
+            renderLoadout();
+            renderShapes();
+          }, unlocked, tierForUnlock(shape.unlock)),
+        );
+      }
     }
   }
 

@@ -29,6 +29,7 @@ export type ShapeId =
   | "lightning"
   | "ghost"
   | "crane"
+  | "fable"
   | "submarine"
   | "soccer-ball"
   | "pretzel";
@@ -66,6 +67,7 @@ export interface ShapeMeta {
     bestScore: number;
     streakDays: number;
     challengeWins?: number;
+    totalScore?: number;
     lateNightGames?: number;
     morningGames?: number;
     dailyStreakDays?: number;
@@ -704,6 +706,39 @@ function drawStar(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, hi
   ctx.stroke();
 }
 
+function drawFable(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
+  outline(ctx, highContrast);
+  // Origami fox face — THE fable animal. Built from folded triangles:
+  // accent ears behind, pentagon face, accent snout fold, crease lines.
+  const u = r / 14;
+  const body = rgbCss(skin.body);
+  const accent = rgbCss(skin.accent);
+  const poly = (pts: Array<[number, number]>, fill: string): void => {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x * u, y * u) : ctx.lineTo(x * u, y * u)));
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  };
+  poly([[-8, -6], [-13, -15], [-3, -9]], accent); // left ear
+  poly([[8, -6], [13, -15], [3, -9]], accent); // right ear
+  poly([[-10, -8], [10, -8], [12, 0], [0, 12], [-12, 0]], body); // face
+  poly([[0, 12], [-4, 3], [4, 3]], accent); // snout fold
+  // Fold creases from the cheeks to the snout.
+  ctx.beginPath();
+  ctx.moveTo(-12 * u, 0);
+  ctx.lineTo(0, 3 * u);
+  ctx.lineTo(12 * u, 0);
+  ctx.stroke();
+  ctx.fillStyle = highContrast ? "#ffffff" : "#1a1a1a";
+  for (const ex of [-5, 5]) {
+    ctx.beginPath();
+    ctx.arc(ex * u, -2 * u, 1.4 * u, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
 export const SHAPES: ShapeMeta[] = [
   {
     id: "paper-plane",
@@ -869,6 +904,17 @@ export const SHAPES: ShapeMeta[] = [
       hint: "5-day streak",
     }),
     draw: drawToucanFallback,
+  },
+  {
+    id: "fable",
+    name: "fable",
+    category: "paper",
+    blurb: "an origami fox — every fox collects stories.",
+    unlock: ({ totalScore }) => ({
+      unlocked: (totalScore ?? 0) >= 1001,
+      hint: "1,001 lifetime points — a thousand and one tales",
+    }),
+    draw: drawFable,
   },
   {
     id: "submarine",

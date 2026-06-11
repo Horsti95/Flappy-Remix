@@ -138,6 +138,13 @@ export function playCheer(): void {
   src.start();
 }
 
+let gatePitchEnabled = false;
+
+/** Settings hook: gate chime pitch follows the gap height when enabled. */
+export function setGatePitchEnabled(on: boolean): void {
+  gatePitchEnabled = on;
+}
+
 export function playGatePass(gapCenterNorm = 0.5): void {
   if (reducedMotion()) return;
   const ac = getCtx();
@@ -148,8 +155,9 @@ export function playGatePass(gapCenterNorm = 0.5): void {
   master.connect(ac.destination);
   const t = ac.currentTime + 0.005;
   // Map the gap's vertical centre to pitch: a high gap (norm→0) rings higher,
-  // a low gap (norm→1) lower. Clamp for safety.
-  const norm = Math.min(1, Math.max(0, gapCenterNorm));
+  // a low gap (norm→1) lower. Behind the unlockable gatePitch setting —
+  // default is a uniform chime so the rhythm anchor stays steady.
+  const norm = gatePitchEnabled ? Math.min(1, Math.max(0, gapCenterNorm)) : 0.5;
   switch (getEquippedGateSound()) {
     case "glide":
       gateGlide(ac, master, t, norm);

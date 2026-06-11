@@ -11,6 +11,9 @@ export interface Settings {
    *  has no vibration API (notably iOS Safari, which ignores navigator.vibrate
    *  — a native Taptic bridge replaces it when the app is wrapped). */
   haptics: boolean;
+  /** Gate chime pitch follows the gap's height (high gap = higher note).
+   *  Off = uniform pitch (the rhythm anchor). Unlockable at best score 50. */
+  gatePitch: boolean;
   /** Challenge-ghost opacity 0..100 (%), in 5% steps. 0 = ghost hidden. */
   ghostOpacity: number;
 }
@@ -24,6 +27,7 @@ export const DEFAULT_SETTINGS: Settings = {
   highContrast: false,
   reducedMotion: false,
   haptics: true,
+  gatePitch: false,
   ghostOpacity: 25,
 };
 

@@ -8,7 +8,7 @@
  * Bump APP_VERSION + prepend an entry when shipping notable changes.
  */
 
-export const APP_VERSION = "0.18.0";
+export const APP_VERSION = "0.19.0";
 
 export interface ChangeEntry {
   version: string;
@@ -19,6 +19,22 @@ export interface ChangeEntry {
 
 // Newest first.
 export const CHANGELOG: ChangeEntry[] = [
+  {
+    version: "0.19.0",
+    date: "2026-06-11",
+    title: "Pilot levels, paper crumple & a pile of secrets",
+    notes: [
+      "✈️ Pilot levels: every run earns XP — watch the bar fill on the new death screen. Every 5 levels mints you a fresh colour skin.",
+      "📜 New death screen: a proper card in YOUR colours, with “2 away from your best”, your XP bar, and what unlocks next.",
+      "💥 The plane now crumples like paper and flutters down where you crashed (and the rumble fires the instant you tap).",
+      "🏆 Every goal now grants a real reward — no more “TBA”. Plus dozens of new goals… and a lot of hidden secrets. Numbers are your friends.",
+      "🥇 Daily champions: yesterday's top 3 daily flyers each get a minted skin overnight.",
+      "🔊 Sounds on by default for new players, two new tap sounds, two new gate chimes, and you can pick your crash sound in the gallery.",
+      "🗂 Gallery: shapes are grouped (paper fleet vs… contraband), goals show starter paths first.",
+      "💬 Send feedback straight from Settings — there's a little something in it for you.",
+      "🔧 Under the hood: share links work for installed apps, daily-twist challenges replay with the right physics, ranked shows win/loss and can't be wedged anymore, and cheating got much, much harder.",
+    ],
+  },
   {
     version: "0.18.0",
     date: "2026-06-07",

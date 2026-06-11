@@ -5,6 +5,7 @@ import { type GhostSim } from "./ghost";
 import { DEFAULT_THEME_ID, getTheme, type ThemeId } from "./themes";
 import { DEFAULT_SHAPE_ID, getShape, type ShapeId } from "./shapes";
 import { getParticles, tickParticles } from "./flap-fx";
+import { auraColor, getEquippedAura } from "./aura";
 import { type VisualEffect } from "./daily-twist";
 import { preloadSprites, hasSprite, getTintedSprite } from "./sprites";
 import { getPillarStyle, type PillarStyleId } from "./pillars";
@@ -632,7 +633,24 @@ export class Renderer {
     // as a bug on dark skins (e.g. the black/pink legendary). Now it's gated
     // to the ocean theme only, where it reads naturally as a diver's light.
     // Player-only (never the ghost), off under reduced-motion/high-contrast.
-    if (isPlayer && this.options.glow && this.options.theme === "ocean"
+    // Earned aura: a soft halo in the aura's own color, any theme. Drawn
+    // with the same stacked-disc bloom as the ocean glow below.
+    const aura = isPlayer && !this.options.highContrast && !this.options.reducedMotion
+      ? auraColor(getEquippedAura())
+      : null;
+    if (aura) {
+      ctx.save();
+      ctx.shadowColor = `rgb(${aura.join(",")})`;
+      ctx.shadowBlur = r * 1.5;
+      ctx.fillStyle = `rgb(${aura.join(",")})`;
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fill();
+      ctx.restore();
+    }
+    if (!aura && isPlayer && this.options.glow && this.options.theme === "ocean"
         && !this.options.highContrast && !this.options.reducedMotion) {
       ctx.save();
       ctx.shadowColor = `rgb(${skin.accent.join(",")})`;

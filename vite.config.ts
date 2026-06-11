@@ -37,6 +37,11 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
+        // Never answer these navigations from the precached index.html:
+        // /run/:id is rewritten server-side (vercel.json) to the OG/meta
+        // handler that boots a challenge — for installed-PWA users the SW
+        // used to swallow it and share links opened a blank menu.
+        navigateFallbackDenylist: [/^\/run\//, /^\/api\//],
         runtimeCaching: [
           {
             urlPattern: /\/api\/(leaderboard|daily)/,

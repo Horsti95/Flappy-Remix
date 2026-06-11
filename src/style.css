@@ -159,11 +159,26 @@ a:focus-visible {
   .btn {
     @apply rounded-2xl font-bold transition active:scale-95 disabled:opacity-50 disabled:active:scale-100 outline-none;
   }
+  /* Paper-chip treatment (Paper Sky v1): primary buttons sit on the page
+     like a cut paper chip — a small dark offset edge that "presses flat"
+     on tap. Pure CSS, no assets. */
   .btn-primary {
-    @apply btn bg-paper text-ink shadow-lg;
+    @apply btn bg-paper text-ink;
+    box-shadow:
+      2px 3px 0 rgba(0, 0, 0, 0.45),
+      0 10px 15px -3px rgba(0, 0, 0, 0.25);
+  }
+  .btn-primary:active {
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+    transform: translate(1px, 2px) scale(0.98);
   }
   .btn-secondary {
     @apply btn border border-paper/40 text-paper bg-transparent hover:bg-white/5;
+    box-shadow: 1.5px 2px 0 rgba(0, 0, 0, 0.3);
+  }
+  .btn-secondary:active {
+    box-shadow: 0 0.5px 0 rgba(0, 0, 0, 0.3);
+    transform: translate(1px, 1.5px) scale(0.98);
   }
   .btn-quiet {
     @apply btn bg-transparent text-paper/60 font-medium hover:text-paper/90 shadow-none active:scale-100;
@@ -178,9 +193,21 @@ a:focus-visible {
   }
   .panel-group {
     @apply rounded-2xl bg-white/5 divide-y divide-white/5;
+    /* Faint paper grain: two offset repeating gradients at near-zero
+       contrast. Reads as texture, not pattern. */
+    background-image:
+      repeating-linear-gradient(2deg, rgba(255, 255, 255, 0.012) 0 2px, transparent 2px 7px),
+      repeating-linear-gradient(94deg, rgba(0, 0, 0, 0.02) 0 3px, transparent 3px 11px);
   }
   .panel-row {
     @apply flex items-center justify-between gap-3 px-4 py-3 text-sm;
+  }
+
+  /* Handwritten accent for heading-level seasoning (Paper Sky). System
+     stacks only — the PWA ships no webfonts. Fallback is the normal sans,
+     which is fine: it's decoration, never information. */
+  .font-hand {
+    font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", "Chalkboard SE", cursive;
   }
 }
 

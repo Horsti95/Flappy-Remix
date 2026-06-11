@@ -62,6 +62,78 @@ export interface AchievementStats {
    *  verify an external form was sent) — fine for a cosmetic reward. Optional
    *  so existing stored stats / test fixtures stay valid without a migration. */
   feedbackGiven?: boolean;
+
+  // --- Secret-achievement latches. All optional (like `feedbackGiven`) so
+  // stored stats and fixtures predating them stay valid. Each latches true
+  // inside `updateStatsAfterRun` and is never reset, so once a secret is
+  // earned no later run can revoke it.
+
+  /** Score of the most recent completed run — drives the consecutive
+   *  exact-score secrets (6-then-7, déjà vu). Undefined until a run lands. */
+  prevRunScore?: number;
+  /** Scored exactly 6, then exactly 7 in the very next run. */
+  sixSevenDone?: boolean;
+  /** Scored exactly 67 in a single run. */
+  exact67Done?: boolean;
+  /** Scored exactly 42 in a single run. */
+  exact42Done?: boolean;
+  /** Scored exactly 100 in a single run — not 99, not 101. */
+  exact100Done?: boolean;
+  /** Scored exactly 13 in a single run. */
+  exact13Done?: boolean;
+  /** Scored exactly 1 in a single run. */
+  exact1Done?: boolean;
+  /** Scored a 3+ digit palindrome (101, 111, 121, … 1221, …) in a run. */
+  palindromeDone?: boolean;
+  /** Scored the exact same score (5+) in two consecutive runs. */
+  dejaVuDone?: boolean;
+  /** Finished a run without a single flap (input data present and zero). */
+  zeroFlapDone?: boolean;
+  /** Score two runs ago — for three-in-a-row patterns. */
+  prevPrevRunScore?: number;
+  /** Scored exactly 1, then 2, then 3 in three consecutive runs. */
+  staircaseDone?: boolean;
+  /** The same score (5+) three runs in a row. */
+  tripleScoreDone?: boolean;
+  exact21Done?: boolean;
+  exact99Done?: boolean;
+  exact111Done?: boolean;
+  exact123Done?: boolean;
+  exact314Done?: boolean;
+  /** Scored exactly 50 with exactly 50 flaps. */
+  fiftyFiftyDone?: boolean;
+  /** Exactly 100 flaps in one run (score 1+). */
+  flaps100Done?: boolean;
+  /** Played on Feb 29 (local time). */
+  leapDayDone?: boolean;
+  /** One run lasting 5+ minutes. */
+  longHaulDone?: boolean;
+  /** Rolling count of consecutive sub-3-second runs (+ its latch). */
+  consecutiveQuickDeaths?: number;
+  quickFiveDone?: boolean;
+  /** New best score in the run right after scoring under 5. */
+  comebackDone?: boolean;
+  /** Score 30+ with at most 40 flaps. */
+  deepBreathDone?: boolean;
+  /** Calendar-day run counter (local) + the 25-in-a-day latch. */
+  runsToday?: number;
+  lastRunDay?: string;
+  marathonDone?: boolean;
+  /** Played each mode at least once. */
+  playedCasual?: boolean;
+  playedDaily?: boolean;
+  playedChallenge?: boolean;
+  playedRanked?: boolean;
+  /** Weekend play counters (local day-of-week, like nightGames). */
+  satGames?: number;
+  sunGames?: number;
+}
+
+/** True for scores that read the same backwards, 3+ digits (101, 1221, …). */
+function isPalindromeScore(score: number): boolean {
+  if (score < 101 || !Number.isInteger(score)) return false;
+  const s = String(score);
+  return s === [...s].reverse().join("");
 }
 
 export const ACHIEVEMENTS: AchievementDef[] = [
@@ -362,6 +434,373 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     check: (s) => s.feedbackGiven === true,
   },
 
+  // --- Secret numerology & odd behaviors (discover them in play!) ---
+  {
+    id: "six_seven",
+    name: "Six… Seven!",
+    blurb: "score exactly 6, then exactly 7 in the very next run",
+    category: "special",
+    reward: { type: "color", body: [167, 67, 255], accent: [255, 214, 67] },
+    secret: true,
+    check: (s) => s.sixSevenDone === true,
+  },
+  {
+    id: "exact_67",
+    name: "the whole sixty-seven",
+    blurb: "land a run on exactly 67 — no more, no less",
+    category: "special",
+    reward: { type: "color", body: [67, 167, 255], accent: [255, 103, 67] },
+    secret: true,
+    check: (s) => s.exact67Done === true,
+  },
+  {
+    id: "points_404",
+    name: "404: paint not found",
+    blurb: "cross 404 lifetime points — this skin could not be loaded",
+    category: "milestone",
+    reward: { type: "color", body: [45, 45, 50], accent: [190, 190, 200] },
+    secret: true,
+    check: (s) => s.totalScore >= 404,
+  },
+  {
+    id: "exact_42",
+    name: "the answer",
+    blurb: "score exactly 42 in a run — to life, the universe, and everything",
+    category: "special",
+    reward: { type: "color", body: [25, 55, 110], accent: [200, 220, 255] },
+    secret: true,
+    check: (s) => s.exact42Done === true,
+  },
+  {
+    id: "points_1337",
+    name: "elite mileage",
+    blurb: "cross 1,337 lifetime points — speak fluent keyboard",
+    category: "milestone",
+    reward: { type: "color", body: [12, 12, 12], accent: [57, 255, 120] },
+    secret: true,
+    check: (s) => s.totalScore >= 1337,
+  },
+  {
+    id: "points_3141",
+    name: "a slice of pi",
+    blurb: "cross 3,141 lifetime points — irrationally delicious",
+    category: "milestone",
+    reward: { type: "color", body: [230, 175, 110], accent: [200, 60, 60] },
+    secret: true,
+    check: (s) => s.totalScore >= 3141,
+  },
+  {
+    id: "zero_flap",
+    name: "gravity wins",
+    blurb: "finish a run without flapping even once",
+    category: "special",
+    reward: { type: "color", body: [125, 105, 85], accent: [70, 55, 40] },
+    secret: true,
+    check: (s) => s.zeroFlapDone === true,
+  },
+  {
+    id: "palindrome",
+    name: "racecar",
+    blurb: "score a palindrome of 101 or more — same forwards and backwards",
+    category: "special",
+    reward: { type: "color", body: [212, 218, 228], accent: [90, 95, 110] },
+    secret: true,
+    check: (s) => s.palindromeDone === true,
+  },
+  {
+    id: "exact_100",
+    name: "right on the nose",
+    blurb: "score exactly 100 — not 99, not 101",
+    category: "special",
+    reward: { type: "color", body: [255, 250, 245], accent: [220, 30, 30] },
+    secret: true,
+    check: (s) => s.exact100Done === true,
+  },
+  {
+    id: "exact_1",
+    name: "one and done",
+    blurb: "score exactly 1 — a single, perfect point",
+    category: "special",
+    reward: { type: "color", body: [255, 245, 200], accent: [255, 180, 0] },
+    secret: true,
+    check: (s) => s.exact1Done === true,
+  },
+  {
+    id: "lucky_13",
+    name: "black cat",
+    blurb: "score exactly 13 — who said it was unlucky?",
+    category: "special",
+    reward: { type: "color", body: [25, 25, 28], accent: [60, 200, 90] },
+    secret: true,
+    check: (s) => s.exact13Done === true,
+  },
+  {
+    id: "deja_vu",
+    name: "déjà vu",
+    blurb: "score the exact same score (5+) twice in a row",
+    category: "special",
+    reward: { type: "color", body: [150, 110, 200], accent: [150, 110, 200] },
+    secret: true,
+    check: (s) => s.dejaVuDone === true,
+  },
+
+  // --- Promoted from the criteria scratchpad: goals with real rewards ---
+  {
+    id: "frequent_flyer",
+    name: "frequent flyer",
+    blurb: "log 300 flights — the runway knows your name",
+    category: "milestone",
+    reward: { type: "color", body: [70, 130, 200], accent: [200, 225, 255] },
+    check: (s) => s.totalGames >= 300,
+  },
+  {
+    id: "century_club",
+    name: "century club",
+    blurb: "post a 150 — triple digits is for tourists",
+    category: "score",
+    reward: { type: "color", body: [230, 230, 235], accent: [120, 120, 135] },
+    check: (s) => s.bestScore >= 150,
+  },
+  {
+    id: "stratospheric",
+    name: "stratospheric",
+    blurb: "clear 300 in one run and leave the weather behind",
+    category: "score",
+    reward: { type: "color", body: [40, 45, 120], accent: [160, 200, 255] },
+    check: (s) => s.bestScore >= 300,
+  },
+  {
+    id: "fortnight_flame",
+    name: "fortnight flame",
+    blurb: "keep the streak alive 21 days straight",
+    category: "streak",
+    reward: { type: "color", body: [220, 90, 30], accent: [255, 200, 80] },
+    check: (s) => s.streakDays >= 21,
+  },
+  {
+    id: "weathered",
+    name: "weathered",
+    blurb: "score 50+ on a hard daily — let the storm come",
+    category: "daily",
+    reward: { type: "color", body: [85, 95, 115], accent: [180, 200, 220] },
+    check: (s) => s.hardDailyBest >= 50,
+  },
+  {
+    id: "tempered_steel",
+    name: "tempered steel",
+    blurb: "score 40+ on a super-hard daily without flinching",
+    category: "daily",
+    reward: { type: "color", body: [120, 130, 145], accent: [220, 225, 235] },
+    check: (s) => s.superHardDailyBest >= 40,
+  },
+  {
+    id: "dawn_patrol",
+    name: "dawn patrol",
+    blurb: "30 sunrise games (05:00\u201307:00) \u2014 first into the air",
+    category: "special",
+    reward: { type: "color", body: [235, 170, 80], accent: [255, 235, 180] },
+    check: (s) => s.morningGames >= 30,
+  },
+  {
+    id: "duelist",
+    name: "duelist",
+    blurb: "win 25 challenges — ghosts tremble at your seed",
+    category: "social",
+    reward: { type: "color", body: [150, 30, 40], accent: [230, 190, 90] },
+    check: (s) => s.challengeWins >= 25,
+  },
+  {
+    id: "round_the_clock",
+    name: "round the clock",
+    blurb: "fly at dawn and after dark: 15 morning + 15 night games",
+    category: "special",
+    reward: { type: "color", body: [30, 40, 80], accent: [250, 210, 110] },
+    check: (s) => s.morningGames >= 15 && s.nightGames >= 15,
+  },
+
+  // --- New criterion types ---
+  {
+    id: "comeback_kid",
+    name: "comeback kid",
+    blurb: "set a new best in the run right after scoring under 5",
+    category: "special",
+    reward: { type: "color", body: [240, 100, 40], accent: [255, 220, 120] },
+    check: (s) => s.comebackDone === true,
+  },
+  {
+    id: "marathoner",
+    name: "marathoner",
+    blurb: "25 runs in a single day — pace yourself, or don't",
+    category: "special",
+    reward: { type: "color", body: [60, 60, 65], accent: [200, 255, 60] },
+    check: (s) => s.marathonDone === true,
+  },
+  {
+    id: "all_rounder",
+    name: "all-rounder",
+    blurb: "play casual, the daily, a challenge and ranked",
+    category: "special",
+    reward: { type: "color", body: [90, 200, 180], accent: [240, 140, 200] },
+    check: (s) =>
+      s.playedCasual === true &&
+      s.playedDaily === true &&
+      s.playedChallenge === true &&
+      s.playedRanked === true,
+  },
+  {
+    id: "deep_breath",
+    name: "deep breath",
+    blurb: "score 30+ using at most 40 flaps",
+    category: "efficiency",
+    reward: { type: "color", body: [70, 160, 170], accent: [220, 245, 245] },
+    check: (s) => s.deepBreathDone === true,
+  },
+  {
+    id: "weekend_ritual",
+    name: "weekend ritual",
+    blurb: "make it a habit: 3 Saturday games and 3 Sunday games",
+    category: "special",
+    reward: { type: "color", body: [200, 60, 70], accent: [250, 245, 230] },
+    check: (s) => (s.satGames ?? 0) >= 3 && (s.sunGames ?? 0) >= 3,
+  },
+
+  // --- More secrets (discover them in play!) ---
+  {
+    id: "blackjack",
+    name: "blackjack",
+    blurb: "score exactly 21 — hit me. no, wait",
+    category: "special",
+    reward: { type: "color", body: [20, 90, 50], accent: [230, 220, 200] },
+    secret: true,
+    check: (s) => s.exact21Done === true,
+  },
+  {
+    id: "so_close",
+    name: "so close",
+    blurb: "score exactly 99 — the worst number in the game",
+    category: "special",
+    reward: { type: "color", body: [180, 40, 50], accent: [255, 230, 230] },
+    secret: true,
+    check: (s) => s.exact99Done === true,
+  },
+  {
+    id: "eleventy_one",
+    name: "eleventy-one",
+    blurb: "score exactly 111 — a most respectable age",
+    category: "special",
+    reward: { type: "color", body: [120, 80, 160], accent: [255, 215, 130] },
+    secret: true,
+    check: (s) => s.exact111Done === true,
+  },
+  {
+    id: "easy_as",
+    name: "easy as",
+    blurb: "score exactly 123",
+    category: "special",
+    reward: { type: "color", body: [250, 200, 60], accent: [80, 70, 60] },
+    secret: true,
+    check: (s) => s.exact123Done === true,
+  },
+  {
+    id: "bigger_slice",
+    name: "a bigger slice",
+    blurb: "score exactly 314 in one run — irrational behaviour",
+    category: "special",
+    reward: { type: "color", body: [220, 140, 90], accent: [150, 60, 40] },
+    secret: true,
+    check: (s) => s.exact314Done === true,
+  },
+  {
+    id: "points_777",
+    name: "jackpot",
+    blurb: "cross 777 lifetime points — triple sevens",
+    category: "milestone",
+    reward: { type: "color", body: [200, 160, 40], accent: [255, 240, 160] },
+    secret: true,
+    check: (s) => s.totalScore >= 777,
+  },
+  {
+    id: "points_2048",
+    name: "merged",
+    blurb: "cross 2,048 lifetime points — swipe up to continue",
+    category: "milestone",
+    reward: { type: "color", body: [237, 194, 46], accent: [119, 110, 101] },
+    secret: true,
+    check: (s) => s.totalScore >= 2048,
+  },
+  {
+    id: "points_9001",
+    name: "over nine thousand",
+    blurb: "cross 9,001 lifetime points — WHAT?!",
+    category: "milestone",
+    reward: { type: "color", body: [255, 220, 60], accent: [80, 160, 255] },
+    secret: true,
+    check: (s) => s.totalScore >= 9001,
+  },
+  {
+    id: "staircase",
+    name: "stairway",
+    blurb: "score 1, then 2, then 3 — one step at a time",
+    category: "special",
+    reward: { type: "color", body: [100, 110, 130], accent: [210, 220, 240] },
+    secret: true,
+    check: (s) => s.staircaseDone === true,
+  },
+  {
+    id: "groundhog_day",
+    name: "groundhog day",
+    blurb: "the exact same score (5+) three runs in a row",
+    category: "special",
+    reward: { type: "color", body: [130, 100, 70], accent: [220, 200, 170] },
+    secret: true,
+    check: (s) => s.tripleScoreDone === true,
+  },
+  {
+    id: "fifty_fifty",
+    name: "fifty-fifty",
+    blurb: "score exactly 50 with exactly 50 flaps",
+    category: "efficiency",
+    reward: { type: "color", body: [40, 40, 45], accent: [245, 245, 240] },
+    secret: true,
+    check: (s) => s.fiftyFiftyDone === true,
+  },
+  {
+    id: "century_of_flaps",
+    name: "century of flaps",
+    blurb: "exactly 100 flaps in a single run",
+    category: "efficiency",
+    reward: { type: "color", body: [180, 200, 90], accent: [90, 110, 40] },
+    secret: true,
+    check: (s) => s.flaps100Done === true,
+  },
+  {
+    id: "leap_of_faith",
+    name: "leap of faith",
+    blurb: "fly on February 29th — see you in four years",
+    category: "special",
+    reward: { type: "color", body: [80, 180, 120], accent: [200, 255, 220] },
+    secret: true,
+    check: (s) => s.leapDayDone === true,
+  },
+  {
+    id: "long_haul",
+    name: "long haul",
+    blurb: "keep a single run alive for five whole minutes",
+    category: "special",
+    reward: { type: "color", body: [70, 80, 100], accent: [255, 160, 90] },
+    secret: true,
+    check: (s) => s.longHaulDone === true,
+  },
+  {
+    id: "rapid_unscheduled",
+    name: "rapid unscheduled disassembly",
+    blurb: "five runs in a row, each over in under three seconds",
+    category: "special",
+    reward: { type: "color", body: [230, 80, 40], accent: [255, 250, 245] },
+    secret: true,
+    check: (s) => s.quickFiveDone === true,
+  },
+
   // --- Cumulative score, elite tier ---
   {
     id: "points_12345",
@@ -480,7 +919,7 @@ export function saveAchievementStats(stats: AchievementStats): void {
 
 export function updateStatsAfterRun(
   stats: AchievementStats,
-  run: { score: number; mode: string; tier?: string; inputCount?: number },
+  run: { score: number; mode: string; tier?: string; inputCount?: number; ticks?: number },
 ): AchievementStats {
   const s = { ...stats };
   s.totalGames++;
@@ -492,6 +931,71 @@ export function updateStatsAfterRun(
   if (run.score >= 25 && run.inputCount != null && run.inputCount < 80) {
     s.minimalistDone = true;
   }
+
+  // Secret exact-score latches. Each is evaluated per completed run and
+  // latches once earned (never reset), mirroring how `minimalistDone` works.
+  if (run.score === 67) s.exact67Done = true;
+  if (run.score === 42) s.exact42Done = true;
+  if (run.score === 100) s.exact100Done = true;
+  if (run.score === 13) s.exact13Done = true;
+  if (run.score === 1) s.exact1Done = true;
+  if (isPalindromeScore(run.score)) s.palindromeDone = true;
+  if (run.inputCount != null && run.inputCount === 0) s.zeroFlapDone = true;
+  if (run.score === 21) s.exact21Done = true;
+  if (run.score === 99) s.exact99Done = true;
+  if (run.score === 111) s.exact111Done = true;
+  if (run.score === 123) s.exact123Done = true;
+  if (run.score === 314) s.exact314Done = true;
+  if (run.score === 50 && run.inputCount === 50) s.fiftyFiftyDone = true;
+  if (run.score >= 1 && run.inputCount === 100) s.flaps100Done = true;
+  if (run.score >= 30 && run.inputCount != null && run.inputCount <= 40) s.deepBreathDone = true;
+  if (run.ticks != null && run.ticks >= 18000) s.longHaulDone = true;
+  s.consecutiveQuickDeaths =
+    run.ticks != null && run.ticks < 180 ? (s.consecutiveQuickDeaths ?? 0) + 1 : 0;
+  if ((s.consecutiveQuickDeaths ?? 0) >= 5) s.quickFiveDone = true;
+
+  // Calendar trackers (local time, same convention as the night counter).
+  const runDate = new Date();
+  if (runDate.getMonth() === 1 && runDate.getDate() === 29) s.leapDayDone = true;
+  const dayKey = `${runDate.getFullYear()}-${runDate.getMonth() + 1}-${runDate.getDate()}`;
+  s.runsToday = s.lastRunDay === dayKey ? (s.runsToday ?? 0) + 1 : 1;
+  s.lastRunDay = dayKey;
+  if ((s.runsToday ?? 0) >= 25) s.marathonDone = true;
+  const dow = runDate.getDay();
+  if (dow === 6) s.satGames = (s.satGames ?? 0) + 1;
+  if (dow === 0) s.sunGames = (s.sunGames ?? 0) + 1;
+
+  // Mode latches for all_rounder ("challenge-create"/"race" don't count).
+  if (run.mode === "casual") s.playedCasual = true;
+  if (run.mode === "daily") s.playedDaily = true;
+  if (run.mode === "challenge") s.playedChallenge = true;
+  if (run.mode === "ranked") s.playedRanked = true;
+
+  // Consecutive exact-score secrets compare against the *immediately previous*
+  // completed run. A run in between with any other score breaks the chain.
+  if (stats.prevRunScore === 6 && run.score === 7) s.sixSevenDone = true;
+  if (stats.prevRunScore != null && stats.prevRunScore === run.score && run.score >= 5) {
+    s.dejaVuDone = true;
+  }
+  // Three-run patterns read both previous scores BEFORE they shift.
+  if (stats.prevPrevRunScore === 1 && stats.prevRunScore === 2 && run.score === 3) {
+    s.staircaseDone = true;
+  }
+  if (
+    stats.prevPrevRunScore != null &&
+    stats.prevPrevRunScore === stats.prevRunScore &&
+    stats.prevRunScore === run.score &&
+    run.score >= 5
+  ) {
+    s.tripleScoreDone = true;
+  }
+  // Comeback: a brand-new best in the run right after scoring under 5.
+  // stats.bestScore is the PRE-run best (s.bestScore was already bumped).
+  if (stats.prevRunScore != null && stats.prevRunScore < 5 && run.score > stats.bestScore) {
+    s.comebackDone = true;
+  }
+  s.prevPrevRunScore = stats.prevRunScore;
+  s.prevRunScore = run.score;
 
   // Score-band streak tracking (used by centurion / bridesmaid / metronome).
   if (run.score > 100) s.runsOver100++;

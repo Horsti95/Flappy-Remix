@@ -117,6 +117,7 @@ export function renderDailyLanding(
     </div>
     <div class="flex-1 flex flex-col items-center justify-center px-6 text-center gap-3">
       <div class="text-[10px] uppercase tracking-wider opacity-60">${escapeHtml(meta.date)}</div>
+      <div class="font-hand text-[13px] opacity-70">Everyone flies the same wind today.</div>
       ${tierIntensityRow}
       <div class="mt-1 text-2xl font-bold leading-tight">${escapeHtml(modifierList)}</div>
       <div class="text-[12px] opacity-60 leading-snug max-w-[300px]">${escapeHtml(modifierBlurbs)}</div>

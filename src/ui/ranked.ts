@@ -190,12 +190,13 @@ function matchCard(m: RankedMatch, onPlayRound: (m: RankedMatch, round: number) 
     })
     .join("");
 
+  // The winner is either you or the opponent; not-the-opponent means you.
   const winner = m.state === "completed"
     ? (m.winner_id == null
       ? `<div class="mt-2 text-[12px] opacity-70">draw</div>`
-      : m.winner_id === (m.you_are === "a" ? (m.opponent.user_id === m.opponent.user_id ? null : null) : null)
-        ? ""
-        : "")
+      : m.winner_id !== m.opponent.user_id
+        ? `<div class="mt-2 text-[12px] font-bold text-emerald-300">you won</div>`
+        : `<div class="mt-2 text-[12px] font-bold text-red-300">you lost</div>`)
     : "";
   const ratingLine = m.state === "completed"
     ? ratingChange(m)

@@ -225,3 +225,125 @@ describe("achievements", () => {
     }
   });
 });
+
+describe("secret achievements", () => {
+  const ids = (s: AchievementStats) => getUnlockedAchievements(s).map((a) => a.id);
+
+  it("six_seven needs exactly 6 then exactly 7 in consecutive runs", () => {
+    let s = updateStatsAfterRun(EMPTY, { score: 6, mode: "casual" });
+    s = updateStatsAfterRun(s, { score: 7, mode: "casual" });
+    expect(ids(s)).toContain("six_seven");
+  });
+
+  it("six_seven does not fire when another run breaks the chain", () => {
+    let s = updateStatsAfterRun(EMPTY, { score: 6, mode: "casual" });
+    s = updateStatsAfterRun(s, { score: 12, mode: "casual" });
+    s = updateStatsAfterRun(s, { score: 7, mode: "casual" });
+    expect(ids(s)).not.toContain("six_seven");
+  });
+
+  it("six_seven latches once earned", () => {
+    let s = updateStatsAfterRun(EMPTY, { score: 6, mode: "casual" });
+    s = updateStatsAfterRun(s, { score: 7, mode: "casual" });
+    s = updateStatsAfterRun(s, { score: 3, mode: "casual" });
+    expect(ids(s)).toContain("six_seven");
+  });
+
+  it("exact_67 and exact_42 fire only on the exact score", () => {
+    const near = updateStatsAfterRun(EMPTY, { score: 68, mode: "casual" });
+    expect(ids(near)).not.toContain("exact_67");
+    const hit = updateStatsAfterRun(EMPTY, { score: 67, mode: "casual" });
+    expect(ids(hit)).toContain("exact_67");
+    expect(ids(updateStatsAfterRun(EMPTY, { score: 42, mode: "casual" }))).toContain("exact_42");
+  });
+
+  it("points_404 and points_1337 unlock on lifetime crossings", () => {
+    let s = updateStatsAfterRun(EMPTY, { score: 400, mode: "casual" });
+    expect(ids(s)).not.toContain("points_404");
+    s = updateStatsAfterRun(s, { score: 10, mode: "casual" });
+    expect(ids(s)).toContain("points_404");
+    expect(ids(s)).not.toContain("points_1337");
+    s = updateStatsAfterRun(s, { score: 1000, mode: "casual" });
+    expect(ids(s)).toContain("points_1337");
+  });
+
+  it("deja_vu needs the same score (5+) twice in a row", () => {
+    let low = updateStatsAfterRun(EMPTY, { score: 3, mode: "casual" });
+    low = updateStatsAfterRun(low, { score: 3, mode: "casual" });
+    expect(ids(low)).not.toContain("deja_vu");
+    let s = updateStatsAfterRun(EMPTY, { score: 23, mode: "casual" });
+    s = updateStatsAfterRun(s, { score: 23, mode: "casual" });
+    expect(ids(s)).toContain("deja_vu");
+  });
+
+  it("palindrome fires for 101+ palindromes only", () => {
+    expect(ids(updateStatsAfterRun(EMPTY, { score: 99, mode: "casual" }))).not.toContain(
+      "palindrome",
+    );
+    expect(ids(updateStatsAfterRun(EMPTY, { score: 121, mode: "casual" }))).toContain(
+      "palindrome",
+    );
+  });
+
+  it("staircase needs exactly 1, 2, 3 back to back", () => {
+    let s = updateStatsAfterRun(EMPTY, { score: 1, mode: "casual" });
+    s = updateStatsAfterRun(s, { score: 2, mode: "casual" });
+    s = updateStatsAfterRun(s, { score: 3, mode: "casual" });
+    expect(ids(s)).toContain("staircase");
+    let broken = updateStatsAfterRun(EMPTY, { score: 1, mode: "casual" });
+    broken = updateStatsAfterRun(broken, { score: 5, mode: "casual" });
+    broken = updateStatsAfterRun(broken, { score: 2, mode: "casual" });
+    broken = updateStatsAfterRun(broken, { score: 3, mode: "casual" });
+    expect(ids(broken)).not.toContain("staircase");
+  });
+
+  it("groundhog_day needs the same score (5+) three times running", () => {
+    let s = EMPTY as ReturnType<typeof updateStatsAfterRun>;
+    for (let i = 0; i < 3; i++) s = updateStatsAfterRun(s, { score: 9, mode: "casual" });
+    expect(ids(s)).toContain("groundhog_day");
+    let low = EMPTY as ReturnType<typeof updateStatsAfterRun>;
+    for (let i = 0; i < 3; i++) low = updateStatsAfterRun(low, { score: 3, mode: "casual" });
+    expect(ids(low)).not.toContain("groundhog_day");
+  });
+
+  it("comeback_kid: new best right after a sub-5 run", () => {
+    let s = { ...EMPTY, bestScore: 30 };
+    s = updateStatsAfterRun(s, { score: 2, mode: "casual" });
+    expect(ids(s)).not.toContain("comeback_kid");
+    s = updateStatsAfterRun(s, { score: 31, mode: "casual" });
+    expect(ids(s)).toContain("comeback_kid");
+  });
+
+  it("ticks-based secrets: long_haul and rapid_unscheduled", () => {
+    const long = updateStatsAfterRun(EMPTY, { score: 40, mode: "casual", ticks: 18000 });
+    expect(ids(long)).toContain("long_haul");
+    let quick = EMPTY as ReturnType<typeof updateStatsAfterRun>;
+    for (let i = 0; i < 5; i++) quick = updateStatsAfterRun(quick, { score: 0, mode: "casual", ticks: 100 });
+    expect(ids(quick)).toContain("rapid_unscheduled");
+    // a slow run resets the chain
+    let mixed = EMPTY as ReturnType<typeof updateStatsAfterRun>;
+    for (let i = 0; i < 4; i++) mixed = updateStatsAfterRun(mixed, { score: 0, mode: "casual", ticks: 100 });
+    mixed = updateStatsAfterRun(mixed, { score: 10, mode: "casual", ticks: 600 });
+    mixed = updateStatsAfterRun(mixed, { score: 0, mode: "casual", ticks: 100 });
+    expect(ids(mixed)).not.toContain("rapid_unscheduled");
+  });
+
+  it("all_rounder needs all four modes; century_club at 150", () => {
+    let s = updateStatsAfterRun(EMPTY, { score: 5, mode: "casual" });
+    s = updateStatsAfterRun(s, { score: 5, mode: "daily", tier: "medium" });
+    s = updateStatsAfterRun(s, { score: 5, mode: "challenge" });
+    expect(ids(s)).not.toContain("all_rounder");
+    s = updateStatsAfterRun(s, { score: 5, mode: "ranked" });
+    expect(ids(s)).toContain("all_rounder");
+    expect(ids({ ...EMPTY, bestScore: 150 })).toContain("century_club");
+  });
+
+  it("zero_flap requires input data showing zero flaps", () => {
+    expect(ids(updateStatsAfterRun(EMPTY, { score: 0, mode: "casual" }))).not.toContain(
+      "zero_flap",
+    );
+    expect(ids(updateStatsAfterRun(EMPTY, { score: 0, mode: "casual", inputCount: 0 }))).toContain(
+      "zero_flap",
+    );
+  });
+});

@@ -7,7 +7,7 @@ import type { AchievementStats } from "./achievements";
  * stats; the chosen one is stored client-side and read by playGatePass().
  */
 
-export type GateSoundId = "classic" | "glide" | "wide" | "marimba";
+export type GateSoundId = "classic" | "glide" | "wide" | "marimba" | "koto" | "pop_choir";
 
 export interface GateSoundStyle {
   id: GateSoundId;
@@ -40,6 +40,18 @@ export const GATE_SOUNDS: GateSoundStyle[] = [
     name: "Marimba",
     blurb: "warm, bell-like mallet tone",
     unlock: (s) => ({ unlocked: s.streakDays >= 7, hint: "7-day streak" }),
+  },
+  {
+    id: "koto",
+    name: "Koto",
+    blurb: "a plucked string — bright attack, woody decay",
+    unlock: (s) => ({ unlocked: s.bestScore >= 50, hint: "score 50 in a run" }),
+  },
+  {
+    id: "pop_choir",
+    name: "Pop choir",
+    blurb: "a tiny two-note major chime",
+    unlock: (s) => ({ unlocked: s.totalGames >= 100, hint: "play 100 games" }),
   },
 ];
 

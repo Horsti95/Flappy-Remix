@@ -42,7 +42,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   const run = await admin
     .from("runs")
-    .select("id, user_id, seed, score, inputs, mode")
+    .select("id, user_id, seed, score, inputs, mode, daily_date")
     .eq("id", body.source_run_id)
     .maybeSingle();
   if (run.error || !run.data) return json({ error: "run not found" }, 404);
@@ -101,6 +101,10 @@ export default async function handler(req: Request): Promise<Response> {
       status,
       creator_shape: typeof body.creator_shape === "string" ? body.creator_shape : null,
       creator_theme: typeof body.creator_theme === "string" ? body.creator_theme : null,
+      // Derived from the source run, never from the client: daily runs carry
+      // their date so every replay of this challenge uses that day's twist
+      // physics (ghost, responder, and the server validator alike).
+      daily_date: run.data.mode === "daily" ? ((run.data.daily_date as string | null) ?? null) : null,
     })
     .select("id, short_id")
     .single();

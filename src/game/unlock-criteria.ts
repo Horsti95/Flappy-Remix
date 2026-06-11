@@ -40,18 +40,18 @@ export interface CriterionDef {
    * range may wrap across the new year (e.g. `from: "12-26", until: "01-02"`).
    */
   event?: { from: string; until: string };
+  /**
+   * True for drafts whose criterion needs stat plumbing that doesn't exist
+   * yet — their `check` is a stub returning false until the counter lands.
+   * (Owner decision 2026-06-10: criteria may be drafted before either the
+   * reward or the tracking exists.)
+   */
+  pending?: boolean;
   check(stats: AchievementStats): boolean;
 }
 
 export const UNLOCK_CRITERIA: CriterionDef[] = [
   // --- Variety / exploration: volume framed with character ---
-  {
-    id: "frequent_flyer",
-    name: "frequent flyer",
-    hint: "log 300 flights — the runway knows your name",
-    plannedReward: { kind: "badge", label: "TBA · frequent-flyer badge" },
-    check: (s) => s.totalGames >= 300,
-  },
   {
     id: "thousand_takeoffs",
     name: "thousand takeoffs",
@@ -70,20 +70,6 @@ export const UNLOCK_CRITERIA: CriterionDef[] = [
 
   // --- Milestone curves: score ladders with fresh framing ---
   {
-    id: "century_club",
-    name: "century club",
-    hint: "post a 150 — triple digits is for tourists",
-    plannedReward: { kind: "pillar", label: "TBA · marble pillar" },
-    check: (s) => s.bestScore >= 150,
-  },
-  {
-    id: "stratospheric",
-    name: "stratospheric",
-    hint: "clear 300 in one run and leave the weather behind",
-    plannedReward: { kind: "background", label: "TBA · high-altitude background" },
-    check: (s) => s.bestScore >= 300,
-  },
-  {
     id: "ace_of_aces",
     name: "ace of aces",
     hint: "a 750 run. nobody will believe you.",
@@ -93,13 +79,6 @@ export const UNLOCK_CRITERIA: CriterionDef[] = [
   },
 
   // --- Streak texture: consistency over distance ---
-  {
-    id: "fortnight_flame",
-    name: "fortnight flame",
-    hint: "keep the streak alive 21 days straight",
-    plannedReward: { kind: "fx", label: "TBA · ember-streak fx" },
-    check: (s) => s.streakDays >= 21,
-  },
   {
     id: "seasoned_pilot",
     name: "seasoned pilot",
@@ -125,20 +104,6 @@ export const UNLOCK_CRITERIA: CriterionDef[] = [
 
   // --- Daily-tier mastery: hard / super-hard modifiers ---
   {
-    id: "weathered",
-    name: "weathered",
-    hint: "score 50+ on a hard daily — let the storm come",
-    plannedReward: { kind: "background", label: "TBA · thunderhead background" },
-    check: (s) => s.hardDailyBest >= 50,
-  },
-  {
-    id: "tempered_steel",
-    name: "tempered steel",
-    hint: "score 40+ on a super-hard daily without flinching",
-    plannedReward: { kind: "skin", label: "TBA · tempered-steel skin" },
-    check: (s) => s.superHardDailyBest >= 40,
-  },
-  {
     id: "eye_of_the_storm",
     name: "eye of the storm",
     hint: "master both extremes: 60+ hard AND 60+ super-hard",
@@ -163,29 +128,8 @@ export const UNLOCK_CRITERIA: CriterionDef[] = [
     plannedReward: { kind: "skin", label: "TBA · midnight-violet skin" },
     check: (s) => s.lateNightGames >= 50,
   },
-  {
-    id: "dawn_patrol",
-    name: "dawn patrol",
-    hint: "30 sunrise games (05:00–07:00) — first into the air",
-    plannedReward: { kind: "skin", label: "TBA · dawn-gold skin" },
-    check: (s) => s.morningGames >= 30,
-  },
-  {
-    id: "round_the_clock",
-    name: "round the clock",
-    hint: "fly at dawn and after dark: 15 morning + 15 night games",
-    plannedReward: { kind: "badge", label: "TBA · all-hours badge" },
-    check: (s) => s.morningGames >= 15 && s.nightGames >= 15,
-  },
 
   // --- Social: challenges & friends ---
-  {
-    id: "duelist",
-    name: "duelist",
-    hint: "win 25 challenges — ghosts tremble at your seed",
-    plannedReward: { kind: "fx", label: "TBA · victory-confetti fx" },
-    check: (s) => s.challengeWins >= 25,
-  },
   {
     id: "flock_leader",
     name: "flock leader",
@@ -243,6 +187,73 @@ export const UNLOCK_CRITERIA: CriterionDef[] = [
     event: { from: "12-01", until: "12-01" },
     plannedReward: { kind: "badge", label: "TBA · red-ribbon badge" },
     check: () => true,
+  },
+
+  // --- Drafts that need NEW stat plumbing (2026-06-10 studio review) ---
+  // Exception to this file's "existing counters only" rule, by owner
+  // decision: criteria may be drafted before either the reward OR the
+  // tracking exists. Each `check` below returns false until the noted
+  // counter lands in AchievementStats; the comment says what's missing.
+  {
+    // Needs: per-match Elo delta vs. opponent rating (ranked settle path).
+    id: "giant_slayer",
+    name: "giant slayer",
+    hint: "win a ranked match against someone rated 100+ above you",
+    plannedReward: { kind: "fx", label: "TBA · giant-slayer gate effect" },
+    pending: true,
+    check: () => false,
+  },
+  {
+    // Needs: same plumbing as giant_slayer, losing side. Secret — being
+    // upset isn't something we tease on a goals list.
+    id: "upset_victim",
+    name: "everyone has bad days",
+    hint: "lose a ranked match to someone rated 100+ below you",
+    secret: true,
+    plannedReward: { kind: "skin", label: "TBA · consolation colors" },
+    pending: true,
+    check: () => false,
+  },
+  {
+    // Needs: per-gate pass offset from gap center recorded in run results
+    // (sim exposes gap centers; collision code knows bird y at crossing).
+    id: "threading_needles",
+    name: "threading needles",
+    hint: "pass 10 gates dead-center in a single run",
+    plannedReward: { kind: "fx", label: "TBA · ink-stroke trail" },
+    pending: true,
+    check: () => false,
+  },
+  {
+    // Needs: per-tier daily-clear latches (hard / extreme cleared with a
+    // score worth bragging about). The extreme tier (~3.4% of days) has no
+    // achievement coverage at all today.
+    id: "storm_chaser",
+    name: "storm chaser",
+    hint: "score 25+ on an EXTREME daily",
+    plannedReward: { kind: "badge", label: "TBA · storm-chaser badge" },
+    pending: true,
+    check: () => false,
+  },
+  {
+    // Needs: rolling 7-day window of distinct daily_date plays (the streak
+    // counter resets on a miss, so it can't express "all 7 this week").
+    id: "perfect_week",
+    name: "perfect week",
+    hint: "play every daily for a full week",
+    plannedReward: { kind: "background", label: "TBA · seven-skies sunrise" },
+    pending: true,
+    check: () => false,
+  },
+  {
+    // Needs: PB-ghost race results once the PB ghost (score-30 unlock)
+    // ships — "beat the ghost while doubling its score".
+    id: "ghost_doubler",
+    name: "twice the plane you were",
+    hint: "beat your personal-best ghost with double its score",
+    plannedReward: { kind: "sound", label: "TBA · echo gate chime" },
+    pending: true,
+    check: () => false,
   },
 ];
 

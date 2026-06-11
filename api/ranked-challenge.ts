@@ -63,6 +63,38 @@ export default async function handler(req: Request): Promise<Response> {
   const friendId = friend.data.user_id as string;
   if (friendId === userId) return json({ error: "self_target" }, 400);
 
+  // Consent: a "friend challenge" requires an ACCEPTED friendship in the
+  // sender→target direction. Without this, anyone could open unlimited
+  // rating-staking matches against any username.
+  const friendship = await admin
+    .from("friendships")
+    .select("status")
+    .eq("user_id", userId)
+    .eq("friend_id", friendId)
+    .maybeSingle();
+  if (friendship.data?.status !== "accepted") {
+    return json({ error: "not_friends" }, 403);
+  }
+
+  // Lazily close anything expired, then refuse a second live match between
+  // the same pair — one open in_progress match per pair, ever.
+  await admin
+    .from("ranked_matches")
+    .update({ state: "expired" })
+    .eq("state", "in_progress")
+    .lt("expires_at", new Date().toISOString());
+  const live = await admin
+    .from("ranked_matches")
+    .select("id")
+    .eq("state", "in_progress")
+    .or(
+      `and(player_a.eq.${userId},player_b.eq.${friendId}),and(player_a.eq.${friendId},player_b.eq.${userId})`,
+    )
+    .limit(1);
+  if (live.data && live.data.length > 0) {
+    return json({ error: "match_already_open", match_id: live.data[0].id as string }, 409);
+  }
+
   const seasonRes = await admin.rpc("current_season");
   if (seasonRes.error || !seasonRes.data) return json({ error: "no_season" }, 500);
   const seasonId = seasonRes.data as number;

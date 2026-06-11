@@ -1,7 +1,7 @@
 import "./style.css";
 import { setupPWA } from "./pwa";
 import { DEFAULT_CONFIG } from "./game/config";
-import { applyModifiers } from "./game/daily-twist";
+import { applyModifiers, pickDaily } from "./game/daily-twist";
 import { GameLoop } from "./game/loop";
 import { Renderer } from "./game/render";
 import { InputController } from "./game/input";
@@ -13,7 +13,10 @@ import {
   renderPauseOverlay,
   removePauseOverlay,
   renderGameOver,
+  type GameOverResult,
 } from "./ui/menu";
+import { addRunXp, syncTotalXp } from "./game/xp";
+import { nextUnlockHint } from "./game/next-unlock";
 import { setGateSoundLabMode } from "./game/gate-sounds";
 import { initAuth, authState, subscribeAuth } from "./social/auth";
 import { renderAccountPanel } from "./ui/account";
@@ -222,9 +225,11 @@ observer.observe(stage);
 const input = new InputController(stage, {
   onFlap: () => {
     if (mode === "playing") {
+      // Haptic first: navigator.vibrate has OS-side latency we can't remove,
+      // so don't add our own by scheduling audio/sim work ahead of it.
+      if (settings.haptics) triggerFlapHaptic();
       loop?.flap();
       if (settings.sound) playFlap();
-      if (settings.haptics) triggerFlapHaptic();
       // First flap of the guided onboarding: clear the start prompt and
       // immediately drip the first coaching card so it doesn't conflict.
       if (onboardingActive && !onboardingFlapped) {
@@ -246,7 +251,18 @@ const input = new InputController(stage, {
     else if (mode === "paused") setPaused(false);
   },
   onRestart: () => {
-    if (mode === "dead") startRun(currentRunMode);
+    if (mode !== "dead") return;
+    // Mirror the game-over "play again" routing: a submitted ranked round
+    // must not be replayed (server rejects the re-submit), and a daily goes
+    // back through the landing so the 3-attempt cap stays in charge.
+    if (currentRunMode === "ranked") {
+      activeRanked = null;
+      openRankedPanel();
+    } else if (currentRunMode === "daily") {
+      openDailyLanding();
+    } else {
+      startRun(currentRunMode);
+    }
   },
 });
 input.attach();
@@ -582,7 +598,11 @@ function showMenu(): void {
 
 function openDailyLanding(): void {
   if (!dailyInfo) {
-    startRun("daily");
+    // No daily seed available (offline / fetch race). Never silently start
+    // a random-seed run labelled "daily" — play an honest casual run and
+    // kick a refresh so the next attempt has the real daily.
+    void refreshDaily();
+    startRun("casual");
     return;
   }
   overlays.innerHTML = "";
@@ -718,9 +738,21 @@ function onToggleSetting(key: keyof Settings): void {
 }
 
 function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {}): void {
+  // Safety net: a "daily" without dailyInfo would fall through to a random
+  // seed below while still being labelled (and submitted) as a daily, which
+  // the server can't validate. Downgrade honestly to casual instead.
+  if (runMode === "daily" && !dailyInfo) {
+    runMode = "casual";
+    void refreshDaily();
+  }
   overlays.innerHTML = "";
   mode = "playing";
   currentRunMode = runMode;
+  // Stop the previous run's loop FIRST: a leaked loop keeps rAF-rendering
+  // its dead sim interleaved with the new one — wasted battery, and its
+  // stale death position hijacked the crumple animation's anchor point.
+  loop?.stop();
+  loop = null;
   // Starting any fresh casual run discards a stale saved one (resume consumes
   // it separately below). Keeps the menu from offering an outdated resume.
   if (runMode === "casual" && !opts.resume) clearSavedCasualRun();
@@ -739,10 +771,19 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
   let ghost: GhostSim | undefined;
   // Daily twist: apply the modifier(s) on top of DEFAULT_CONFIG for
   // the run so physics match what the server will replay against.
+  // Challenges minted from a daily run carry that date — the ghost was
+  // recorded under that day's physics, so both the ghost replay AND the
+  // responder's run must use the same twisted config or they desync.
+  const challengeTwistDate =
+    (runMode === "challenge" || runMode === "race") && activeChallenge
+      ? activeChallenge.daily_date
+      : null;
   const runCfg =
     runMode === "daily" && dailyInfo
       ? applyModifiers(DEFAULT_CONFIG, dailyInfo.pick.modifiers)
-      : DEFAULT_CONFIG;
+      : challengeTwistDate
+        ? applyModifiers(DEFAULT_CONFIG, pickDaily(challengeTwistDate).modifiers)
+        : DEFAULT_CONFIG;
   // Visual overlay applies to the daily only (global, fair worldwide);
   // cleared for every other mode below.
   renderer.options.visualEffect = null;
@@ -839,6 +880,7 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
         // not flashed by in a toast. Training returns earlier, so the stats
         // update + unlock check only run for tracked modes here.
         let newAchievements: ReturnType<typeof getNewlyUnlocked> = [];
+        let runProgress: NonNullable<GameOverResult["progress"]> | null = null;
         {
           const currentStats = loadAchievementStats();
           let updatedStats = updateStatsAfterRun(currentStats, {
@@ -849,6 +891,7 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
             // those could never unlock.
             tier: currentRunMode === "daily" ? dailyInfo?.pick.tier : undefined,
             inputCount: loop?.getRecordedInputs().length,
+            ticks,
           });
           // A finished ranked match folds in its match-level unlocks (total
           // across rounds / per-round floor) once the server marks it complete.
@@ -861,6 +904,19 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
           }
           saveAchievementStats(updatedStats);
           newAchievements = getNewlyUnlocked(currentStats, updatedStats);
+          // Per-run progression beat: PB delta + pilot XP + the nearest
+          // next-unlock breadcrumb, all rendered on the death screen.
+          const prevBest = currentStats.bestScore;
+          const isNewPb = score > prevBest;
+          const xp = addRunXp({
+            score,
+            mode: currentRunMode as Exclude<RunMode, "training">,
+            isNewPb,
+          });
+          runProgress = { prevBest, isNewPb, xp, nextUnlock: nextUnlockHint(updatedStats) };
+          // Server is the XP authority once a run is accepted; adopt its
+          // total quietly so local and server levels can't drift apart.
+          if (typeof result?.xp_total === "number") syncTotalXp(result.xp_total);
         }
         // Responding to a challenge resolves the duel server-side, so the
         // win tally may have changed — re-sync it for the achievement check.
@@ -908,6 +964,8 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
           rankedRound: currentRunMode === "ranked" && activeRanked
             ? { round: activeRanked.round, total: 3 }
             : undefined,
+          progress: runProgress ?? undefined,
+          skin: renderer.options.skin,
           result,
           ticks,
           achievements: newAchievements.map((a) => {
@@ -988,6 +1046,13 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
           await loadEquippedSkin();
         }
         if (runMode === "daily") void refreshDaily();
+        // Once the crumple animation has finished, stop rendering behind the
+        // game-over overlay — players sit on this screen longest and the
+        // loop was burning battery repainting a static scene.
+        const deadLoop = loop;
+        window.setTimeout(() => {
+          if (mode === "dead" && loop === deadLoop) loop?.stop();
+        }, 2500);
       },
     },
     ghost,

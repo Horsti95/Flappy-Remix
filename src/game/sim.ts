@@ -136,12 +136,18 @@ export class Sim {
   }
 
   private currentScrollSpeed(): number {
-    const level = Math.floor(this.score / this.cfg.difficultyStep);
+    const level = Math.min(
+      Math.floor(this.score / this.cfg.difficultyStep),
+      this.cfg.maxDifficultyLevel,
+    );
     return this.cfg.scrollSpeed * Math.pow(this.cfg.speedScale, level);
   }
 
   private currentGapH(): number {
-    const level = Math.floor(this.score / this.cfg.difficultyStep);
+    const level = Math.min(
+      Math.floor(this.score / this.cfg.difficultyStep),
+      this.cfg.maxDifficultyLevel,
+    );
     return Math.max(this.cfg.pipeGapMin, this.cfg.pipeGapBase - level * this.cfg.gapShrinkPerStep);
   }
 

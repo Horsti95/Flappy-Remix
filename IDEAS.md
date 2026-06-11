@@ -8,6 +8,16 @@ Sizes: `xs` < 1h, `s` < half day, `m` < day, `l` < week, `xl` more.
 
 ## MASTER BACKLOG (updated 2026-06-01)
 
+> **2026-06-10 — full studio review.** Decisions + idea inventory live in
+> `devlog/0005-studio-review.md`; execution order in `ROADMAP.md` (new).
+> Headlines: name **Glide** (fallback "Paper Sky" if the art lands),
+> Paper Sky art direction, pilot XP, champions pyramid (daily crown /
+> weekly Paper Crown / monthly hidden mythic), secret unlock class,
+> mint-pick-1-of-3, monetization opens (cosmetic-only, ETHICS amend
+> first, blocked by Phase-0 security), no DB reset (consolidation
+> migrations instead), menu redesign = flight-journal hub (open design
+> question). AI art prompts: `design/prompts-paper-sky.md`.
+
 ### A. Decided — ranked easy → hard  (A1–A9 SHIPPED 2026-06-01)
 | # | Item | Size | Status / Notes |
 |---|------|------|-------|

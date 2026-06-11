@@ -139,6 +139,11 @@ export interface AchievementStats {
   oneFlapDone?: boolean;
   /** A run that started before local midnight and ended after it. */
   timeTravelerDone?: boolean;
+  /** Came back after 7+ days away. */
+  returnedDone?: boolean;
+  /** Rolling count of consecutive new-best runs (+ its latch at 3). */
+  consecutivePbs?: number;
+  hotStreakDone?: boolean;
 }
 
 /** True for scores that read the same backwards, 3+ digits (101, 1221, …). */
@@ -1009,6 +1014,33 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     check: (s) => s.timeTravelerDone === true,
   },
 
+  {
+    id: "phoenix",
+    name: "phoenix",
+    blurb: "come back after a week away — the sky missed you",
+    category: "special",
+    reward: { type: "color", body: [235, 90, 40], accent: [255, 230, 150] },
+    secret: true,
+    check: (s) => s.returnedDone === true,
+  },
+  {
+    id: "hot_streak",
+    name: "hot streak",
+    blurb: "three new personal bests in a row",
+    category: "score",
+    reward: { type: "color", body: [255, 80, 60], accent: [255, 210, 80] },
+    secret: true,
+    check: (s) => s.hotStreakDone === true,
+  },
+  {
+    id: "collector",
+    name: "collector",
+    blurb: "earn 25 other goals — the shelf is filling up",
+    category: "milestone",
+    reward: { type: "color", body: [110, 80, 150], accent: [230, 215, 255] },
+    check: (s) => ACHIEVEMENTS.filter((a) => a.id !== "collector" && a.check(s)).length >= 25,
+  },
+
   // --- Cumulative score, elite tier ---
   {
     id: "points_12345",
@@ -1180,8 +1212,19 @@ export function updateStatsAfterRun(
     runDate.getHours() * 3600 + runDate.getMinutes() * 60 + runDate.getSeconds();
   if (run.ticks != null && run.ticks / 60 > secsSinceMidnight) s.timeTravelerDone = true;
   const dayKey = `${runDate.getFullYear()}-${runDate.getMonth() + 1}-${runDate.getDate()}`;
+  // Welcome back: 7+ full days since the last recorded run-day.
+  if (stats.lastRunDay && stats.lastRunDay !== dayKey) {
+    const [py, pm, pd] = stats.lastRunDay.split("-").map(Number);
+    const gapDays = (new Date(runDate.getFullYear(), runDate.getMonth(), runDate.getDate()).getTime() -
+      new Date(py, pm - 1, pd).getTime()) / 86400000;
+    if (gapDays >= 7) s.returnedDone = true;
+  }
   s.runsToday = s.lastRunDay === dayKey ? (s.runsToday ?? 0) + 1 : 1;
   s.lastRunDay = dayKey;
+  // Hot streak: three new personal bests back to back. stats.bestScore is
+  // the PRE-run best, so a strict beat counts; anything else resets.
+  s.consecutivePbs = run.score > stats.bestScore ? (s.consecutivePbs ?? 0) + 1 : 0;
+  if ((s.consecutivePbs ?? 0) >= 3) s.hotStreakDone = true;
   if ((s.runsToday ?? 0) >= 25) s.marathonDone = true;
   const dow = runDate.getDay();
   if (dow === 6) s.satGames = (s.satGames ?? 0) + 1;

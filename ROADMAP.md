@@ -170,6 +170,27 @@ Open questions parked: menu redesign = flight-journal hub (post-World-Cup
 branch); celebration batching when many unlocks pop at once; backend
 latency (see devlog/0005 notes — region + roundtrips, not tier).
 
+## Event-package calendar (idea inventory, 2026-06-11)
+
+Owner decision: build packages NOW even when their window is later — keep
+them dark (window-gated) and flip them live on the right day. Each pack =
+origami shape + livery colors + flag/event badge (+ optional gate sound).
+
+| Window | Pack | Notes |
+|---|---|---|
+| World Cup (event) | Country packs: DE eagle, BR macaw, FR rooster, ES bull, EN lion, AR puma, JP crane, US eagle-variant | first big event |
+| June (yearly) | Pride — rainbow ribbon trail + pride wings goal (live) | goal already shipped |
+| Dec 24–26 (yearly) | Christmas — paper-star shape, candle gate sound, snow trail | |
+| Dec 26–Jan 2 (yearly) | New Year — fireworks gate FX, gold-dust trail (goal live) | |
+| Release-day month (yearly) | Birthday pack — confetti trail, party-hat sticker, cake badge; "played during birthday month" goal | game's anniversary |
+| Jun 21–Aug 31 (yearly) | Summer special — beach liveries, sun-hat sticker, cicada ambient | |
+| Oct 24–31 (yearly) | Halloween — ghost gets its moment (contraband amnesty week), pumpkin livery, spooky gate sound | |
+| Feb (lunar new year) | Paper-lantern shape + zodiac liveries (rotates yearly) | |
+| Mar/Apr (Easter) | Egg-shaped...? pastel liveries + hidden-egg secret goal | |
+| Late Sep (yearly) | Oktoberfest — pretzel gets its moment, blue-white liveries | German audience |
+| Apr 1 (yearly) | April Fools — contraband-only day (everyone flies the pretzel) | joke event |
+| Spring (yearly) | Sakura — petal trail, blossom livery, falling-petal overlay | |
+
 ## Standing decisions
 - **Name: Glide** (domain glide.uno). Art direction: **Paper Sky**.
 - One branch per item, preview deploy per branch; `fix-pack` batching

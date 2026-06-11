@@ -92,6 +92,8 @@ const MAXED: UnlockStats = {
   exact360Done: true,
   oneFlapDone: true,
   timeTravelerDone: true,
+  returnedDone: true,
+  hotStreakDone: true,
 };
 
 describe("unlockables registry", () => {

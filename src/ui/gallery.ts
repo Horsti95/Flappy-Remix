@@ -11,6 +11,7 @@ import {
   type AchievementDef,
   type AchievementStats,
 } from "../game/achievements";
+import { AURA_OPTIONS, getEquippedAura, setEquippedAura } from "../game/aura";
 import {
   FLAP_SOUND_OPTIONS,
   getActiveFlapSound,
@@ -466,6 +467,47 @@ export function renderGallery(
       }));
     }
     body.appendChild(fxList);
+
+    // Auras — earned prestige glows. Same card pattern as the sounds.
+    const auraHeader = document.createElement("div");
+    auraHeader.className = "px-3 mt-5 mb-2 text-[10px] uppercase tracking-wider opacity-60 font-bold";
+    auraHeader.textContent = "aura";
+    body.appendChild(auraHeader);
+    const auraDesc = document.createElement("div");
+    auraDesc.className = "px-2 mb-3 text-[10px] opacity-60";
+    auraDesc.textContent = "a glow you earn, not unlock by accident — visible to everyone you duel.";
+    body.appendChild(auraDesc);
+    const auraList = document.createElement("div");
+    auraList.className = "space-y-2 px-2";
+    const activeAura = getEquippedAura();
+    for (const a of AURA_OPTIONS) {
+      const state = a.unlock(achStats);
+      const el = document.createElement("div");
+      el.dataset.noFlap = "true";
+      el.className = `rounded-2xl p-3 border-2 ${activeAura === a.id ? "border-paper bg-paper/10" : state.unlocked ? "border-white/10 bg-white/5" : "border-white/5 bg-white/5 opacity-60"}`;
+      const dot = a.id === "off"
+        ? `<span class="inline-block w-4 h-4 rounded-full border border-white/30 align-middle"></span>`
+        : `<span class="inline-block w-4 h-4 rounded-full align-middle" style="background:rgb(${a.color.join(",")});box-shadow:0 0 10px rgb(${a.color.join(",")})"></span>`;
+      el.innerHTML = `
+        <div class="flex items-center justify-between gap-3">
+          <div class="text-left flex-1 min-w-0">
+            <div class="text-sm font-bold truncate">${dot} ${escapeHtml(a.label)}</div>
+            <div class="text-[11px] opacity-70 mt-0.5 truncate">${state.unlocked ? escapeHtml(a.blurb) : escapeHtml(state.hint ?? "locked")}</div>
+          </div>
+          ${state.unlocked
+            ? `<button data-pick class="rounded-full ${activeAura === a.id ? "bg-emerald-400/30 text-emerald-100" : "bg-paper text-ink"} px-3 py-1.5 text-[11px] font-bold">${activeAura === a.id ? "active" : "wear"}</button>`
+            : `<div class="text-[10px] uppercase tracking-wider opacity-50 font-bold">locked</div>`}
+        </div>`;
+      if (state.unlocked) {
+        el.querySelector("[data-pick]")?.addEventListener("click", (e) => {
+          e.stopPropagation();
+          setEquippedAura(a.id);
+          renderEffects();
+        });
+      }
+      auraList.appendChild(el);
+    }
+    body.appendChild(auraList);
   }
 
   function renderQuestsTab(): void {

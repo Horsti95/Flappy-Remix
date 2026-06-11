@@ -146,6 +146,30 @@ Next up (Phase 2 continuation): `feat/pb-ghost` (earned at score 30),
 `feat/ascent-mastery`. Level-up *rewards* (livery tokens etc.) deferred
 to `feat/mint-choice` so tokens have something to spend on.
 
+## Shipped 2026-06-11 (session batch 5 — playtester-feedback round)
+
+- ✅ Crumple-anchor bug: startRun now stops the leaked previous loop (the
+  stale dead sim was hijacking the animation anchor); rendering also stops
+  2.5 s after death (battery)
+- ✅ Server-authoritative XP (**migration 0026 — apply!**): profiles.xp
+  mirrors the client formula; **a color skin is minted every 5 account
+  levels**; client adopts the server total
+- ✅ Goals grant real rewards: 9 scratchpad criteria promoted to
+  achievements with color skins; 5 new criterion types (comeback, 25-runs
+  -a-day, all four modes, 30+ with ≤40 flaps, weekend ritual); **+15 new
+  secret achievements** (undocumented by design — 28 secrets total now)
+- ✅ Death screen is a solid card with skin-coloured accent strip/score/XP
+  bar; feedback form moved to Settings (shared ui/feedback-form.ts);
+  account panel shortened
+- ✅ Sounds: defaults ON for fresh installs; +2 tap (bubble, page flick),
+  +2 gate (koto, pop choir), death sound now selectable (classic /
+  crumple / whistle-down) with a gallery picker
+- ✅ rocket + cyber-plane reclassified contraband → paper fleet
+
+Open questions parked: menu redesign = flight-journal hub (post-World-Cup
+branch); celebration batching when many unlocks pop at once; backend
+latency (see devlog/0005 notes — region + roundtrips, not tier).
+
 ## Standing decisions
 - **Name: Glide** (domain glide.uno). Art direction: **Paper Sky**.
 - One branch per item, preview deploy per branch; `fix-pack` batching

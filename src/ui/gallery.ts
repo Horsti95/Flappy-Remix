@@ -578,7 +578,7 @@ export function renderGallery(
     // separate section underneath.
     const ownedGrid = document.createElement("div");
     ownedGrid.className = "grid grid-cols-3 gap-3.5 px-2 pt-1";
-    body.appendChild(headerLabel("owned"));
+    body.appendChild(headerLabel("your skins — earned & minted (saved to your account)"));
     body.appendChild(ownedGrid);
     ownedGrid.appendChild(
       defaultSkinCard(currentEquipped.skinId === null, currentEquipped.shapeId, () => {
@@ -621,7 +621,7 @@ export function renderGallery(
 
     // Preset palettes — hand-picked colours with their own unlock
     // criteria. Equipping one is local-only (no DB skin row).
-    body.appendChild(headerLabel("palettes"));
+    body.appendChild(headerLabel("preset palettes — unlocked by playing (on this device)"));
     const presetGrid = document.createElement("div");
     presetGrid.className = "grid grid-cols-3 gap-3.5 px-2 pt-1";
     body.appendChild(presetGrid);

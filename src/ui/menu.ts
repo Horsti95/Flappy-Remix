@@ -9,7 +9,7 @@ import { shapeSvgInner } from "./shape-svg";
 import { SUPPORT_ENABLED, SUPPORT_URL } from "../game/support";
 import { APP_VERSION } from "../game/changelog";
 import { getShowEquippedInMenu, setShowEquippedInMenu } from "../game/menu-prefs";
-import { type RunXpResult } from "../game/xp";
+import { levelFromTotalXp, loadTotalXp, type RunXpResult } from "../game/xp";
 import { type NextUnlockHint } from "../game/next-unlock";
 import { feedbackFormHtml, bindFeedbackForm } from "./feedback-form";
 
@@ -77,6 +77,7 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   const modifierLine = meta.daily && meta.daily.modifierNames.length > 0
     ? `<div class="mt-1 text-[11px] opacity-70 truncate">${meta.daily.modifierNames.map(escapeHtml).join(" + ")}</div>`
     : "";
+  const levelBadge = `<span class="mr-1.5 inline-flex items-center text-[10px] font-bold bg-paper/20 rounded-full px-2 py-0.5">LV ${levelFromTotalXp(loadTotalXp()).level}</span>`;
   const streakBadge = meta.streakDays > 0
     ? `<span class="ml-2 inline-flex items-center gap-1 text-[11px] font-bold bg-orange-500/20 text-orange-300 rounded-full px-2.5 py-0.5">🔥 ${meta.streakDays}</span>`
     : "";
@@ -89,7 +90,7 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   wrap.innerHTML = `
     ${offlineBadge}
     <button data-settings class="absolute top-3 left-3 text-[18px] leading-none rounded-full px-3 py-1 bg-white/15 opacity-80 hover:opacity-100 transition-opacity" aria-label="Settings">⚙</button>
-    <button data-account class="absolute top-3 right-3 text-[11px] rounded-full px-3 py-1 bg-white/15">${escapeHtml(meta.accountLabel)}${streakBadge}</button>
+    <button data-account class="absolute top-3 right-3 text-[11px] rounded-full px-3 py-1 bg-white/15">${levelBadge}${escapeHtml(meta.accountLabel)}${streakBadge}</button>
     <div data-menu-content class="px-6 max-w-sm w-full">
       <div class="relative h-16 mb-2">
         <svg viewBox="-20 -20 40 40" data-menu-mascot class="menu-mascot absolute left-1/2 -translate-x-1/2 w-16 h-16">

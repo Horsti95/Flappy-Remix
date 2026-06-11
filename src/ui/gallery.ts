@@ -100,7 +100,7 @@ export function renderGallery(
   const collection = unlockProgress();
   wrap.innerHTML = `
     <div class="px-5 pt-5 pb-2 flex items-baseline justify-between">
-      <h2 class="text-xl font-bold">gallery <span class="text-[11px] font-normal opacity-50 ml-1 tabular-nums">${collection.unlocked}/${collection.total}</span></h2>
+      <h2 class="text-xl font-bold font-hand">hangar <span class="text-[11px] font-normal opacity-50 ml-1 tabular-nums">${collection.unlocked}/${collection.total}</span></h2>
       <button data-close class="text-sm underline opacity-70">close</button>
     </div>
     <div data-loadout class="flex items-stretch gap-1 px-2 py-2 border-b border-white/10"></div>

@@ -31,6 +31,30 @@ export interface DailyLandingCallbacks {
   onClose(): void;
 }
 
+
+// Weather-report fiction: each modifier reads as a line of today's forecast
+// instead of a mechanical listing. The mechanics stay in parentheses so the
+// information is never lost — the story is seasoning, not obfuscation.
+const WEATHER_STORY: Record<string, string> = {
+  heavy: "🌬 strong downwinds press on your wings (gravity up)",
+  floaty: "🎈 warm thermals carry you (gravity down)",
+  faster: "💨 a stiff tailwind — everything arrives sooner (speed up)",
+  wider_gaps: "🏞 the canyon opens up today (wider gaps)",
+  tight_gaps: "⛰ the canyon narrows — thread carefully (tighter gaps)",
+  big_flap: "📐 your folds are crisp — extra lift on every flap",
+  small_hitbox: "🪶 you feel light as tissue paper (smaller hitbox)",
+  big_hitbox: "💧 soggy paper — you fly bigger than you look",
+  mirror: "🔄 the wind blows the other way — the world is mirrored",
+  flip_gravity: "🙃 the sky turned upside down (inverted gravity)",
+};
+const WEATHER_VISUAL: Record<string, string> = {
+  night: "🌙 you fly by starlight tonight",
+  sunset: "🌇 golden hour — all glow, no danger",
+  rain: "🌧 rain streaks the page",
+  blinding_sun: "☀️ low sun in your eyes — gates hide in the glare",
+  fog: "🌫 thick fog — gates appear late",
+};
+
 export function renderDailyLanding(
   host: HTMLElement,
   meta: DailyLandingMeta,
@@ -45,6 +69,10 @@ export function renderDailyLanding(
   const tierLabel = TIER_LABEL[meta.pick.tier];
   const isSuperHard = meta.pick.tier === "super_hard";
   const modifierList = meta.pick.modifiers.map((m) => m.name).join(" + ");
+  const forecastLines = [
+    ...meta.pick.modifiers.map((m) => WEATHER_STORY[m.id] ?? `${m.name} — ${m.blurb}`),
+    ...(meta.pick.visualEffect ? [WEATHER_VISUAL[meta.pick.visualEffect] ?? ""] : []),
+  ].filter(Boolean);
 
   // Overall intensity: modifiers compound, plus the glass-pillar handicap if
   // the player equipped it. Shown as a named band + percent.
@@ -67,12 +95,8 @@ export function renderDailyLanding(
       </span>
     </div>`;
 
-  // Modifiers: names prominent, blurbs folded into one compact secondary line.
-  const modifierBlurbs = meta.pick.modifiers.map((m) => m.blurb).join(" · ");
-
   // Glass + visual-effect notes, integrated as small inline heads-up chips.
   const noteChips: string[] = [];
-  if (meta.pick.visualEffect) noteChips.push(visualChip(meta.pick.visualEffect));
   if (meta.glassHandicap) noteChips.push("🪟 glass pillars — harder to read");
   const notesRow =
     noteChips.length > 0
@@ -119,8 +143,13 @@ export function renderDailyLanding(
       <div class="text-[10px] uppercase tracking-wider opacity-60">${escapeHtml(meta.date)}</div>
       <div class="font-hand text-[13px] opacity-70">Everyone flies the same wind today.</div>
       ${tierIntensityRow}
-      <div class="mt-1 text-2xl font-bold leading-tight">${escapeHtml(modifierList)}</div>
-      <div class="text-[12px] opacity-60 leading-snug max-w-[300px]">${escapeHtml(modifierBlurbs)}</div>
+      <div class="mt-1 text-xl font-bold leading-tight">${escapeHtml(modifierList)}</div>
+      <div class="mt-2 w-full max-w-[300px] paper-note bg-paper/95 text-ink text-left px-4 py-3">
+        <div class="font-hand text-[13px] font-bold opacity-70">today's weather report</div>
+        ${forecastLines
+          .map((l) => `<div class="mt-1 text-[12px] leading-snug">${escapeHtml(l)}</div>`)
+          .join("")}
+      </div>
       ${notesRow}
       ${statsGrid}
       ${streakNote}
@@ -167,16 +196,6 @@ function formatPlays(n: number): string {
   return String(n);
 }
 
-function visualChip(fx: NonNullable<DailyLandingMeta["pick"]["visualEffect"]>): string {
-  const labels: Record<string, string> = {
-    night: "🌙 night sky",
-    sunset: "🌅 sunset glow",
-    blinding_sun: "🔆 blinding sun — glare on the right",
-    rain: "🌧️ light rain",
-    fog: "🌫️ thick fog — limited visibility",
-  };
-  return labels[fx] ?? "";
-}
 
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) =>

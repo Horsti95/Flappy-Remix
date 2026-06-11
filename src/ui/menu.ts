@@ -137,7 +137,7 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
           Board
         </button>
         <button data-action="skins" class="paper-note-outline tilt-l border border-paper/40 text-paper font-bold py-2.5 text-[11px] transition">
-          Gallery
+          Hangar
         </button>
       </div>
       <button data-action="training" class="block mx-auto mt-3 text-[11px] opacity-50 hover:opacity-90 transition-opacity underline">🪶 practice mode (untracked)</button>

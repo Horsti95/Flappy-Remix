@@ -54,7 +54,7 @@ import { loadAchievementStats, updateStatsAfterRun, updateRankedMatchStats, save
 import { getShowEquippedInMenu } from "./game/menu-prefs";
 import { renderDailyLanding } from "./ui/daily-landing";
 import { renderRankedPanel } from "./ui/ranked";
-import { playFlap, playCheer, playGatePass, playDeath, setSoundLabMode, setActiveFlapSound, FLAP_SOUND_OPTIONS, triggerFlapHaptic, triggerGateHaptic, triggerDeathHaptic } from "./game/sfx";
+import { playFlap, playCheer, playGatePass, playDeath, setSoundLabMode, setActiveFlapSound, FLAP_SOUND_OPTIONS, triggerFlapHaptic, triggerGateHaptic, triggerDeathHaptic, setGatePitchEnabled } from "./game/sfx";
 import { clearParticles, getActiveFlapFx, setFxLabMode, spawnFlapFx, setActiveFlapFx, FLAP_FX_OPTIONS } from "./game/flap-fx";
 import { type RankedMatch, createRankedChallenge } from "./social/ranked";
 import { createChallenge, fetchChallenge, fetchBestRunChallenge, ghostSkinFromChallenge, fetchUnseenChallengeCount, type FetchedChallenge } from "./social/challenges";
@@ -108,6 +108,7 @@ const app = document.getElementById("app");
 if (!app) throw new Error("missing #app");
 
 const settings: Settings = loadSettings();
+setGatePitchEnabled(settings.gatePitch);
 let mode: Mode = "menu";
 let loop: GameLoop | null = null;
 let currentSeed = 0;
@@ -477,6 +478,28 @@ function showMenu(): void {
       onPlay: () => { pushSubView(); playCasual(); },
       onTraining: () => { pushSubView(); startRun("training"); },
       onPlayDaily: () => { pushSubView(); openDailyLanding(); },
+      onRaceBest: () => {
+        try {
+          const raw = localStorage.getItem("pflug.pbRun.v1");
+          if (!raw) return;
+          const pb = JSON.parse(raw) as { seed: number; inputs: { tick: number; action: "flap" }[]; score: number; daily_date?: string | null };
+          activeChallenge = {
+            short_id: "pb",
+            seed: pb.seed >>> 0,
+            inputs: pb.inputs,
+            creator_score: pb.score,
+            creator_username: "your best",
+            creator_skin: null,
+            creator_shape: equippedShapeId,
+            creator_theme: null,
+            daily_date: pb.daily_date ?? null,
+            depth: 0,
+            can_respond_again: false,
+          };
+          pushSubView();
+          startRun("race");
+        } catch { /* corrupted save — ignore */ }
+      },
       onToggleSetting,
       onSetGhostOpacity: (pct: number) => {
         settings.ghostOpacity = pct;
@@ -705,7 +728,7 @@ function applyQuestReward(c: QuestCompletion): void {
   }
 }
 
-type BoolSetting = "sound" | "gateSound" | "deathSound" | "highContrast" | "reducedMotion" | "haptics";
+type BoolSetting = "sound" | "gateSound" | "deathSound" | "highContrast" | "reducedMotion" | "haptics" | "gatePitch";
 function onToggleSetting(key: keyof Settings): void {
   // Only the boolean toggles route here; ghostOpacity uses its own slider.
   if (
@@ -714,7 +737,8 @@ function onToggleSetting(key: keyof Settings): void {
     key !== "deathSound" &&
     key !== "highContrast" &&
     key !== "reducedMotion" &&
-    key !== "haptics"
+    key !== "haptics" &&
+    key !== "gatePitch"
   )
     return;
   const k = key as BoolSetting;
@@ -723,6 +747,14 @@ function onToggleSetting(key: keyof Settings): void {
   // Confirm the vibration toggle with a single buzz so the player feels it
   // works (and learns the device supports it) the moment they enable it.
   if (k === "haptics" && settings.haptics) triggerFlapHaptic();
+  if (k === "gatePitch") {
+    setGatePitchEnabled(settings.gatePitch);
+    // Audible before/after: a high then a low gate so the difference is heard.
+    if (settings.sound) {
+      playGatePass(0.15);
+      window.setTimeout(() => playGatePass(0.85), 350);
+    }
+  }
   renderer.options.highContrast = settings.highContrast;
   renderer.options.reducedMotion = settings.reducedMotion;
   // Update the toggle button in-place so the settings panel stays open.
@@ -914,6 +946,18 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
             mode: currentRunMode as Exclude<RunMode, "training">,
             isNewPb,
           });
+          // Keep the PB run's replay so the player can race their own best
+          // ("race" mode replays it as a ghost on the same seed + physics).
+          if (isNewPb && loop) {
+            try {
+              localStorage.setItem("pflug.pbRun.v1", JSON.stringify({
+                seed: currentSeed >>> 0,
+                inputs: loop.getRecordedInputs(),
+                score,
+                daily_date: currentRunMode === "daily" ? dailyInfo?.date ?? null : null,
+              }));
+            } catch { /* localStorage blocked */ }
+          }
           runProgress = { prevBest, isNewPb, xp, nextUnlock: nextUnlockHint(updatedStats) };
           // Server is the XP authority once a run is accepted; adopt its
           // total quietly so local and server levels can't drift apart.

@@ -31,7 +31,9 @@ const MAXED: AchievementStats = {
 
 describe("unlock-criteria catalog", () => {
   it("has a healthy catalog size", () => {
-    expect(UNLOCK_CRITERIA.length).toBeGreaterThanOrEqual(16);
+    // 2026-06-11: everything computable was promoted to real achievements;
+    // only plumbing-pending drafts remain in the scratchpad.
+    expect(UNLOCK_CRITERIA.length).toBeGreaterThanOrEqual(4);
     expect(UNLOCK_CRITERIA.length).toBeLessThanOrEqual(40);
   });
 
@@ -62,29 +64,19 @@ describe("unlock-criteria catalog", () => {
     }
   });
 
-  it("event criteria check is participation (always true)", () => {
-    const events = UNLOCK_CRITERIA.filter((c) => c.event);
-    expect(events.length).toBeGreaterThan(0);
-    for (const e of events) {
-      expect(e.check(MAXED)).toBe(true);
-    }
+  it("isEventActive handles plain and wrap-around windows", () => {
+    const mk = (from: string, until: string) =>
+      ({ id: "x", name: "x", hint: "x", plannedReward: { kind: "badge", label: "x" }, event: { from, until }, check: () => true }) as (typeof UNLOCK_CRITERIA)[number];
+    expect(isEventActive(mk("06-01", "06-30"), new Date(2026, 5, 11))).toBe(true);
+    expect(isEventActive(mk("06-01", "06-30"), new Date(2026, 6, 1))).toBe(false);
+    expect(isEventActive(mk("12-26", "01-02"), new Date(2026, 11, 28))).toBe(true);
+    expect(isEventActive(mk("12-26", "01-02"), new Date(2027, 0, 1))).toBe(true);
+    expect(isEventActive(mk("12-26", "01-02"), new Date(2026, 5, 11))).toBe(false);
   });
 
-  it("marks the intended secret criteria and leaves events non-secret", () => {
+  it("marks the intended secret drafts", () => {
     const secretIds = UNLOCK_CRITERIA.filter((c) => c.secret).map((c) => c.id);
-    expect(secretIds).toEqual(
-      expect.arrayContaining([
-        "perpetual_motion",
-        "ace_of_aces",
-        "calendar_conqueror",
-        "eye_of_the_storm",
-        "witching_hour",
-        "social_butterfly",
-        "zen_master",
-      ]),
-    );
-    // Event entries are gated by date, not by secrecy.
-    expect(UNLOCK_CRITERIA.filter((c) => c.event).some((c) => c.secret)).toBe(false);
+    expect(secretIds).toEqual(["upset_victim"]);
   });
 
   it("every plannedReward label reads as a TBA placeholder", () => {

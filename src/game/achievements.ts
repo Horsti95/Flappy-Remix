@@ -127,6 +127,18 @@ export interface AchievementStats {
   /** Weekend play counters (local day-of-week, like nightGames). */
   satGames?: number;
   sunGames?: number;
+  /** Seasonal window participation latches (local dates). */
+  newYearDone?: boolean;
+  prideDone?: boolean;
+  redRibbonDone?: boolean;
+  exact88Done?: boolean;
+  exact144Done?: boolean;
+  exact256Done?: boolean;
+  exact360Done?: boolean;
+  /** Finished a run with exactly one flap. */
+  oneFlapDone?: boolean;
+  /** A run that started before local midnight and ended after it. */
+  timeTravelerDone?: boolean;
 }
 
 /** True for scores that read the same backwards, 3+ digits (101, 1221, …). */
@@ -801,6 +813,202 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     check: (s) => s.quickFiveDone === true,
   },
 
+  // --- Promoted from the scratchpad, round 2: no more TBA rewards ---
+  {
+    id: "thousand_takeoffs",
+    name: "thousand takeoffs",
+    blurb: "300 was a warm-up — clear 750 games",
+    category: "milestone",
+    reward: { type: "color", body: [150, 110, 60], accent: [235, 200, 130] },
+    check: (s) => s.totalGames >= 750,
+  },
+  {
+    id: "perpetual_motion",
+    name: "perpetual motion",
+    blurb: "2,000 games in. do you ever land?",
+    category: "milestone",
+    reward: { type: "color", body: [60, 70, 90], accent: [170, 220, 255] },
+    secret: true,
+    check: (s) => s.totalGames >= 2000,
+  },
+  {
+    id: "ace_of_aces",
+    name: "ace of aces",
+    blurb: "a 750 run. nobody will believe you.",
+    category: "score",
+    reward: { type: "color", body: [20, 20, 24], accent: [255, 200, 60] },
+    secret: true,
+    check: (s) => s.bestScore >= 750,
+  },
+  {
+    id: "seasoned_pilot",
+    name: "seasoned pilot",
+    blurb: "a 60-day streak — a full season of flight",
+    category: "streak",
+    reward: { type: "color", body: [40, 90, 60], accent: [170, 230, 190] },
+    check: (s) => s.streakDays >= 60,
+  },
+  {
+    id: "calendar_conqueror",
+    name: "calendar conqueror",
+    blurb: "100 days without missing. the calendar fears you.",
+    category: "streak",
+    reward: { type: "color", body: [120, 40, 50], accent: [255, 215, 130] },
+    secret: true,
+    check: (s) => s.streakDays >= 100,
+  },
+  {
+    id: "daily_devotee",
+    name: "daily devotee",
+    blurb: "score 20+ on the daily 10 times in a row",
+    category: "daily",
+    reward: { type: "color", body: [235, 150, 60], accent: [120, 60, 130] },
+    check: (s) => s.dailyStreakDays >= 10 && s.bestScoreDaily >= 20,
+  },
+  {
+    id: "eye_of_the_storm",
+    name: "eye of the storm",
+    blurb: "master both extremes: 60+ hard AND 60+ super-hard",
+    category: "daily",
+    reward: { type: "color", body: [50, 60, 80], accent: [255, 250, 160] },
+    secret: true,
+    check: (s) => s.hardDailyBest >= 60 && s.superHardDailyBest >= 60,
+  },
+  {
+    id: "moonlit_marathon",
+    name: "moonlit marathon",
+    blurb: "play 30 games under the night sky (22:00\u201304:00)",
+    category: "special",
+    reward: { type: "color", body: [25, 30, 60], accent: [220, 225, 255] },
+    check: (s) => s.nightGames >= 30,
+  },
+  {
+    id: "witching_hour",
+    name: "witching hour",
+    blurb: "50 late-night runs. the dark hours suit you.",
+    category: "special",
+    reward: { type: "color", body: [55, 30, 80], accent: [180, 140, 220] },
+    secret: true,
+    check: (s) => s.lateNightGames >= 50,
+  },
+  {
+    id: "flock_leader",
+    name: "flock leader",
+    blurb: "gather 50 friends into the flock",
+    category: "social",
+    reward: { type: "color", body: [90, 140, 200], accent: [245, 245, 240] },
+    check: (s) => s.friendCount >= 50,
+  },
+  {
+    id: "social_butterfly",
+    name: "social butterfly",
+    blurb: "10 friends AND 10 challenge wins — beloved and feared",
+    category: "social",
+    reward: { type: "color", body: [200, 120, 180], accent: [120, 200, 220] },
+    secret: true,
+    check: (s) => s.friendCount >= 10 && s.challengeWins >= 10,
+  },
+  {
+    id: "zen_master",
+    name: "zen master",
+    blurb: "a minimalist run AND a 100+ score: calm and capable",
+    category: "efficiency",
+    reward: { type: "color", body: [220, 215, 200], accent: [90, 110, 90] },
+    secret: true,
+    check: (s) => s.minimalistDone === true && s.bestScore >= 100,
+  },
+
+  // --- Seasonal windows (participation latches, local time) ---
+  {
+    id: "new_year_flight",
+    name: "new year flight",
+    blurb: "take off as the year turns (Dec 26 \u2013 Jan 2)",
+    category: "special",
+    reward: { type: "color", body: [20, 24, 40], accent: [255, 215, 110] },
+    check: (s) => s.newYearDone === true,
+  },
+  {
+    id: "pride_wings",
+    name: "pride wings",
+    blurb: "fly with pride any day in June",
+    category: "special",
+    reward: { type: "color", body: [230, 70, 120], accent: [80, 200, 220] },
+    check: (s) => s.prideDone === true,
+  },
+  {
+    id: "red_ribbon",
+    name: "red ribbon",
+    blurb: "play on World AIDS Day (Dec 1) to wear the ribbon",
+    category: "special",
+    reward: { type: "color", body: [180, 25, 40], accent: [255, 235, 235] },
+    check: (s) => s.redRibbonDone === true,
+  },
+
+  // --- Even more secrets ---
+  {
+    id: "great_scott",
+    name: "great scott!",
+    blurb: "score exactly 88 — where you're going, you don't need pillars",
+    category: "special",
+    reward: { type: "color", body: [200, 210, 220], accent: [255, 120, 40] },
+    secret: true,
+    check: (s) => s.exact88Done === true,
+  },
+  {
+    id: "dozen_dozens",
+    name: "a dozen dozens",
+    blurb: "score exactly 144 — that's gross",
+    category: "special",
+    reward: { type: "color", body: [120, 90, 50], accent: [240, 220, 170] },
+    secret: true,
+    check: (s) => s.exact144Done === true,
+  },
+  {
+    id: "byte_me",
+    name: "byte me",
+    blurb: "score exactly 256",
+    category: "special",
+    reward: { type: "color", body: [30, 60, 30], accent: [120, 255, 120] },
+    secret: true,
+    check: (s) => s.exact256Done === true,
+  },
+  {
+    id: "full_circle",
+    name: "full circle",
+    blurb: "score exactly 360",
+    category: "special",
+    reward: { type: "color", body: [70, 70, 75], accent: [255, 255, 255] },
+    secret: true,
+    check: (s) => s.exact360Done === true,
+  },
+  {
+    id: "mirror_mountain",
+    name: "mirror mountain",
+    blurb: "cross 12,321 lifetime points — reads the same both ways",
+    category: "milestone",
+    reward: { type: "color", body: [160, 170, 200], accent: [200, 170, 160] },
+    secret: true,
+    check: (s) => s.totalScore >= 12321,
+  },
+  {
+    id: "flap_of_faith",
+    name: "flap of faith",
+    blurb: "finish a run with exactly one flap",
+    category: "efficiency",
+    reward: { type: "color", body: [240, 235, 220], accent: [150, 140, 120] },
+    secret: true,
+    check: (s) => s.oneFlapDone === true,
+  },
+  {
+    id: "time_traveler",
+    name: "time traveler",
+    blurb: "start a run on one day and finish it on the next",
+    category: "special",
+    reward: { type: "color", body: [40, 30, 60], accent: [110, 230, 200] },
+    secret: true,
+    check: (s) => s.timeTravelerDone === true,
+  },
+
   // --- Cumulative score, elite tier ---
   {
     id: "points_12345",
@@ -946,6 +1154,11 @@ export function updateStatsAfterRun(
   if (run.score === 111) s.exact111Done = true;
   if (run.score === 123) s.exact123Done = true;
   if (run.score === 314) s.exact314Done = true;
+  if (run.score === 88) s.exact88Done = true;
+  if (run.score === 144) s.exact144Done = true;
+  if (run.score === 256) s.exact256Done = true;
+  if (run.score === 360) s.exact360Done = true;
+  if (run.inputCount === 1) s.oneFlapDone = true;
   if (run.score === 50 && run.inputCount === 50) s.fiftyFiftyDone = true;
   if (run.score >= 1 && run.inputCount === 100) s.flaps100Done = true;
   if (run.score >= 30 && run.inputCount != null && run.inputCount <= 40) s.deepBreathDone = true;
@@ -957,6 +1170,15 @@ export function updateStatsAfterRun(
   // Calendar trackers (local time, same convention as the night counter).
   const runDate = new Date();
   if (runDate.getMonth() === 1 && runDate.getDate() === 29) s.leapDayDone = true;
+  const mon = runDate.getMonth() + 1;
+  const day = runDate.getDate();
+  if ((mon === 12 && day >= 26) || (mon === 1 && day <= 2)) s.newYearDone = true;
+  if (mon === 6) s.prideDone = true;
+  if (mon === 12 && day === 1) s.redRibbonDone = true;
+  // A run longer than the time since local midnight must have crossed it.
+  const secsSinceMidnight =
+    runDate.getHours() * 3600 + runDate.getMinutes() * 60 + runDate.getSeconds();
+  if (run.ticks != null && run.ticks / 60 > secsSinceMidnight) s.timeTravelerDone = true;
   const dayKey = `${runDate.getFullYear()}-${runDate.getMonth() + 1}-${runDate.getDate()}`;
   s.runsToday = s.lastRunDay === dayKey ? (s.runsToday ?? 0) + 1 : 1;
   s.lastRunDay = dayKey;

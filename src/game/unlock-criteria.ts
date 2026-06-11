@@ -52,142 +52,20 @@ export interface CriterionDef {
 
 export const UNLOCK_CRITERIA: CriterionDef[] = [
   // --- Variety / exploration: volume framed with character ---
-  {
-    id: "thousand_takeoffs",
-    name: "thousand takeoffs",
-    hint: "300 was a warm-up — clear 750 games",
-    plannedReward: { kind: "skin", label: "TBA · burnished-brass skin" },
-    check: (s) => s.totalGames >= 750,
-  },
-  {
-    id: "perpetual_motion",
-    name: "perpetual motion",
-    hint: "2,000 games in. do you ever land?",
-    secret: true,
-    plannedReward: { kind: "fx", label: "TBA · motion-blur trail fx" },
-    check: (s) => s.totalGames >= 2000,
-  },
 
   // --- Milestone curves: score ladders with fresh framing ---
-  {
-    id: "ace_of_aces",
-    name: "ace of aces",
-    hint: "a 750 run. nobody will believe you.",
-    secret: true,
-    plannedReward: { kind: "shape", label: "TBA · meteor shape" },
-    check: (s) => s.bestScore >= 750,
-  },
 
   // --- Streak texture: consistency over distance ---
-  {
-    id: "seasoned_pilot",
-    name: "seasoned pilot",
-    hint: "a 60-day streak — a full season of flight",
-    plannedReward: { kind: "skin", label: "TBA · evergreen skin" },
-    check: (s) => s.streakDays >= 60,
-  },
-  {
-    id: "calendar_conqueror",
-    name: "calendar conqueror",
-    hint: "100 days without missing. the calendar fears you.",
-    secret: true,
-    plannedReward: { kind: "badge", label: "TBA · centurion-streak badge" },
-    check: (s) => s.streakDays >= 100,
-  },
-  {
-    id: "daily_devotee",
-    name: "daily devotee",
-    hint: "score 20+ on the daily 10 times in a row",
-    plannedReward: { kind: "pillar", label: "TBA · sunrise pillar" },
-    check: (s) => s.dailyStreakDays >= 10 && s.bestScoreDaily >= 20,
-  },
 
   // --- Daily-tier mastery: hard / super-hard modifiers ---
-  {
-    id: "eye_of_the_storm",
-    name: "eye of the storm",
-    hint: "master both extremes: 60+ hard AND 60+ super-hard",
-    secret: true,
-    plannedReward: { kind: "fx", label: "TBA · lightning-halo fx" },
-    check: (s) => s.hardDailyBest >= 60 && s.superHardDailyBest >= 60,
-  },
 
   // --- Time-of-day: night / morning rituals ---
-  {
-    id: "moonlit_marathon",
-    name: "moonlit marathon",
-    hint: "play 30 games under the night sky (22:00–04:00)",
-    plannedReward: { kind: "background", label: "TBA · moonlit-night background" },
-    check: (s) => s.nightGames >= 30,
-  },
-  {
-    id: "witching_hour",
-    name: "witching hour",
-    hint: "50 late-night runs. the dark hours suit you.",
-    secret: true,
-    plannedReward: { kind: "skin", label: "TBA · midnight-violet skin" },
-    check: (s) => s.lateNightGames >= 50,
-  },
 
   // --- Social: challenges & friends ---
-  {
-    id: "flock_leader",
-    name: "flock leader",
-    hint: "gather 50 friends into the flock",
-    plannedReward: { kind: "shape", label: "TBA · formation-V shape" },
-    check: (s) => s.friendCount >= 50,
-  },
-  {
-    id: "social_butterfly",
-    name: "social butterfly",
-    hint: "10 friends AND 10 challenge wins — beloved and feared",
-    secret: true,
-    plannedReward: { kind: "badge", label: "TBA · social-butterfly badge" },
-    check: (s) => s.friendCount >= 10 && s.challengeWins >= 10,
-  },
 
   // --- Efficiency: the minimalist line ---
-  {
-    id: "featherweight",
-    name: "featherweight",
-    hint: "earn the minimalist run — grace over brute force",
-    plannedReward: { kind: "sound", label: "TBA · feather-soft chime" },
-    check: (s) => s.minimalistDone === true,
-  },
-  {
-    id: "zen_master",
-    name: "zen master",
-    hint: "a minimalist run AND a 100+ score: calm and capable",
-    secret: true,
-    plannedReward: { kind: "shape", label: "TBA · origami-crane shape" },
-    check: (s) => s.minimalistDone === true && s.bestScore >= 100,
-  },
 
   // --- Seasonal / event entries (date-window gated, check === true) ---
-  {
-    id: "new_year_flight",
-    name: "new year flight",
-    hint: "take off as the year turns",
-    event: { from: "12-26", until: "01-02" },
-    plannedReward: { kind: "skin", label: "TBA · fireworks skin" },
-    check: () => true,
-  },
-  {
-    id: "pride_wings",
-    name: "pride wings",
-    hint: "fly with pride all June long",
-    event: { from: "06-01", until: "06-30" },
-    plannedReward: { kind: "skin", label: "TBA · rainbow-pride skin" },
-    check: () => true,
-  },
-  {
-    id: "red_ribbon",
-    name: "red ribbon",
-    hint: "play on World AIDS Day to wear the ribbon",
-    event: { from: "12-01", until: "12-01" },
-    plannedReward: { kind: "badge", label: "TBA · red-ribbon badge" },
-    check: () => true,
-  },
 
   // --- Drafts that need NEW stat plumbing (2026-06-10 studio review) ---
   // Exception to this file's "existing counters only" rule, by owner

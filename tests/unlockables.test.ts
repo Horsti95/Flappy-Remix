@@ -83,6 +83,15 @@ const MAXED: UnlockStats = {
   playedRanked: true,
   satGames: 10000,
   sunGames: 10000,
+  newYearDone: true,
+  prideDone: true,
+  redRibbonDone: true,
+  exact88Done: true,
+  exact144Done: true,
+  exact256Done: true,
+  exact360Done: true,
+  oneFlapDone: true,
+  timeTravelerDone: true,
 };
 
 describe("unlockables registry", () => {

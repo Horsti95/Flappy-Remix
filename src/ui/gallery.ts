@@ -31,7 +31,6 @@ import { THEMES, isThemesLabMode, type Theme, type ThemeId } from "../game/theme
 import { hasZones } from "../game/depth-zones";
 import { getGrantedShapesLocal } from "../social/grants";
 import { PRESET_SKINS, presetUnlock, type PresetSkin } from "../game/preset-skins";
-import { evaluateCriteria, isEventActive, type CriterionDef } from "../game/unlock-criteria";
 import { PILLAR_STYLES, getEquippedPillarLocal, setEquippedPillarLocal, type PillarStyle } from "../game/pillars";
 import { PILLAR_COLORS, getPillarColor, getEquippedPillarColorLocal, setEquippedPillarColorLocal, pillarColorUnlocked } from "../game/pillar-colors";
 import { setEquippedAchievementColorLocal } from "../game/achievement-equip";
@@ -103,56 +102,11 @@ export function renderGallery(
       <h2 class="text-xl font-bold">gallery <span class="text-[11px] font-normal opacity-50 ml-1 tabular-nums">${collection.unlocked}/${collection.total}</span></h2>
       <button data-close class="text-sm underline opacity-70">close</button>
     </div>
-    <div data-next class="px-5 pb-2"></div>
     <div data-loadout class="flex items-stretch gap-1 px-2 py-2 border-b border-white/10"></div>
     <div data-body class="mt-2 px-3 flex-1 overflow-y-auto pb-28"></div>
   `;
   host.appendChild(wrap);
 
-  // "What's next" — the 3 nearest locked cosmetics (easiest tier first), so the
-  // gallery points you at an attainable goal instead of a wall of locks.
-  (() => {
-    const aStats = loadAchievementStats();
-    const granted = new Set(getGrantedShapesLocal());
-    type Next = { name: string; where: string; hint: string; tier: Tier };
-    const next: Next[] = [];
-    const add = (name: string, where: string, u: { unlocked: boolean; hint?: string | null }, unlock: (s: never) => { unlocked: boolean }, already = false): void => {
-      if (!already && !u.unlocked && u.hint) next.push({ name, where, hint: u.hint, tier: tierForUnlock(unlock) });
-    };
-    // Secrets (obscure-gated items) are excluded — you can't guide toward them.
-    for (const sh of SHAPES) if (!isSecretHint(sh.unlock(aStats).hint)) add(sh.name, "Player · shape", sh.unlock(aStats), sh.unlock, granted.has(sh.id));
-    for (const t of THEMES) if (!isSecretHint(t.unlock(aStats).hint)) add(t.name, "World · backgrounds", t.unlock(aStats), t.unlock);
-    for (const p of PILLAR_STYLES) if (!isSecretHint(p.unlock(aStats).hint)) add(p.name, "World · pillars", p.unlock(aStats), p.unlock);
-    next.sort((a, b) => tierRank(a.tier) - tierRank(b.tier));
-    const top = next.slice(0, 3);
-    const el = wrap.querySelector("[data-next]") as HTMLDivElement;
-    if (top.length === 0) { el.remove(); return; }
-    let open = false;
-    try { open = localStorage.getItem("pflug.nextOpen.v1") === "1"; } catch { /* ignore */ }
-    const rows = top
-      .map((n) => {
-        const prog = hintProgress(n.hint, aStats);
-        const progHtml = prog
-          ? `<span class="tabular-nums opacity-80 shrink-0">${prog.cur}/${prog.target}</span>`
-          : `<span class="opacity-50 truncate">${escapeHtml(n.hint)}</span>`;
-        return `<div class="flex items-center gap-2 text-[11px] py-0.5">
-            <span class="opacity-40 text-[10px] shrink-0">${n.where} ›</span>
-            <span class="font-bold shrink-0">${escapeHtml(n.name)}</span>
-            ${progHtml}
-          </div>`;
-      })
-      .join("");
-    const render = (): void => {
-      el.innerHTML = `<button data-next-toggle class="text-[10px] uppercase tracking-wider opacity-50 flex items-center gap-1">what's next <span>${open ? "▾" : "▸"}</span></button>${open ? `<div class="mt-1">${rows}</div>` : ""}`;
-      el.querySelector("[data-next-toggle]")?.addEventListener("click", (e) => {
-        e.stopPropagation();
-        open = !open;
-        try { localStorage.setItem("pflug.nextOpen.v1", open ? "1" : "0"); } catch { /* ignore */ }
-        render();
-      });
-    };
-    render();
-  })();
 
   type Tab = "shapes" | "skins" | "backgrounds" | "effects" | "quests" | "badges" | "pillars";
   let activeTab: Tab = "shapes";
@@ -283,9 +237,9 @@ export function renderGallery(
     addBox("pillar", "pillars", pillarCv);
 
     // 6) Goals — a circular progress ring instead of plain "n / n".
-    const results = evaluateCriteria(loadAchievementStats());
-    const goalsDone = results.filter(r => r.unlocked).length;
-    addBox("goals", "quests", progressRing(goalsDone, results.length));
+    const aStats = loadAchievementStats();
+    const goalsDone = ACHIEVEMENTS.filter((a) => a.check(aStats)).length;
+    addBox("goals", "quests", progressRing(goalsDone, ACHIEVEMENTS.length));
 
     // 7) Badges — a drawn medal rather than a stock emoji.
     addBox("badges", "badges", medalIcon());
@@ -518,30 +472,35 @@ export function renderGallery(
     const body = wrap.querySelector("[data-body]") as HTMLDivElement;
     body.innerHTML = `<div data-quests-body class="space-y-3 px-2 pb-2"></div>`;
     const questsBody = body.querySelector("[data-quests-body]") as HTMLDivElement;
-
-    // Goals catalog leads — the single, unified place for things to chase.
     const achStats = loadAchievementStats();
-    const results = evaluateCriteria(achStats);
-    const got = results.filter((r) => r.unlocked).length;
-    questsBody.appendChild(headerLabel(`goals — ${got} / ${results.length}`));
-    const intro = document.createElement("div");
-    intro.className = "text-[10px] opacity-60 px-2 mb-2";
-    intro.textContent = "every achievement & goal in one place — finish them to unlock shapes, colors, worlds & more.";
-    questsBody.appendChild(intro);
-    const grid = document.createElement("div");
-    grid.className = "grid grid-cols-1 gap-2";
-    for (const { def, unlocked } of results) grid.appendChild(criterionCard(def, unlocked));
-    questsBody.appendChild(grid);
 
-    // The legacy guided chains live below as "starter paths" — they still
-    // grant their rewards (handled in main.ts), kept as a gentle intro.
+    // Guided starter chains lead — they're the gentle intro, so they sit at
+    // the top instead of being buried under the full catalog.
     const views = getChainViews();
     if (views.length > 0) {
       questsBody.appendChild(headerLabel("starter paths"));
       for (const v of views) questsBody.appendChild(chainCard(v.chain, v.activeIndex, v.complete));
     }
-  }
 
+    // The full goals catalog = the achievements themselves. Every entry has
+    // a REAL reward (color / fx / sound) — no more TBA placeholders. Secrets
+    // stay mysteries while locked; finished goals sink to the bottom.
+    const evaluated = ACHIEVEMENTS.map((def) => ({ def, unlocked: def.check(achStats) }));
+    const got = evaluated.filter((r) => r.unlocked).length;
+    questsBody.appendChild(headerLabel(`goals — ${got} / ${evaluated.length}`));
+    const intro = document.createElement("div");
+    intro.className = "text-[10px] opacity-60 px-2 mb-2";
+    intro.textContent = "every goal grants something — colors, effects or sounds. secrets reveal themselves when earned.";
+    questsBody.appendChild(intro);
+    const grid = document.createElement("div");
+    grid.className = "grid grid-cols-1 gap-2";
+    const order = (r: { def: AchievementDef; unlocked: boolean }): number =>
+      r.unlocked ? 2 : r.def.secret ? 1 : 0;
+    for (const r of [...evaluated].sort((a, b) => order(a) - order(b))) {
+      grid.appendChild(goalCard(r.def, r.unlocked));
+    }
+    questsBody.appendChild(grid);
+  }
   function renderBackgrounds(): void {
     const body = wrap.querySelector("[data-body]") as HTMLDivElement;
     body.innerHTML = `<div class="grid grid-cols-2 gap-4 px-2 pt-1"></div>`;
@@ -725,26 +684,6 @@ export function renderGallery(
   };
 }
 
-/** Best-effort numeric progress for an unlock hint, e.g. "7-day streak" with
- *  streakDays 6 → {cur:6, target:7}. Returns null if the hint has no number or
- *  no recognised stat (then the caller just shows the hint text). */
-function hintProgress(hint: string, s: AchievementStats): { cur: number; target: number } | null {
-  const m = hint.match(/(\d+)/);
-  if (!m) return null;
-  const target = parseInt(m[1], 10);
-  const h = hint.toLowerCase();
-  let cur: number | null = null;
-  if (h.includes("daily streak")) cur = s.dailyStreakDays;
-  else if (h.includes("streak")) cur = s.streakDays;
-  else if (h.includes("score")) cur = s.bestScore;
-  else if (h.includes("game")) cur = s.totalGames;
-  else if (h.includes("friend")) cur = s.friendCount;
-  else if (h.includes("challenge")) cur = s.challengeWins;
-  else if (h.includes("morning")) cur = s.morningGames;
-  else if (h.includes("night")) cur = s.lateNightGames;
-  if (cur == null) return null;
-  return { cur: Math.min(cur, target), target };
-}
 
 /** Obscure / easter-egg unlock conditions (time-of-day, friend counts, daily
  *  streaks) read better as hidden "secrets" than as chores. Detected from the
@@ -1531,43 +1470,37 @@ function collectibleBadgeCard(def: BadgeDef, unlocked: boolean): HTMLElement {
   return el;
 }
 
-const REWARD_ICON: Record<string, string> = {
-  skin: "🎨",
-  shape: "✈️",
-  background: "🌅",
-  pillar: "🏛️",
-  sound: "🔊",
-  fx: "✨",
-  badge: "🏅",
-};
-
-function criterionCard(def: CriterionDef, unlocked: boolean): HTMLElement {
+function goalCard(def: AchievementDef, unlocked: boolean): HTMLElement {
   const el = document.createElement("div");
   el.dataset.noFlap = "true";
-  // Secret + locked stays a mystery; everything else shows its goal + the
-  // (TBA) reward slot it will fill once the art lands.
-  const mystery = def.secret && !unlocked;
-  const eventLive = def.event ? isEventActive(def) : false;
+  const mystery = def.secret === true && !unlocked;
   el.className = `rounded-xl p-3 border ${
     unlocked ? "border-emerald-400/40 bg-emerald-400/5" : "border-white/10 bg-white/5"
   }`;
   const title = mystery ? "??? secret goal" : escapeHtml(def.name);
-  const hint = mystery ? "keep playing to discover this one." : escapeHtml(def.hint);
-  const icon = REWARD_ICON[def.plannedReward.kind] ?? "🎁";
-  const rewardLabel = mystery ? "secret reward" : escapeHtml(def.plannedReward.label);
-  const eventChip = def.event
-    ? `<span class="ml-1 text-[9px] rounded-full px-1.5 py-0.5 ${eventLive ? "bg-pink-500/30 text-pink-100" : "bg-white/10 opacity-60"}">${eventLive ? "event live" : "seasonal"}</span>`
-    : "";
+  const hint = mystery ? "keep playing to discover this one." : escapeHtml(def.blurb);
+  let rewardHtml: string;
+  if (mystery) {
+    rewardHtml = `🎁 reward: secret`;
+  } else if (def.reward.type === "color") {
+    const sw = (c: [number, number, number]) =>
+      `<span class="inline-block w-3 h-3 rounded-full align-middle" style="background:rgb(${c.join(",")})"></span>`;
+    rewardHtml = `🎨 reward: color skin ${sw(def.reward.body)}${sw(def.reward.accent)}`;
+  } else if (def.reward.type === "fx") {
+    rewardHtml = `✨ reward: flap effect`;
+  } else {
+    rewardHtml = `🔊 reward: sound`;
+  }
   const state = unlocked
     ? `<span class="text-[9px] uppercase tracking-wider font-bold text-emerald-300">done</span>`
     : `<span class="text-[9px] uppercase tracking-wider opacity-50">locked</span>`;
   el.innerHTML = `
     <div class="flex items-center justify-between gap-2">
-      <div class="text-[13px] font-bold capitalize truncate">${title}${eventChip}</div>
+      <div class="text-[13px] font-bold capitalize truncate">${title}</div>
       ${state}
     </div>
     <div class="text-[11px] opacity-70 mt-0.5">${hint}</div>
-    <div class="text-[10px] opacity-55 mt-1.5">${icon} reward: ${rewardLabel}</div>
+    <div class="text-[10px] opacity-55 mt-1.5">${rewardHtml}</div>
   `;
   return el;
 }

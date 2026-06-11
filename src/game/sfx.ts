@@ -248,11 +248,109 @@ function gatePopChoir(ac: AudioContext, master: GainNode, t: number, norm: numbe
   tone(ac, master, { freq: root * 1.25, startAt: t + 0.07, duration: 0.22, type: "sine", peak: 0.18 });
 }
 
-export function playDeath(): void {
+export type DeathSoundId = "classic" | "crumple" | "whistle_down";
+
+export interface DeathSoundUnlock {
+  unlocked: boolean;
+  hint?: string;
+}
+
+export const DEATH_SOUND_OPTIONS: {
+  id: DeathSoundId;
+  label: string;
+  blurb: string;
+  unlock(stats: AchievementStats): DeathSoundUnlock;
+}[] = [
+  { id: "classic",      label: "Classic thud",  blurb: "low descending thud — default",
+    unlock: () => ({ unlocked: true }) },
+  { id: "crumple",      label: "Crumple",       blurb: "papery crunch — matches the crumple",
+    unlock: (s) => ({ unlocked: s.totalGames >= 40, hint: "play 40 games" }) },
+  { id: "whistle_down", label: "Whistle down",  blurb: "cartoon falling whistle + soft thud",
+    unlock: (s) => ({ unlocked: s.challengeWins >= 3, hint: "win 3 challenges" }) },
+];
+
+const DEATH_KEY = "pflug.deathSoundStyle.v1";
+
+export function getActiveDeathSound(): DeathSoundId {
+  try {
+    const stored = localStorage.getItem(DEATH_KEY) as DeathSoundId | null;
+    if (stored && DEATH_SOUND_OPTIONS.some((o) => o.id === stored)) return stored;
+  } catch {
+    /* localStorage blocked */
+  }
+  return "classic";
+}
+
+export function setActiveDeathSound(id: DeathSoundId): void {
+  try {
+    localStorage.setItem(DEATH_KEY, id);
+  } catch {
+    /* localStorage blocked */
+  }
+}
+
+export function playDeath(id: DeathSoundId = getActiveDeathSound()): void {
   if (reducedMotion()) return;
   const ac = getCtx();
   if (!ac) return;
   if (ac.state === "suspended") ac.resume().catch(() => undefined);
+  if (id === "crumple") {
+    // Papery crunch: three quick noise bursts through a fast-falling lowpass.
+    const master = ac.createGain();
+    master.gain.value = 0.7;
+    master.connect(ac.destination);
+    const t0 = ac.currentTime + 0.005;
+    for (let i = 0; i < 3; i++) {
+      const t = t0 + i * 0.05;
+      const noise = makeNoiseSource(ac, 0.06);
+      const lp = ac.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.setValueAtTime(3200 - i * 800, t);
+      lp.frequency.exponentialRampToValueAtTime(500, t + 0.05);
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.3 - i * 0.07, t + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+      noise.connect(lp).connect(g).connect(master);
+      noise.start(t);
+    }
+    return;
+  }
+  if (id === "whistle_down") {
+    // Cartoon fall: a long descending sine gliss, then a soft thud.
+    const master = ac.createGain();
+    master.gain.value = 0.7;
+    master.connect(ac.destination);
+    const t = ac.currentTime + 0.005;
+    const osc = ac.createOscillator();
+    const g = ac.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(1400, t);
+    osc.frequency.exponentialRampToValueAtTime(280, t + 0.42);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.16, t + 0.02);
+    g.gain.setValueAtTime(0.16, t + 0.34);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.44);
+    osc.connect(g).connect(master);
+    osc.start(t);
+    osc.stop(t + 0.46);
+    const thud = ac.createOscillator();
+    const tg = ac.createGain();
+    thud.type = "triangle";
+    thud.frequency.setValueAtTime(140, t + 0.42);
+    thud.frequency.exponentialRampToValueAtTime(60, t + 0.55);
+    tg.gain.setValueAtTime(0, t + 0.42);
+    tg.gain.linearRampToValueAtTime(0.3, t + 0.43);
+    tg.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+    thud.connect(tg).connect(master);
+    thud.start(t + 0.42);
+    thud.stop(t + 0.62);
+    return;
+  }
+  playDeathClassic(ac);
+}
+
+function playDeathClassic(ac: AudioContext): void {
   const master = ac.createGain();
   master.gain.value = 0.78;
   master.connect(ac.destination);
@@ -296,6 +394,8 @@ export function playDeath(): void {
 
 export type FlapSoundId =
   | "soft_pop"
+  | "bubble"
+  | "page_flick"
   | "off"
   | "paper_whoosh"
   | "wood_click"
@@ -319,6 +419,10 @@ export interface FlapSoundUnlock {
 export const FLAP_SOUND_OPTIONS: { id: FlapSoundId; label: string; blurb: string; unlock(stats: AchievementStats): FlapSoundUnlock }[] = [
   { id: "soft_pop",     label: "Soft pop",     blurb: "low-pitched bubble — default",
     unlock: () => ({ unlocked: true }) },
+  { id: "bubble",       label: "Bubble",       blurb: "a watery blip that rises as you flap",
+    unlock: (s) => ({ unlocked: s.bestScore >= 35, hint: "score 35 in a single run" }) },
+  { id: "page_flick",   label: "Page flick",   blurb: "a papery flick — straight out of the journal",
+    unlock: (s) => ({ unlocked: s.totalGames >= 75, hint: "play 75 games" }) },
   { id: "off",          label: "Off (silence)", blurb: "no tap sound",
     unlock: (s) => ({ unlocked: s.totalGames >= 25, hint: "play 25 games" }) },
   { id: "paper_whoosh", label: "Paper whoosh", blurb: "noisy air burst",
@@ -380,6 +484,17 @@ export function setActiveFlapSound(id: FlapSoundId): void {
   }
 }
 
+/** Short white-noise buffer source — shared by the papery/percussive sfx. */
+function makeNoiseSource(ac: AudioContext, durSeconds: number): AudioBufferSourceNode {
+  const n = Math.max(1, Math.floor(ac.sampleRate * durSeconds));
+  const buf = ac.createBuffer(1, n, ac.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) data[i] = Math.random() * 2 - 1;
+  const src = ac.createBufferSource();
+  src.buffer = buf;
+  return src;
+}
+
 export function playFlap(id: FlapSoundId = getActiveFlapSound()): void {
   if (id === "off") return;
   if (reducedMotion()) return;
@@ -404,6 +519,46 @@ export function playFlap(id: FlapSoundId = getActiveFlapSound()): void {
       osc.connect(gain).connect(master);
       osc.start(t);
       osc.stop(t + 0.1);
+      break;
+    }
+    case "bubble": {
+      // Watery blip: a sine that bends UP with a tiny noise transient on top.
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(300, t);
+      osc.frequency.exponentialRampToValueAtTime(720, t + 0.07);
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.16, t + 0.006);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+      osc.connect(gain).connect(master);
+      osc.start(t);
+      osc.stop(t + 0.1);
+      const noise = makeNoiseSource(ac, 0.02);
+      const ng = ac.createGain();
+      const nf = ac.createBiquadFilter();
+      nf.type = "bandpass";
+      nf.frequency.value = 2400;
+      ng.gain.setValueAtTime(0.05, t);
+      ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.02);
+      noise.connect(nf).connect(ng).connect(master);
+      noise.start(t);
+      break;
+    }
+    case "page_flick": {
+      // Papery flick: a very short highpassed noise burst with a fast
+      // downward filter sweep — reads as a page corner snapping past.
+      const noise = makeNoiseSource(ac, 0.06);
+      const nf = ac.createBiquadFilter();
+      nf.type = "highpass";
+      nf.frequency.setValueAtTime(2600, t);
+      nf.frequency.exponentialRampToValueAtTime(900, t + 0.05);
+      const ng = ac.createGain();
+      ng.gain.setValueAtTime(0, t);
+      ng.gain.linearRampToValueAtTime(0.22, t + 0.004);
+      ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+      noise.connect(nf).connect(ng).connect(master);
+      noise.start(t);
       break;
     }
     case "paper_whoosh": {

@@ -18,8 +18,7 @@ import {
   playGatePass,
   setActiveFlapSound,
   flapSoundUnlock,
-  type FlapSoundId,
-} from "../game/sfx";
+  type FlapSoundId, DEATH_SOUND_OPTIONS, getActiveDeathSound, setActiveDeathSound, playDeath, type DeathSoundId, } from "../game/sfx";
 import {
   GATE_SOUNDS,
   getEquippedGateSound,
@@ -443,6 +442,27 @@ export function renderGallery(
       }));
     }
     body.appendChild(gateList);
+
+    // Death sound style — same pattern as the gate sounds.
+    const deathHeader = document.createElement("div");
+    deathHeader.className = "px-3 mt-5 mb-2 text-[10px] uppercase tracking-wider opacity-60 font-bold";
+    deathHeader.textContent = "death sound";
+    body.appendChild(deathHeader);
+    const deathDesc = document.createElement("div");
+    deathDesc.className = "px-2 mb-3 text-[10px] opacity-60";
+    deathDesc.textContent = "the sound of the crumple. preview, then pick.";
+    body.appendChild(deathDesc);
+    const deathList = document.createElement("div");
+    deathList.className = "space-y-2 px-2";
+    const activeDeath = getActiveDeathSound();
+    for (const d of DEATH_SOUND_OPTIONS) {
+      deathList.appendChild(deathSoundCard(d, achStats, activeDeath === d.id, (id) => {
+        setActiveDeathSound(id);
+        playDeath(id);
+        renderEffects();
+      }));
+    }
+    body.appendChild(deathList);
 
     // Separator
     const sep = document.createElement("div");
@@ -1275,6 +1295,42 @@ function gateSoundCard(
     el.querySelector("[data-pick]")?.addEventListener("click", (e) => {
       e.stopPropagation();
       onPick(style.id);
+    });
+  }
+  return el;
+}
+
+function deathSoundCard(
+  opt: (typeof DEATH_SOUND_OPTIONS)[number],
+  stats: AchievementStats,
+  active: boolean,
+  onPick: (id: DeathSoundId) => void,
+): HTMLElement {
+  const state = opt.unlock(stats);
+  const el = document.createElement("div");
+  el.dataset.noFlap = "true";
+  el.className = `rounded-2xl p-3 border-2 ${active ? "border-paper bg-paper/10" : state.unlocked ? "border-white/10 bg-white/5" : "border-white/5 bg-white/5 opacity-60"}`;
+  el.innerHTML = `
+    <div class="flex items-center justify-between gap-3">
+      <div class="text-left flex-1 min-w-0">
+        <div class="text-sm font-bold truncate">${escapeHtml(opt.label)}</div>
+        <div class="text-[11px] opacity-70 mt-0.5 truncate">${state.unlocked ? escapeHtml(opt.blurb) : escapeHtml(state.hint ?? "locked")}</div>
+      </div>
+      ${state.unlocked
+        ? `<button data-preview class="rounded-full bg-white/15 px-3 py-1.5 text-[11px] font-bold">▶</button>
+           <button data-pick class="rounded-full ${active ? "bg-emerald-400/30 text-emerald-100" : "bg-paper text-ink"} px-3 py-1.5 text-[11px] font-bold">${active ? "active" : "pick"}</button>`
+        : `<div class="text-[10px] uppercase tracking-wider opacity-50 font-bold">locked</div>`
+      }
+    </div>
+  `;
+  if (state.unlocked) {
+    el.querySelector("[data-preview]")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      playDeath(opt.id);
+    });
+    el.querySelector("[data-pick]")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      onPick(opt.id);
     });
   }
   return el;

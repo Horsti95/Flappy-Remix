@@ -6,11 +6,12 @@ import { DEFAULT_SHAPE_ID, type ShapeId } from "../game/shapes";
 import { DEFAULT_SKIN, type SkinColors } from "../game/skin";
 import { getTheme, DEFAULT_THEME_ID, type ThemeId } from "../game/themes";
 import { shapeSvgInner } from "./shape-svg";
-import { SUPPORT_ENABLED, SUPPORT_URL, FEEDBACK_EMAIL } from "../game/support";
+import { SUPPORT_ENABLED, SUPPORT_URL } from "../game/support";
 import { APP_VERSION } from "../game/changelog";
 import { getShowEquippedInMenu, setShowEquippedInMenu } from "../game/menu-prefs";
 import { type RunXpResult } from "../game/xp";
 import { type NextUnlockHint } from "../game/next-unlock";
+import { feedbackFormHtml, bindFeedbackForm } from "./feedback-form";
 
 export interface MenuCallbacks {
   onPlay(): void;
@@ -179,17 +180,10 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
           </div>
         </div>
 
-        ${
-          FEEDBACK_EMAIL
-            ? `<div class="panel-group-label">Support</div>
-               <div class="panel-group">
-                 <a href="${feedbackMailto()}" data-feedback class="panel-row hover:bg-white/5">
-                   <span class="opacity-90">💬 Send feedback</span>
-                   <span class="opacity-50">›</span>
-                 </a>
-               </div>`
-            : ""
-        }
+        <div class="panel-group-label">Feedback</div>
+        <div class="rounded-2xl bg-white/5 p-3">
+          ${feedbackFormHtml()}
+        </div>
 
         <div class="panel-group-label">About</div>
         <div class="panel-group">
@@ -214,6 +208,7 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
     </div>
   `;
   host.appendChild(wrap);
+  bindFeedbackForm(wrap);
   const flyOutThenPlay = (action: () => void): void => {
     const mascot = wrap.querySelector("[data-menu-mascot]");
     const content = wrap.querySelector("[data-menu-content]");
@@ -298,19 +293,22 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   });
 }
 
+/**
+ * The brighter of the skin's two colours as a CSS color — bright enough to
+ * carry text on the dark death card, else the default paper cream.
+ */
+function pickReadableAccent(skin: SkinColors): string {
+  const lum = (c: [number, number, number]) => (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255;
+  const best = lum(skin.accent) >= lum(skin.body) ? skin.accent : skin.body;
+  return lum(best) >= 0.45 ? `rgb(${best.join(",")})` : "#f4ead5";
+}
+
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
   );
 }
 
-// Prefilled mailto for the feedback link. Includes app version so reports are
-// actionable; the body is a friendly template the player edits. No tracking.
-function feedbackMailto(): string {
-  const subject = `Glide feedback (v${APP_VERSION})`;
-  const body = `What happened / what would you like?\n\n\n— sent from Glide v${APP_VERSION}`;
-  return `mailto:${encodeURIComponent(FEEDBACK_EMAIL)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-}
 
 function formatPlays(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
@@ -380,6 +378,9 @@ export interface GameOverResult {
   };
   /** Training/practice run — nothing tracked; show a lightweight game-over. */
   trainingMode?: boolean;
+  /** Equipped skin colours — the death card's accent strip / highlights
+   *  adapt to the player's colour scheme. */
+  skin?: SkinColors;
   /** Per-run progression beat: PB delta, pilot XP tick, next-unlock
    *  breadcrumb. Absent for practice runs. */
   progress?: {
@@ -454,7 +455,13 @@ function renderGameOverInner(
   const race = extra?.raceContext;
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
-  wrap.className = `pointer-events-auto absolute inset-x-0 bottom-0 z-10 px-4 pb-6 pt-6 bg-gradient-to-t ${ctx ? "from-black/95" : "from-black/80"} to-transparent text-paper font-display`;
+  // The result is a solid CARD, not a transparent wash: it has to read
+  // instantly over any equipped background, and the accent strip / score
+  // pick up the player's skin colours so the screen feels like THEIRS.
+  wrap.className = "pointer-events-auto absolute inset-x-0 bottom-0 z-10 px-4 pb-5 pt-10 bg-gradient-to-t from-black/60 to-transparent text-paper font-display";
+  const cardSkin = extra?.skin ?? DEFAULT_SKIN;
+  const accentCss = pickReadableAccent(cardSkin);
+  const stripCss = `linear-gradient(90deg, rgb(${cardSkin.body.join(",")}), rgb(${cardSkin.accent.join(",")}))`;
   const unlocks = extra?.result?.unlocked ?? [];
   const unlocksHtml = unlocks.length > 0 ? renderUnlocks(unlocks) : "";
   const acceptStatus = extra?.trainingMode
@@ -559,7 +566,7 @@ function renderGameOverInner(
           <span class="opacity-70">+${xp.breakdown.total} XP</span>
         </div>
         <div class="mt-1.5 h-2 rounded-full bg-white/10 overflow-hidden">
-          <div data-xp-fill class="h-full rounded-full bg-paper transition-[width] duration-700 ease-out" style="width:${startPct}%" data-xp-target="${targetPct}"></div>
+          <div data-xp-fill class="h-full rounded-full transition-[width] duration-700 ease-out" style="width:${startPct}%;background:${accentCss}" data-xp-target="${targetPct}"></div>
         </div>
         <div class="mt-1 text-[10px] opacity-50">${xp.after.intoLevel} / ${xp.after.toNext} XP</div>
         ${nextLine}
@@ -567,9 +574,10 @@ function renderGameOverInner(
   }
 
   wrap.innerHTML = `
-    <div class="max-w-sm mx-auto text-center">
+    <div class="max-w-sm mx-auto text-center relative overflow-hidden rounded-3xl border border-white/10 bg-[#0e0f13]/95 shadow-2xl px-5 pt-5 pb-5">
+      <div class="absolute top-0 left-0 right-0 h-1.5" style="background:${stripCss}"></div>
       <div class="text-xs opacity-70 uppercase tracking-wider">your run</div>
-      <div class="text-6xl font-bold mt-1">${score}</div>
+      <div class="text-6xl font-bold mt-1" style="color:${accentCss}">${score}</div>
       ${acceptStatus}
       ${progressHtml}
       ${versus}

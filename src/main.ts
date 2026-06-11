@@ -964,6 +964,7 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
             ? { round: activeRanked.round, total: 3 }
             : undefined,
           progress: runProgress ?? undefined,
+          skin: renderer.options.skin,
           result,
           ticks,
           achievements: newAchievements.map((a) => {

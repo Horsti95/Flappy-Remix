@@ -25,7 +25,7 @@ export const PILLAR_COLORS: PillarColor[] = [
   { id: "forest",  name: "forest",  body: "#3d8b58", cap: "#1f4f37",
     unlock: () => ({ unlocked: true }) },
   { id: "candy",   name: "candy",   body: "#e23b3b", cap: "#ffffff",
-    unlock: (s) => ({ unlocked: s.totalGames >= 5, hint: "play 5 games" }) },
+    unlock: (s) => ({ unlocked: s.totalGames >= 12, hint: "play 12 games" }) },
   { id: "sky",     name: "sky",     body: "#38bdf8", cap: "#0c4a6e",
     unlock: (s) => ({ unlocked: s.totalGames >= 15, hint: "play 15 games" }) },
   { id: "germany", name: "germany", body: "#dd0000", cap: "#ffce00",

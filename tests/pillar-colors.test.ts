@@ -60,7 +60,7 @@ describe("FX colour unlocks", () => {
   it("at least one colour is locked at zero stats and unlocks at its threshold", () => {
     const red = FX_COLORS.find((c) => c.id === "red")!;
     expect(fxColorUnlocked(red, ZERO).unlocked).toBe(false);
-    expect(fxColorUnlocked(red, { ...ZERO, totalGames: 5 }).unlocked).toBe(true);
+    expect(fxColorUnlocked(red, { ...ZERO, totalGames: 14 }).unlocked).toBe(true);
   });
 
   it("ids are unique", () => {

@@ -64,7 +64,7 @@ const free = () => ({ unlocked: true });
 export const FX_COLORS: FxColor[] = [
   { id: "default", name: "default", rgb: [244, 234, 213], unlock: free },
   { id: "white",   name: "white",   rgb: [255, 255, 255], unlock: free },
-  { id: "red",     name: "red",     rgb: [255, 70, 70],   unlock: (s) => ({ unlocked: s.totalGames >= 5,  hint: "play 5 games" }) },
+  { id: "red",     name: "red",     rgb: [255, 70, 70],   unlock: (s) => ({ unlocked: s.totalGames >= 14, hint: "play 14 games" }) },
   { id: "orange",  name: "orange",  rgb: [255, 150, 40],  unlock: (s) => ({ unlocked: s.totalGames >= 10, hint: "play 10 games" }) },
   { id: "yellow",  name: "yellow",  rgb: [255, 220, 60],  unlock: (s) => ({ unlocked: s.totalGames >= 20, hint: "play 20 games" }) },
   { id: "lime",    name: "lime",    rgb: [160, 230, 60],  unlock: (s) => ({ unlocked: s.bestScore >= 15,  hint: "score 15 in a single run" }) },

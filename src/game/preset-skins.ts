@@ -22,7 +22,7 @@ export interface PresetSkin {
 
 export const PRESET_SKINS: PresetSkin[] = [
   { id: "preset-crimson", name: "crimson", body: [220, 38, 38], accent: [60, 10, 10],
-    unlock: (s) => ({ unlocked: s.totalGames >= 5, hint: "play 5 games" }) },
+    unlock: (s) => ({ unlocked: s.totalGames >= 8, hint: "play 8 games" }) },
   { id: "preset-ocean", name: "ocean", body: [14, 165, 233], accent: [8, 47, 73],
     unlock: (s) => ({ unlocked: s.totalGames >= 15, hint: "play 15 games" }) },
   { id: "preset-lime", name: "lime", body: [132, 204, 22], accent: [26, 46, 5],

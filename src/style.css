@@ -209,6 +209,35 @@ a:focus-visible {
   .font-hand {
     font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", "Chalkboard SE", cursive;
   }
+
+  /* Paper-note buttons (menu experiment): the classic hand-drawn wobble —
+     mismatched border radii read as an outline sketched in one stroke,
+     tiny alternating rotations make the stack feel hand-placed. */
+  .paper-note {
+    @apply font-hand;
+    border-radius: 255px 18px 225px 18px / 18px 225px 18px 255px;
+    box-shadow:
+      2px 3px 0 rgba(0, 0, 0, 0.4),
+      0 8px 14px -6px rgba(0, 0, 0, 0.3);
+  }
+  .paper-note:active {
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+    transform: translate(1px, 2px) scale(0.98);
+  }
+  .paper-note-outline {
+    @apply font-hand;
+    border-radius: 18px 225px 18px 255px / 255px 18px 225px 18px;
+    border-style: dashed !important;
+    box-shadow: 1.5px 2px 0 rgba(0, 0, 0, 0.25);
+  }
+  .paper-note-outline:active {
+    box-shadow: 0 0.5px 0 rgba(0, 0, 0, 0.25);
+    transform: translate(1px, 1.5px) scale(0.98);
+  }
+  .tilt-l { transform: rotate(-0.9deg); }
+  .tilt-r { transform: rotate(0.7deg); }
+  .tilt-l:active { transform: rotate(-0.9deg) translate(1px, 2px) scale(0.98); }
+  .tilt-r:active { transform: rotate(0.7deg) translate(1px, 2px) scale(0.98); }
 }
 
 /* House-ad banner: intentionally reads as a joke/placeholder, not real

@@ -102,13 +102,13 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
         </svg>
       </div>
       <h1 class="menu-title text-6xl font-bold tracking-tight">Glide</h1>
-      <p class="mt-2 text-[11px] italic opacity-60">guide the paper plane through the gaps</p>
+      <p class="mt-2 text-[12px] font-hand opacity-60">guide the paper plane through the gaps</p>
 
       <div class="mt-6 grid grid-cols-2 gap-3">
-        <button data-action="play" class="rounded-2xl bg-paper text-ink font-bold py-5 text-lg shadow-lg active:scale-95 transition">
+        <button data-action="play" class="paper-note tilt-l bg-paper text-ink font-bold py-5 text-xl transition">
           Play
         </button>
-        <button data-action="daily" class="rounded-2xl bg-paper text-ink font-bold py-3 px-4 text-left shadow-lg active:scale-95 transition">
+        <button data-action="daily" class="paper-note tilt-r bg-paper text-ink font-bold py-3 px-4 text-left transition">
           <div class="text-[10px] uppercase tracking-wider opacity-60 flex items-center gap-1.5">
             <span>Daily</span>${tierChip}
           </div>
@@ -118,10 +118,10 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
       </div>
 
       <div class="mt-3 grid grid-cols-2 gap-2">
-        <button data-action="ranked" class="rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
+        <button data-action="ranked" class="paper-note-outline tilt-r border border-paper/40 text-paper font-bold py-3 text-sm transition">
           Ranked
         </button>
-        <button data-action="inbox" class="relative rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
+        <button data-action="inbox" class="paper-note-outline tilt-l relative border border-paper/40 text-paper font-bold py-3 text-sm transition">
           Challenges
           ${meta.inboxUnseen && meta.inboxUnseen > 0
             ? `<span class="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center">${meta.inboxUnseen > 9 ? "9+" : meta.inboxUnseen}</span>`
@@ -130,13 +130,13 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
       </div>
 
       <div class="mt-3 grid grid-cols-3 gap-1.5">
-        <button data-action="friends" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
+        <button data-action="friends" class="paper-note-outline tilt-l border border-paper/40 text-paper font-bold py-2.5 text-[11px] transition">
           Friends
         </button>
-        <button data-action="leaderboard" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
+        <button data-action="leaderboard" class="paper-note-outline tilt-r border border-paper/40 text-paper font-bold py-2.5 text-[11px] transition">
           Board
         </button>
-        <button data-action="skins" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
+        <button data-action="skins" class="paper-note-outline tilt-l border border-paper/40 text-paper font-bold py-2.5 text-[11px] transition">
           Gallery
         </button>
       </div>

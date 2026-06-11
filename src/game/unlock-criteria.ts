@@ -53,13 +53,6 @@ export interface CriterionDef {
 export const UNLOCK_CRITERIA: CriterionDef[] = [
   // --- Variety / exploration: volume framed with character ---
   {
-    id: "frequent_flyer",
-    name: "frequent flyer",
-    hint: "log 300 flights — the runway knows your name",
-    plannedReward: { kind: "badge", label: "TBA · frequent-flyer badge" },
-    check: (s) => s.totalGames >= 300,
-  },
-  {
     id: "thousand_takeoffs",
     name: "thousand takeoffs",
     hint: "300 was a warm-up — clear 750 games",
@@ -77,20 +70,6 @@ export const UNLOCK_CRITERIA: CriterionDef[] = [
 
   // --- Milestone curves: score ladders with fresh framing ---
   {
-    id: "century_club",
-    name: "century club",
-    hint: "post a 150 — triple digits is for tourists",
-    plannedReward: { kind: "pillar", label: "TBA · marble pillar" },
-    check: (s) => s.bestScore >= 150,
-  },
-  {
-    id: "stratospheric",
-    name: "stratospheric",
-    hint: "clear 300 in one run and leave the weather behind",
-    plannedReward: { kind: "background", label: "TBA · high-altitude background" },
-    check: (s) => s.bestScore >= 300,
-  },
-  {
     id: "ace_of_aces",
     name: "ace of aces",
     hint: "a 750 run. nobody will believe you.",
@@ -100,13 +79,6 @@ export const UNLOCK_CRITERIA: CriterionDef[] = [
   },
 
   // --- Streak texture: consistency over distance ---
-  {
-    id: "fortnight_flame",
-    name: "fortnight flame",
-    hint: "keep the streak alive 21 days straight",
-    plannedReward: { kind: "fx", label: "TBA · ember-streak fx" },
-    check: (s) => s.streakDays >= 21,
-  },
   {
     id: "seasoned_pilot",
     name: "seasoned pilot",
@@ -132,20 +104,6 @@ export const UNLOCK_CRITERIA: CriterionDef[] = [
 
   // --- Daily-tier mastery: hard / super-hard modifiers ---
   {
-    id: "weathered",
-    name: "weathered",
-    hint: "score 50+ on a hard daily — let the storm come",
-    plannedReward: { kind: "background", label: "TBA · thunderhead background" },
-    check: (s) => s.hardDailyBest >= 50,
-  },
-  {
-    id: "tempered_steel",
-    name: "tempered steel",
-    hint: "score 40+ on a super-hard daily without flinching",
-    plannedReward: { kind: "skin", label: "TBA · tempered-steel skin" },
-    check: (s) => s.superHardDailyBest >= 40,
-  },
-  {
     id: "eye_of_the_storm",
     name: "eye of the storm",
     hint: "master both extremes: 60+ hard AND 60+ super-hard",
@@ -170,29 +128,8 @@ export const UNLOCK_CRITERIA: CriterionDef[] = [
     plannedReward: { kind: "skin", label: "TBA · midnight-violet skin" },
     check: (s) => s.lateNightGames >= 50,
   },
-  {
-    id: "dawn_patrol",
-    name: "dawn patrol",
-    hint: "30 sunrise games (05:00–07:00) — first into the air",
-    plannedReward: { kind: "skin", label: "TBA · dawn-gold skin" },
-    check: (s) => s.morningGames >= 30,
-  },
-  {
-    id: "round_the_clock",
-    name: "round the clock",
-    hint: "fly at dawn and after dark: 15 morning + 15 night games",
-    plannedReward: { kind: "badge", label: "TBA · all-hours badge" },
-    check: (s) => s.morningGames >= 15 && s.nightGames >= 15,
-  },
 
   // --- Social: challenges & friends ---
-  {
-    id: "duelist",
-    name: "duelist",
-    hint: "win 25 challenges — ghosts tremble at your seed",
-    plannedReward: { kind: "fx", label: "TBA · victory-confetti fx" },
-    check: (s) => s.challengeWins >= 25,
-  },
   {
     id: "flock_leader",
     name: "flock leader",

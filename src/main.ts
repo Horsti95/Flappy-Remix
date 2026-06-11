@@ -891,6 +891,7 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
             // those could never unlock.
             tier: currentRunMode === "daily" ? dailyInfo?.pick.tier : undefined,
             inputCount: loop?.getRecordedInputs().length,
+            ticks,
           });
           // A finished ranked match folds in its match-level unlocks (total
           // across rounds / per-round floor) once the server marks it complete.

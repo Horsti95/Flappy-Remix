@@ -15,7 +15,7 @@ import {
   renderGameOver,
   type GameOverResult,
 } from "./ui/menu";
-import { addRunXp } from "./game/xp";
+import { addRunXp, syncTotalXp } from "./game/xp";
 import { nextUnlockHint } from "./game/next-unlock";
 import { setGateSoundLabMode } from "./game/gate-sounds";
 import { initAuth, authState, subscribeAuth } from "./social/auth";
@@ -748,6 +748,11 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
   overlays.innerHTML = "";
   mode = "playing";
   currentRunMode = runMode;
+  // Stop the previous run's loop FIRST: a leaked loop keeps rAF-rendering
+  // its dead sim interleaved with the new one — wasted battery, and its
+  // stale death position hijacked the crumple animation's anchor point.
+  loop?.stop();
+  loop = null;
   // Starting any fresh casual run discards a stale saved one (resume consumes
   // it separately below). Keeps the menu from offering an outdated resume.
   if (runMode === "casual" && !opts.resume) clearSavedCasualRun();
@@ -908,6 +913,9 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
             isNewPb,
           });
           runProgress = { prevBest, isNewPb, xp, nextUnlock: nextUnlockHint(updatedStats) };
+          // Server is the XP authority once a run is accepted; adopt its
+          // total quietly so local and server levels can't drift apart.
+          if (typeof result?.xp_total === "number") syncTotalXp(result.xp_total);
         }
         // Responding to a challenge resolves the duel server-side, so the
         // win tally may have changed — re-sync it for the achievement check.
@@ -1036,6 +1044,13 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
           await loadEquippedSkin();
         }
         if (runMode === "daily") void refreshDaily();
+        // Once the crumple animation has finished, stop rendering behind the
+        // game-over overlay — players sit on this screen longest and the
+        // loop was burning battery repainting a static scene.
+        const deadLoop = loop;
+        window.setTimeout(() => {
+          if (mode === "dead" && loop === deadLoop) loop?.stop();
+        }, 2500);
       },
     },
     ghost,

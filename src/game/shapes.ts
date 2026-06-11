@@ -749,7 +749,7 @@ export const SHAPES: ShapeMeta[] = [
   {
     id: "cyber-plane",
     name: "cyber drone",
-    category: "contraband",
+    category: "paper",
     blurb: "angular sci-fi craft with engine notches.",
     unlock: ({ challengeWins, totalGames }) => ({
       unlocked: (challengeWins ?? 0) >= 3 || totalGames >= 200,
@@ -771,7 +771,7 @@ export const SHAPES: ShapeMeta[] = [
   {
     id: "rocket",
     name: "rocket",
-    category: "contraband",
+    category: "paper",
     blurb: "finned capsule with a porthole.",
     unlock: ({ bestScore }) => ({
       unlocked: bestScore >= 25,

@@ -160,6 +160,12 @@ export function playGatePass(gapCenterNorm = 0.5): void {
     case "marimba":
       gateMarimba(ac, master, t, norm);
       break;
+    case "koto":
+      gateKoto(ac, master, t, norm);
+      break;
+    case "pop_choir":
+      gatePopChoir(ac, master, t, norm);
+      break;
     case "classic":
     default:
       gateClassic(ac, master, t, norm);
@@ -208,6 +214,38 @@ function gateMarimba(ac: AudioContext, master: GainNode, t: number, norm: number
   const freq = 523.25 * Math.pow(2, 0.5 - norm);
   tone(ac, master, { freq, startAt: t, duration: 0.22, type: "sine", peak: 0.24 });
   tone(ac, master, { freq: freq * 4, startAt: t, duration: 0.07, type: "sine", peak: 0.06 });
+}
+
+// Koto: a plucked east-asian string — a bright triangle whose lowpass sweeps
+// shut fast (Karplus-Strong-ish damping), with a faint detuned second string
+// for body. Pitched ~one octave by gap height.
+function gateKoto(ac: AudioContext, master: GainNode, t: number, norm: number): void {
+  const freq = 440 * Math.pow(2, 0.5 - norm);
+  const dur = 0.28;
+  [0, 1].forEach((i) => {
+    const osc = ac.createOscillator();
+    const lp = ac.createBiquadFilter();
+    const gain = ac.createGain();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(freq * (i === 0 ? 1 : 2.01), t); // slightly off-octave shimmer
+    lp.type = "lowpass";
+    lp.frequency.setValueAtTime(freq * 7, t);
+    lp.frequency.exponentialRampToValueAtTime(freq * 1.4, t + dur * 0.8);
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(i === 0 ? 0.24 : 0.07, t + 0.004);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(lp).connect(gain).connect(master);
+    osc.start(t);
+    osc.stop(t + dur + 0.02);
+  });
+}
+
+// Pop choir: a tiny two-note major chime (root then major third), soft sines
+// with a hint of overlap so it reads as a micro-chord. Pitched by gap height.
+function gatePopChoir(ac: AudioContext, master: GainNode, t: number, norm: number): void {
+  const root = 523.25 * Math.pow(2, 0.5 - norm);
+  tone(ac, master, { freq: root, startAt: t, duration: 0.2, type: "sine", peak: 0.2 });
+  tone(ac, master, { freq: root * 1.25, startAt: t + 0.07, duration: 0.22, type: "sine", peak: 0.18 });
 }
 
 export function playDeath(): void {

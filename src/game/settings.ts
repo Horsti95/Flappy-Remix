@@ -18,7 +18,7 @@ export interface Settings {
 const KEY = "pflug.settings.v1";
 
 export const DEFAULT_SETTINGS: Settings = {
-  sound: false,
+  sound: true,
   gateSound: true,
   deathSound: true,
   highContrast: false,

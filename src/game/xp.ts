@@ -94,6 +94,28 @@ function saveTotalXp(xp: number): void {
   }
 }
 
+/**
+ * Overwrite the locally stored total with the server's (server is the
+ * authority once a run is accepted; the local copy stays for offline play).
+ */
+export function syncTotalXp(serverTotal: number): void {
+  const total = Number.isFinite(serverTotal) && serverTotal >= 0 ? Math.floor(serverTotal) : 0;
+  if (total !== loadTotalXp()) saveTotalXp(total);
+}
+
+/**
+ * Account levels that are multiples of 5 crossed when going from
+ * `beforeTotal` XP to `afterTotal` XP — the levels that mint a color skin.
+ * Returned ascending; empty when no multiple-of-5 boundary was crossed.
+ */
+export function levelsCrossedEvery5(beforeTotal: number, afterTotal: number): number[] {
+  const before = levelFromTotalXp(beforeTotal).level;
+  const after = levelFromTotalXp(afterTotal).level;
+  const out: number[] = [];
+  for (let l = Math.floor(before / 5) * 5 + 5; l <= after; l += 5) out.push(l);
+  return out;
+}
+
 /** Apply a finished run's XP and persist. Pure callers can use xpForRun. */
 export function addRunXp(run: RunXpInput): RunXpResult {
   const breakdown = xpForRun(run);

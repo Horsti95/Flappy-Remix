@@ -14,6 +14,16 @@ export interface SubmitResult {
     body: [number, number, number];
     accent: [number, number, number];
   }>;
+  /** Server-authoritative pilot XP after this run (client syncs to it). */
+  xp_total?: number;
+  level?: number;
+  /** Color skins minted for account levels crossed this run (every 5). */
+  level_skins?: Array<{
+    level: number;
+    rarity: "common" | "uncommon" | "rare" | "epic" | "legendary";
+    body: [number, number, number];
+    accent: [number, number, number];
+  }>;
   /** Present on ranked submissions; mirrors the match state server-side. */
   ranked?: {
     match_id: string;

@@ -1,11 +1,13 @@
 import { dailyDateString, dailySeed } from "../src/game/daily";
 import { applyModifiers, pickDaily } from "../src/game/daily-twist";
 import { DEFAULT_CONFIG } from "../src/game/config";
+import { levelFromTotalXp, levelsCrossedEvery5, xpForRun } from "../src/game/xp";
 import { getAdminClient } from "./_lib/supabaseAdmin";
 import { grantYesterdaysChampions } from "./_lib/champions";
 import { computeStreak } from "./_lib/streak";
 import {
   generateSkinForThreshold,
+  generateSkinFromKey,
   thresholdsCrossed,
   type GeneratedSkin,
 } from "./_lib/unlock";
@@ -101,12 +103,25 @@ export default async function handler(req: Request): Promise<Response> {
 
   const profile = await admin
     .from("profiles")
-    .select("total_games, streak_days, last_play_at, last_daily_play_at")
+    .select("total_games, streak_days, last_play_at, last_daily_play_at, xp")
     .eq("user_id", userId)
     .maybeSingle();
   if (profile.error) return json({ error: profile.error.message }, 500);
   const prev = (profile.data?.total_games as number | undefined) ?? 0;
   const next = prev + 1;
+  const prevXp = (profile.data?.xp as number | undefined) ?? 0;
+
+  // Server-side PB check for the XP bonus: strictly beating the best prior
+  // accepted run. Read BEFORE this run is inserted so the new row can't
+  // count against itself. (runs is indexed on (user_id); score desc limit 1.)
+  const bestPrior = await admin
+    .from("runs")
+    .select("score")
+    .eq("user_id", userId)
+    .order("score", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const isNewPb = body.score > ((bestPrior.data?.score as number | undefined) ?? -1);
 
   // For daily mode: the seed must match the server's notion of today's
   // daily seed. Reject mismatches so players can't farm yesterday's
@@ -374,11 +389,18 @@ export default async function handler(req: Request): Promise<Response> {
     mode: effectiveMode,
   });
 
+  // XP mirror: the same formula the client runs locally (src/game/xp.ts).
+  // effectiveMode (not body.mode) so over-cap daily attempts — demoted to
+  // casual above — don't pay the daily bonus more than once per day.
+  const xpGain = xpForRun({ score: body.score, mode: effectiveMode, isNewPb }).total;
+  const newXp = prevXp + xpGain;
+
   await admin.from("profiles").update({
     total_games: next,
     last_play_at: new Date().toISOString(),
     streak_days: streak.streakDays,
     last_daily_play_at: streak.lastDailyPlayAt,
+    xp: newXp,
   }).eq("user_id", userId);
 
   if (effectiveMode === "daily") {
@@ -411,6 +433,37 @@ export default async function handler(req: Request): Promise<Response> {
     if (!ins.error) granted.push(g);
   }
 
+  // A random color skin every 5 account levels. Deterministic mint +
+  // (user_id, encoded_int) ignoreDuplicates upsert = structurally idempotent,
+  // same as the daily-champion grants.
+  const levelSkins: Array<{
+    level: number;
+    rarity: GeneratedSkin["rarity"];
+    body: [number, number, number];
+    accent: [number, number, number];
+  }> = [];
+  for (const level of levelsCrossedEvery5(prevXp, newXp)) {
+    const g = generateSkinFromKey(`glide-level:${level}:${userId}`, 60);
+    const ins = await admin.from("skins").upsert(
+      {
+        user_id: userId,
+        body_r: g.skin.body[0],
+        body_g: g.skin.body[1],
+        body_b: g.skin.body[2],
+        accent_r: g.skin.accent[0],
+        accent_g: g.skin.accent[1],
+        accent_b: g.skin.accent[2],
+        encoded_int: g.encoded.toString(),
+        rarity: g.rarity,
+        unlocked_at_games: next,
+      },
+      { onConflict: "user_id,encoded_int", ignoreDuplicates: true },
+    );
+    if (!ins.error) {
+      levelSkins.push({ level, rarity: g.rarity, body: g.skin.body, accent: g.skin.accent });
+    }
+  }
+
   return json({
     accepted: true,
     run_id: run.data.id,
@@ -423,6 +476,11 @@ export default async function handler(req: Request): Promise<Response> {
       body: g.skin.body,
       accent: g.skin.accent,
     })),
+    // Level-up skins ride a separate field: the `unlocked` celebration card
+    // renders "N games" and these are level grants, not game-count grants.
+    level_skins: levelSkins,
+    xp_total: newXp,
+    level: levelFromTotalXp(newXp).level,
     ranked: rankedSummary,
   }, 200);
 }

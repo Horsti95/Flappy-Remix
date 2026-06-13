@@ -980,13 +980,15 @@ function shapeSvgWithColors(
          <ellipse cx="3.5" cy="-1" rx="2" ry="3" fill="${a}"/>`,
       );
     case "fable":
-      return `<polygon points="-8,-6 -13,-15 -3,-9" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
-              <polygon points="8,-6 13,-15 3,-9" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
-              <polygon points="-10,-8 10,-8 12,0 0,12 -12,0" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
-              <polygon points="0,12 -4,3 4,3" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
-              <path d="M-12,0 L0,3 L12,0" fill="none" stroke="#1a1a1a" stroke-width="0.6"/>
-              <circle cx="-5" cy="-2" r="1.4" fill="#1a1a1a"/>
-              <circle cx="5" cy="-2" r="1.4" fill="#1a1a1a"/>`;
+      return svg(
+        `<polygon points="-8,-6 -13,-15 -3,-9" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <polygon points="8,-6 13,-15 3,-9" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <polygon points="-10,-8 10,-8 12,0 0,12 -12,0" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <polygon points="0,12 -4,3 4,3" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
+         <path d="M-12,0 L0,3 L12,0" fill="none" stroke="#1a1a1a" stroke-width="0.6"/>
+         <circle cx="-5" cy="-2" r="1.4" fill="#1a1a1a"/>
+         <circle cx="5" cy="-2" r="1.4" fill="#1a1a1a"/>`,
+      );
     case "crane":
       return spriteSwatch("crane", body);
     case "submarine":

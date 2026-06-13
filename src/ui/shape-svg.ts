@@ -85,6 +85,12 @@ export function shapeSvgInner(
               <ellipse cx="4" cy="-2" rx="1.8" ry="2.4" fill="${a}"/>`;
     case "crane":
       return spritePreview("crane", body);
+    case "swan":
+      return spritePreview("swan", body);
+    case "dove":
+      return spritePreview("dove", body);
+    case "eagle":
+      return spritePreview("eagle", body);
     case "fable":
       return `<polygon points="-8,-6 -13,-15 -3,-9" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
               <polygon points="8,-6 13,-15 3,-9" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>

@@ -29,6 +29,9 @@ export type ShapeId =
   | "lightning"
   | "ghost"
   | "crane"
+  | "swan"
+  | "dove"
+  | "eagle"
   | "fable"
   | "submarine"
   | "soccer-ball"
@@ -903,6 +906,30 @@ export const SHAPES: ShapeMeta[] = [
       unlocked: streakDays >= 5,
       hint: "5-day streak",
     }),
+    draw: drawToucanFallback,
+  },
+  {
+    id: "swan",
+    name: "origami swan",
+    category: "paper",
+    blurb: "a folded swan — serene and sharp.",
+    unlock: ({ bestScore }) => ({ unlocked: bestScore >= 60, hint: "score 60 in a single run" }),
+    draw: drawToucanFallback,
+  },
+  {
+    id: "dove",
+    name: "origami dove",
+    category: "paper",
+    blurb: "a paper dove — bring a friend along.",
+    unlock: ({ friendCount }) => ({ unlocked: (friendCount ?? 0) >= 3, hint: "add 3 friends" }),
+    draw: drawToucanFallback,
+  },
+  {
+    id: "eagle",
+    name: "origami eagle",
+    category: "paper",
+    blurb: "a folded raptor — earned at altitude.",
+    unlock: ({ bestScore }) => ({ unlocked: bestScore >= 90, hint: "score 90 in a single run" }),
     draw: drawToucanFallback,
   },
   {

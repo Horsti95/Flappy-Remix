@@ -991,6 +991,12 @@ function shapeSvgWithColors(
       );
     case "crane":
       return spriteSwatch("crane", body);
+    case "swan":
+      return spriteSwatch("swan", body);
+    case "dove":
+      return spriteSwatch("dove", body);
+    case "eagle":
+      return spriteSwatch("eagle", body);
     case "submarine":
       return svg(
         `<ellipse cx="0" cy="0" rx="13" ry="6.5" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>

@@ -22,6 +22,9 @@ interface SpriteEntry {
 
 const sources: Record<string, string> = {
   crane: "/sprites/crane.png",
+  swan: "/sprites/swan.png",
+  dove: "/sprites/dove.png",
+  eagle: "/sprites/eagle.png",
 };
 
 const sprites = new Map<string, SpriteEntry>();

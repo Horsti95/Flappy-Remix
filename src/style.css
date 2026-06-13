@@ -1,10 +1,10 @@
-/* Handwritten display font (Paper Sky). The file is optional: until
-   public/fonts/EmbolismSpark.ttf exists, .font-hand falls back to system
-   cursive stacks. font-display: swap = text is never invisible. */
+/* App-wide handwritten font (Patrick Hand, SIL OFL — commercially safe).
+   Self-hosted + precached so it works offline. font-display: swap means
+   text is never invisible while it loads. */
 @font-face {
-  font-family: "Embolism Spark";
-  src: url("/fonts/EmbolismSpark.ttf") format("truetype");
-  font-weight: 400;
+  font-family: "Patrick Hand";
+  src: url("/fonts/PatrickHand-Regular.ttf") format("truetype");
+  font-weight: 400 700;
   font-style: normal;
   font-display: swap;
 }
@@ -12,6 +12,12 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* APP-FONT: handwritten everywhere. Numbers stay in this font too so the
+   preview shows the full effect; production may scope this to headings. */
+html, body {
+  font-family: "Patrick Hand", system-ui, ui-sans-serif, sans-serif;
+}
 
 html, body, #app {
   height: 100%;
@@ -218,7 +224,7 @@ a:focus-visible {
      stacks only — the PWA ships no webfonts. Fallback is the normal sans,
      which is fine: it's decoration, never information. */
   .font-hand {
-    font-family: "Embolism Spark", "Segoe Print", "Bradley Hand", "Comic Sans MS", "Chalkboard SE", cursive;
+    font-family: "Patrick Hand", system-ui, cursive;
   }
 
   /* Paper-note buttons (menu experiment): the classic hand-drawn wobble —

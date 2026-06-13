@@ -13,7 +13,9 @@ Single source of truth for picking the project back up. Pairs with
 | `main` | production (Vercel) | ✅ | Behind: last merge (PR #122) predates v0.19.0. **Re-merge `claude/trusting-rubin-1jevio` to ship the new work.** Has the uploaded sprite PNGs + ideas doc. |
 | `claude/trusting-rubin-1jevio` | **the main work branch** — all systems/gameplay/content since the review | ✅ | Green (213 tests, build ok). Pushed. The merge source. |
 | `claude/paper-menu-experiment` | UI/redesign lab — paper-note buttons, daily weather report, "Hangar" rename | ✅ | Green. Synced with trusting-rubin. Judge its preview; cherry-pick keepers. |
-| `claude/font-embolism` | the Embolism Spark `.ttf` binary only | ✅ | Isolated so the font + its licence question stay reviewable. |
+| `claude/font-caveat` | **Caveat** (SIL OFL) handwritten font applied **app-wide** on the paper UI | ✅ | Compare its preview vs font-patrick-hand; merge the winner. |
+| `claude/font-patrick-hand` | **Patrick Hand** (SIL OFL) handwritten font app-wide on the paper UI | ✅ | Sibling comparison branch. |
+| `claude/font-embolism` | Embolism Spark `.ttf` | ⚠ DO NOT MERGE | Superseded — author restricts free use to non-commercial. Kept only for reference. |
 | `arcade/mode-v1` | parked arcade-mode experiment | ✅ | Long-lived, untouched. |
 | `origin/claude/a*`, `origin/feat/*`, `origin/fix/*` (~30) | already-merged historical feature branches | ❌ | Safe to delete on GitHub (all merged long ago). Cleanup only — no code lives only there. |
 
@@ -100,16 +102,27 @@ ever more menu buttons. Don't ship a navigation rewrite near the event.
 - ⬜ Two diverging shape renderers (canvas vs SVG) — unify in the art pass.
 - ⬜ `fable` is a canvas placeholder; replace with a prepped origami fox sprite.
 
-## 6. Font — Embolism Spark (⚠ licence)
+## 6. Font — decision pending (two OFL options to compare)
 
-On `claude/font-embolism`. The `.ttf` is wired via optional `@font-face`
-(`.font-hand` prefers it). **Licence conflict:** the 1001fonts EULA says
-free-for-commercial, but the author's own README (Koplexs Studio) says
-**free for personal/non-profit only — commercial needs a paid licence**
-(koplexsstudio.com / koplexsstudio@gmail.com). For the friends-and-family
-playtest it's fine; **before any monetized release, buy the commercial
-licence or swap to a freely-licensed handwritten font** (e.g. Caveat,
-Patrick Hand — SIL OFL). Licence files live in `design/fonts/`.
+Embolism Spark was **dropped**: the author (Koplexs Studio) restricts free
+use to non-commercial, which conflicts with monetization. Replaced with two
+**SIL OFL (commercially safe)** handwritten fonts, each self-hosted +
+precached and applied **app-wide** on the paper UI:
+
+- `claude/font-caveat` — **Caveat**: tighter, more legible "marker" hand.
+  Safer for number-dense screens (leaderboards/settings).
+- `claude/font-patrick-hand` — **Patrick Hand**: rounder, friendlier,
+  more "kid's notebook". More character, slightly less crisp at small sizes.
+
+**Action on return:** open both previews, pick one, merge it. (Kalam and
+Nothing You Could Do are also downloaded/available if neither fits.) The
+work branch's `.font-hand` currently falls back to system cursive until a
+choice is merged. Licence files: `design/fonts/`.
+
+**Why the font didn't show before:** the `.ttf` was on `font-embolism`
+while you previewed a different branch → the CSS fell back to system
+cursive your device didn't have. The OFL branches fix this by shipping the
+binary + CSS together on the same branch.
 
 ## 7. Uploaded sprites — usable, single-tint (see SPRITE-PIPELINE.md)
 

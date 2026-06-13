@@ -1,13 +1,7 @@
-/* Handwritten display font (Paper Sky). The file is optional: until
-   public/fonts/EmbolismSpark.ttf exists, .font-hand falls back to system
-   cursive stacks. font-display: swap = text is never invisible. */
-@font-face {
-  font-family: "Embolism Spark";
-  src: url("/fonts/EmbolismSpark.ttf") format("truetype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
+/* Handwritten font is chosen on a dedicated branch (font-caveat /
+   font-patrick-hand — both SIL OFL). Until one is merged here, .font-hand
+   falls back to system cursive stacks. Embolism Spark was dropped: its
+   author restricts free use to non-commercial. */
 
 @tailwind base;
 @tailwind components;
@@ -218,7 +212,7 @@ a:focus-visible {
      stacks only — the PWA ships no webfonts. Fallback is the normal sans,
      which is fine: it's decoration, never information. */
   .font-hand {
-    font-family: "Embolism Spark", "Segoe Print", "Bradley Hand", "Comic Sans MS", "Chalkboard SE", cursive;
+    font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", "Chalkboard SE", cursive;
   }
 }
 

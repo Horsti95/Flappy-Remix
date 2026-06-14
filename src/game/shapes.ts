@@ -31,7 +31,23 @@ export type ShapeId =
   | "crane"
   | "submarine"
   | "soccer-ball"
-  | "pretzel";
+  | "pretzel"
+  // Two-colour origami sprites (body colour + a distinct accent colour),
+  // backed by the layered sprite pipeline (see scripts/prep-sprite-2color.mjs
+  // and game/sprites.ts).
+  | "swan"
+  | "swan2"
+  | "envelope"
+  | "rocket-origami"
+  | "butterfly-origami"
+  | "songbird"
+  | "sparrow"
+  | "heart-origami"
+  | "dove"
+  | "eagle"
+  | "dove2"
+  | "submarine-origami"
+  | "leaf-origami";
 
 /**
  * Visual-direction grouping ("Paper Sky"):
@@ -77,6 +93,13 @@ export interface ShapeMeta {
    * ctx.rotate transform.
    */
   draw(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void;
+  /**
+   * Optional sprite filename (without extension / `/sprites/` prefix) when the
+   * shape is sprite-backed and its sprite name differs from its id (e.g. the
+   * origami "rocket-origami" shape uses the "rocket" sprite). Defaults to the
+   * shape id. See game/sprites.ts.
+   */
+  sprite?: string;
 }
 
 function outline(ctx: CanvasRenderingContext2D, highContrast: boolean): void {
@@ -902,6 +925,128 @@ export const SHAPES: ShapeMeta[] = [
       hint: "play 30 games",
     }),
     draw: drawPretzel,
+  },
+  // --- Two-colour origami sprites ---------------------------------------
+  // Real layered sprites (body colour + a distinct accent colour). On THIS
+  // inspection branch every one is force-unlocked so the owner can equip and
+  // preview each; real unlock conditions land before merge. Fallback polygon
+  // is the toucan body so they still read as a flyer pre-load / high-contrast.
+  {
+    id: "swan",
+    name: "origami swan",
+    category: "paper",
+    sprite: "swan",
+    blurb: "folded-paper swan, wings raised.",
+    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    draw: drawToucanFallback,
+  },
+  {
+    id: "swan2",
+    name: "origami swan (gliding)",
+    category: "paper",
+    sprite: "swan2",
+    blurb: "a second swan, mid-glide.",
+    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    draw: drawToucanFallback,
+  },
+  {
+    id: "envelope",
+    name: "love letter",
+    category: "paper",
+    sprite: "envelope",
+    blurb: "a sealed paper envelope.",
+    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    draw: drawToucanFallback,
+  },
+  {
+    id: "rocket-origami",
+    name: "paper rocket",
+    category: "contraband",
+    sprite: "rocket",
+    blurb: "folded rocket — contraband fuel.",
+    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    draw: drawToucanFallback,
+  },
+  {
+    id: "butterfly-origami",
+    name: "origami butterfly",
+    category: "paper",
+    sprite: "butterfly",
+    blurb: "a folded butterfly, wings spread.",
+    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    draw: drawToucanFallback,
+  },
+  {
+    id: "songbird",
+    name: "origami songbird",
+    category: "paper",
+    sprite: "songbird",
+    blurb: "a perched paper songbird.",
+    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    draw: drawToucanFallback,
+  },
+  {
+    id: "sparrow",
+    name: "origami sparrow",
+    category: "paper",
+    sprite: "sparrow",
+    blurb: "a plump folded sparrow.",
+    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    draw: drawToucanFallback,
+  },
+  {
+    id: "heart-origami",
+    name: "origami heart",
+    category: "paper",
+    sprite: "heart",
+    blurb: "a folded-paper heart.",
+    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    draw: drawToucanFallback,
+  },
+  {
+    id: "dove",
+    name: "origami dove",
+    category: "paper",
+    sprite: "dove",
+    blurb: "a folded dove in flight.",
+    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    draw: drawToucanFallback,
+  },
+  {
+    id: "eagle",
+    name: "origami eagle",
+    category: "paper",
+    sprite: "eagle",
+    blurb: "a sharp paper eagle, wing raised.",
+    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    draw: drawToucanFallback,
+  },
+  {
+    id: "dove2",
+    name: "origami dove (gliding)",
+    category: "paper",
+    sprite: "dove2",
+    blurb: "a second dove, beak forward.",
+    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    draw: drawToucanFallback,
+  },
+  {
+    id: "submarine-origami",
+    name: "paper submarine",
+    category: "contraband",
+    sprite: "submarine",
+    blurb: "a folded submarine — periscope up.",
+    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    draw: drawToucanFallback,
+  },
+  {
+    id: "leaf-origami",
+    name: "origami leaf",
+    category: "paper",
+    sprite: "leaf",
+    blurb: "a folded maple leaf.",
+    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    draw: drawToucanFallback,
   },
 ];
 

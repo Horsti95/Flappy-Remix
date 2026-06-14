@@ -18,13 +18,23 @@ describe("shape registry", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("a fresh player only sees the default shape unlocked", () => {
+  // NOTE: this branch (claude/sprites-two-color) force-unlocks the new
+  // two-colour origami sprites for inspection — see the `// TODO real unlock
+  // pre-merge` markers in shapes.ts. So a fresh player sees the default shape
+  // PLUS exactly those always-unlocked inspection sprites, and nothing else.
+  // TODO: revert to `toEqual([DEFAULT_SHAPE_ID])` once real unlocks land.
+  const INSPECTION_SPRITES = [
+    "swan", "swan2", "envelope", "rocket-origami", "butterfly-origami",
+    "songbird", "sparrow", "heart-origami", "dove", "eagle", "dove2",
+    "submarine-origami", "leaf-origami",
+  ];
+  it("a fresh player sees the default shape + the force-unlocked inspection sprites", () => {
     const unlocked = listUnlockedShapeIds({
       totalGames: 0,
       bestScore: 0,
       streakDays: 0,
     });
-    expect(unlocked).toEqual([DEFAULT_SHAPE_ID]);
+    expect(new Set(unlocked)).toEqual(new Set([DEFAULT_SHAPE_ID, ...INSPECTION_SPRITES]));
   });
 
   it("paper-plane-v2 unlocks at 10 games", () => {

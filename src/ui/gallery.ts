@@ -999,6 +999,33 @@ function shapeSvgWithColors(
       );
     case "crane":
       return spriteSwatch("crane", body);
+    // Two-colour origami sprites — accent layer beneath, base on top.
+    case "swan":
+      return spriteSwatch("swan", body, accent, true);
+    case "swan2":
+      return spriteSwatch("swan2", body, accent, true);
+    case "envelope":
+      return spriteSwatch("envelope", body); // single-layer (no accent fold)
+    case "rocket-origami":
+      return spriteSwatch("rocket", body, accent, true);
+    case "butterfly-origami":
+      return spriteSwatch("butterfly", body, accent, true);
+    case "songbird":
+      return spriteSwatch("songbird", body, accent, true);
+    case "sparrow":
+      return spriteSwatch("sparrow", body, accent, true);
+    case "heart-origami":
+      return spriteSwatch("heart", body, accent, true);
+    case "dove":
+      return spriteSwatch("dove", body, accent, true);
+    case "eagle":
+      return spriteSwatch("eagle", body, accent, true);
+    case "dove2":
+      return spriteSwatch("dove2", body, accent, true);
+    case "submarine-origami":
+      return spriteSwatch("submarine", body, accent, true);
+    case "leaf-origami":
+      return spriteSwatch("leaf", body, accent, true);
     case "submarine":
       return svg(
         `<ellipse cx="0" cy="0" rx="13" ry="6.5" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
@@ -1009,14 +1036,32 @@ function shapeSvgWithColors(
   }
 }
 
-// Sprite-backed gallery swatch: PNG flat-tinted to the body color, unique
-// filter id per sprite.
-function spriteSwatch(id: string, body: [number, number, number]): string {
-  const fid = `sw-${id}`;
-  return svg(
-    `<defs><filter id="${fid}"><feColorMatrix type="matrix" values="0 0 0 0 ${(body[0] / 255).toFixed(3)}  0 0 0 0 ${(body[1] / 255).toFixed(3)}  0 0 0 0 ${(body[2] / 255).toFixed(3)}  0 0 0 1 0"/></filter></defs>
-     <image href="/sprites/${id}.png" x="-16" y="-16" width="32" height="32" filter="url(#${fid})"/>`,
-  );
+/** MULTIPLY colour-matrix row for a grayscale source × colour C (white→C,
+ *  black→black) — mirrors the in-game `multiply` tint and the shape-svg
+ *  preview. Replaces the old single flat-fill matrix (which lost shading). */
+function swatchTintMatrix(c: [number, number, number]): string {
+  return `${(c[0] / 255).toFixed(3)} 0 0 0 0  ${(c[1] / 255).toFixed(3)} 0 0 0 0  ${(c[2] / 255).toFixed(3)} 0 0 0 0  0 0 0 1 0`;
+}
+
+// Sprite-backed gallery swatch. Two-colour sprites render the accent PNG
+// (multiplied by `accent`) BENEATH the base PNG (multiplied by `body`); sprites
+// without an accent layer (e.g. the crane) render just the base.
+function spriteSwatch(
+  id: string,
+  body: [number, number, number],
+  accent?: [number, number, number],
+  hasAccent = false,
+): string {
+  const baseFid = `sw-${id}-b`;
+  const accFid = `sw-${id}-a`;
+  let defs = `<filter id="${baseFid}"><feColorMatrix type="matrix" values="${swatchTintMatrix(body)}"/></filter>`;
+  let layers = "";
+  if (hasAccent && accent) {
+    defs += `<filter id="${accFid}"><feColorMatrix type="matrix" values="${swatchTintMatrix(accent)}"/></filter>`;
+    layers += `<image href="/sprites/${id}-accent.png" x="-16" y="-16" width="32" height="32" filter="url(#${accFid})"/>`;
+  }
+  layers += `<image href="/sprites/${id}.png" x="-16" y="-16" width="32" height="32" filter="url(#${baseFid})"/>`;
+  return svg(`<defs>${defs}</defs>${layers}`);
 }
 
 function shapeSvg(shapeId: ShapeId, unlocked: boolean): string {

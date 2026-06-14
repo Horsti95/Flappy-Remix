@@ -648,9 +648,12 @@ export class Renderer {
       ctx.restore();
     }
     // Sprite-backed shapes draw a tinted bitmap when it's loaded; otherwise
-    // (offline / pre-load / high-contrast) fall back to the polygon draw.
-    const tinted = !this.options.highContrast && hasSprite(shapeId)
-      ? getTintedSprite(shapeId, skin)
+    // (offline / pre-load / high-contrast) fall back to the polygon draw. The
+    // sprite filename can differ from the shape id (e.g. "rocket-origami" →
+    // "rocket"), so resolve it via the shape's optional `sprite` field.
+    const spriteId = getShape(shapeId).sprite ?? shapeId;
+    const tinted = !this.options.highContrast && hasSprite(spriteId)
+      ? getTintedSprite(spriteId, skin)
       : null;
     if (tinted) {
       // The sprite art faces right; size it to ~the collision diameter so it

@@ -972,6 +972,7 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
             : undefined,
           progress: runProgress ?? undefined,
           skin: renderer.options.skin,
+          shape: equippedShapeId,
           result,
           ticks,
           achievements: newAchievements.map((a) => {

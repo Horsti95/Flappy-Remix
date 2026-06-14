@@ -386,6 +386,9 @@ export interface GameOverResult {
   /** Equipped skin colours — the death card's accent strip / highlights
    *  adapt to the player's colour scheme. */
   skin?: SkinColors;
+  /** Equipped shape — unlock celebrations preview the new colour on the
+   *  player's actual plane (sprite-aware) instead of a generic polygon. */
+  shape?: ShapeId;
   /** Per-run progression beat: PB delta, pilot XP tick, next-unlock
    *  breadcrumb. Absent for practice runs. */
   progress?: {
@@ -441,7 +444,7 @@ export function renderGameOver(
   }));
   const items = [...skinItems, ...achItems];
   if (items.length > 0) {
-    renderUnlockCelebration(host, items, () => {
+    renderUnlockCelebration(host, items, extra?.shape ?? DEFAULT_SHAPE_ID, () => {
       renderGameOverInner(host, score, onRestart, onMenu, extra);
     });
     return;
@@ -676,7 +679,7 @@ type CelebrationItem =
         | { type: "sound"; label: string };
     };
 
-function renderUnlockCelebration(host: HTMLElement, items: CelebrationItem[], onDone: () => void): void {
+function renderUnlockCelebration(host: HTMLElement, items: CelebrationItem[], shape: ShapeId, onDone: () => void): void {
   let index = 0;
 
   const showOne = (): void => {
@@ -703,10 +706,12 @@ function renderUnlockCelebration(host: HTMLElement, items: CelebrationItem[], on
           : null;
     if (colorReward) {
       const { body, accent } = colorReward;
+      // Preview the new colour on the player's ACTUAL equipped plane
+      // (sprite-aware via shapeSvgInner) so the reward reads as "your plane,
+      // recoloured" rather than a generic dart.
       preview = `
         <svg viewBox="-20 -20 40 40" class="unlock-celebrate-svg w-60 h-60">
-          <polygon points="-14,6 14,-6 1,0 14,-6 -1,11" fill="rgb(${body.join(",")})" stroke="#1a1a1a" stroke-width="0.8"/>
-          <polygon points="1,0 -14,6 -1,11" fill="rgb(${accent.join(",")})" stroke="#1a1a1a" stroke-width="0.8"/>
+          ${shapeSvgInner(shape, body, accent)}
         </svg>`;
     } else if (item.kind === "achievement" && item.reward.type !== "color") {
       const icon = item.reward.type === "fx" ? "🎆" : "🔊";

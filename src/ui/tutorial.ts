@@ -49,37 +49,14 @@ interface Step {
   body: string;
 }
 
+// Onboarding v2 — show, don't tell. Three tiny icon cards (≤5 words each)
+// that set expectations, then straight into the can't-crash practice run
+// where the real teaching happens in-context. The old six paragraph-cards
+// lost both ends of the audience (kids: too much text; parents: unclear).
 const STEPS: Step[] = [
-  {
-    emoji: "🪶",
-    title: "tap to fly",
-    body: "Each tap (or spacebar) gives your plane a little lift. Let go and gravity pulls it down. Find the rhythm — soft, steady taps fly best.",
-  },
-  {
-    emoji: "🟩",
-    title: "mind the gaps",
-    body: "Pillars scroll in from the right. Steer through the gap between them. Touch a pillar — or the floor or ceiling — and the run ends.",
-  },
-  {
-    emoji: "🎯",
-    title: "score & streaks",
-    body: "You score a point for every gap you clear. Come back each day to build a streak — streaks and high scores unlock new looks.",
-  },
-  {
-    emoji: "🌐",
-    title: "modes",
-    body: "Casual is your endless playground. The Daily is one shared seed for everyone — climb the global board. Ranked pits you head-to-head; Challenge a friend's ghost run.",
-  },
-  {
-    emoji: "🎨",
-    title: "make it yours",
-    body: "Unlock shapes, colors, worlds, pillar styles and flap effects by playing and hitting goals. Mix them freely in the Gallery.",
-  },
-  {
-    emoji: "🚀",
-    title: "practice time",
-    body: "Next up: a PRACTICE run — you cannot crash, nothing is scored, nothing is saved. Just tap and feel the rhythm. When you're ready, hit 'play' from the menu for the real thing.",
-  },
+  { emoji: "👆", title: "Tap to fly", body: "tap · tap · tap" },
+  { emoji: "🪶", title: "Float through the gaps", body: "don't touch the pillars" },
+  { emoji: "✨", title: "You can't crash here", body: "this next run is just practice" },
 ];
 
 export interface TutorialCallbacks {
@@ -127,7 +104,7 @@ export function renderTutorial(host: HTMLElement, cbs: TutorialCallbacks): () =>
     bodyEl.textContent = step.body;
     backBtn.disabled = idx === 0;
     const last = idx === STEPS.length - 1;
-    nextBtn.textContent = last ? "start practice run" : "next";
+    nextBtn.textContent = last ? "Let's fly →" : "next";
     dotsEl.innerHTML = STEPS.map(
       (_, i) =>
         `<span class="h-1.5 rounded-full transition-all ${

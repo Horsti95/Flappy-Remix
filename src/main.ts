@@ -236,7 +236,7 @@ const input = new InputController(stage, {
       if (onboardingActive && !onboardingFlapped) {
         onboardingFlapped = true;
         clearCenterHint();
-        showCoachCard("👆", "keep tapping — stay above the gaps!");
+        showCoachCard("👆", "Keep tapping!");
       }
       // Flap-FX spawns a particle burst at the plane's last-rendered
       // position. The renderer ticks + paints them in subsequent
@@ -868,9 +868,9 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
         }
         // Guided onboarding: drip-feed coaching cards as gates pass.
         if (onboardingActive) {
-          if (sc === 2)  showCoachCard("🎯", "through the gap = +1 point");
-          else if (sc === 5)  showCoachCard("💡", "you can't die in practice — fly freely!");
-          else if (sc === 12) showCoachCard("🎮", "feeling it? hit Play on the home screen for a real run");
+          if (sc === 2)  showCoachCard("🎯", "+1 per gap");
+          else if (sc === 5)  showCoachCard("✨", "Can't crash — fly free!");
+          else if (sc === 12) showCoachCard("🎮", "Ready? Hit Play!");
           if (sc >= ONBOARDING_TARGET) finishOnboarding();
         }
       },
@@ -1314,7 +1314,7 @@ function startOnboarding(): void {
   onboardingFlapped = false;
   startRun("training");
   // Initial prompt persists until the first tap.
-  showCenterHint("tap anywhere to fly ✨");
+  showCenterHint("Tap to fly ✨");
 }
 
 /** Graduate the player out of the guided run with a warm sign-off. */

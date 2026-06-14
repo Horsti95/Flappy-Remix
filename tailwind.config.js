@@ -24,7 +24,7 @@ export default {
         },
       },
       fontFamily: {
-        display: ["system-ui", "ui-sans-serif", "sans-serif"],
+        display: ["Patrick Hand", "system-ui", "ui-sans-serif", "sans-serif"],
       },
     },
   },

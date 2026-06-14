@@ -85,20 +85,33 @@ export function shapeSvgInner(
               <ellipse cx="4" cy="-2" rx="1.8" ry="2.4" fill="${a}"/>`;
     case "crane":
       return spritePreview("crane", body);
+    // Two-colour origami sprites — accent layer beneath, base on top.
     case "swan":
-      return spritePreview("swan", body);
+      return spritePreview("swan", body, accent, true);
+    case "swan2":
+      return spritePreview("swan2", body, accent, true);
+    case "envelope":
+      return spritePreview("envelope", body); // single-layer (no accent fold)
+    case "rocket-origami":
+      return spritePreview("rocket", body, accent, true);
+    case "butterfly-origami":
+      return spritePreview("butterfly", body, accent, true);
+    case "songbird":
+      return spritePreview("songbird", body, accent, true);
+    case "sparrow":
+      return spritePreview("sparrow", body, accent, true);
+    case "heart-origami":
+      return spritePreview("heart", body, accent, true);
     case "dove":
-      return spritePreview("dove", body);
+      return spritePreview("dove", body, accent, true);
     case "eagle":
-      return spritePreview("eagle", body);
-    case "fable":
-      return `<polygon points="-8,-6 -13,-15 -3,-9" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
-              <polygon points="8,-6 13,-15 3,-9" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
-              <polygon points="-10,-8 10,-8 12,0 0,12 -12,0" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
-              <polygon points="0,12 -4,3 4,3" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
-              <path d="M-12,0 L0,3 L12,0" fill="none" stroke="#1a1a1a" stroke-width="0.6"/>
-              <circle cx="-5" cy="-2" r="1.4" fill="#1a1a1a"/>
-              <circle cx="5" cy="-2" r="1.4" fill="#1a1a1a"/>`;
+      return spritePreview("eagle", body, accent, true);
+    case "dove2":
+      return spritePreview("dove2", body, accent, true);
+    case "submarine-origami":
+      return spritePreview("submarine", body, accent, true);
+    case "leaf-origami":
+      return spritePreview("leaf", body, accent, true);
     case "submarine":
       return `<ellipse cx="0" cy="0" rx="13" ry="6.5" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
               <polygon points="-12,0 -16,-5 -16,5" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
@@ -114,6 +127,18 @@ export function shapeSvgInner(
                 <path d="M 3,-8 L -7,8"/>
               </g>
               <g fill="${a}"><circle cx="-9" cy="-2" r="1"/><circle cx="9" cy="-2" r="1"/><circle cx="0" cy="9" r="1"/></g>`;
+    case "fable":
+      return `<polygon points="-8,-6 -13,-15 -3,-9" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
+              <polygon points="8,-6 13,-15 3,-9" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
+              <polygon points="-10,-8 10,-8 12,0 0,12 -12,0" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
+              <polygon points="0,12 -4,3 4,3" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
+              <path d="M-12,0 L0,3 L12,0" fill="none" stroke="#1a1a1a" stroke-width="0.6"/>
+              <circle cx="-5" cy="-2" r="1.4" fill="#1a1a1a"/>
+              <circle cx="5" cy="-2" r="1.4" fill="#1a1a1a"/>`;
+    default:
+      // Total-switch guard: any shape without a bespoke vector (e.g. sprite
+      // shapes, which paint from their PNG) falls back to the plane silhouette.
+      return `<polygon points="-14,6 14,-6 1,0 14,-6 -1,11" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>`;
   }
 }
 
@@ -154,13 +179,40 @@ export function soccerBallSvg(): string {
   return `<circle cx="0" cy="0" r="${R}" fill="${white}" stroke="${black}" stroke-width="1.2"/>${seams}${panels}`;
 }
 
-// Sprite-backed preview: the grayscale PNG MULTIPLIED by the body color
-// (matches in-game getTintedSprite) so fold shading + black outlines survive.
-// The art is grayscale (inR=inG=inB=L), so outR = (body/255)·L: dark lines
-// stay dark, light body takes the colour. Unique filter id per sprite.
-function spritePreview(id: string, body: [number, number, number]): string {
-  const fid = `tint-${id}`;
-  const [r, g, b] = [body[0] / 255, body[1] / 255, body[2] / 255].map((v) => v.toFixed(3));
-  return `<defs><filter id="${fid}" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="${r} 0 0 0 0  ${g} 0 0 0 0  ${b} 0 0 0 0  0 0 0 1 0"/></filter></defs>
-          <image href="/sprites/${id}.png" x="-19" y="-19" width="38" height="38" filter="url(#${fid})"/>`;
+/**
+ * A MULTIPLY colour-matrix for a grayscale source × colour C: each output
+ * channel becomes (C/255)·luminance — i.e. white→C, black→black — which mirrors
+ * the in-game `multiply` tint. (The previous single feColorMatrix replaced the
+ * whole sprite with a flat fill; this preserves the fold shading + outlines.)
+ */
+function tintMatrix(c: [number, number, number]): string {
+  const r = (c[0] / 255).toFixed(3);
+  const g = (c[1] / 255).toFixed(3);
+  const b = (c[2] / 255).toFixed(3);
+  return `${r} 0 0 0 0  ${g} 0 0 0 0  ${b} 0 0 0 0  0 0 0 1 0`;
+}
+
+/**
+ * Sprite-backed preview. For two-colour sprites we render TWO <image> layers —
+ * the accent PNG (multiplied by `accent`) BENEATH the base PNG (multiplied by
+ * `body`) — so both colours show, exactly like the in-game composite. Sprites
+ * without an accent layer (e.g. the crane) render just the base.
+ */
+function spritePreview(
+  id: string,
+  body: [number, number, number],
+  accent?: [number, number, number],
+  hasAccent = false,
+): string {
+  const baseFid = `tint-${id}-b`;
+  const accFid = `tint-${id}-a`;
+  const X = -19, W = 38;
+  let defs = `<filter id="${baseFid}"><feColorMatrix type="matrix" values="${tintMatrix(body)}"/></filter>`;
+  let layers = "";
+  if (hasAccent && accent) {
+    defs += `<filter id="${accFid}"><feColorMatrix type="matrix" values="${tintMatrix(accent)}"/></filter>`;
+    layers += `<image href="/sprites/${id}-accent.png" x="${X}" y="${X}" width="${W}" height="${W}" filter="url(#${accFid})"/>`;
+  }
+  layers += `<image href="/sprites/${id}.png" x="${X}" y="${X}" width="${W}" height="${W}" filter="url(#${baseFid})"/>`;
+  return `<defs>${defs}</defs>${layers}`;
 }

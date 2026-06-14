@@ -94,7 +94,7 @@ export function renderGallery(
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
   wrap.className =
-    "pointer-events-auto absolute inset-0 z-30 bg-black/85 backdrop-blur-sm font-display text-paper flex flex-col";
+    "hangar-surface pointer-events-auto absolute inset-0 z-30 backdrop-blur-sm font-display flex flex-col";
   // Unified collection progress across shapes + themes + palettes +
   // achievement colors (one registry — see game/unlockables.ts).
   const collection = unlockProgress();

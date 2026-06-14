@@ -145,9 +145,11 @@ export function renderLeaderboard(
       const meChip = isMe
         ? `<span class="text-[9px] uppercase tracking-wider bg-paper text-ink rounded px-1 py-0.5 font-bold">you</span>`
         : "";
-      // Mode chip: which mode the run was played in. Null on aggregate (total)
-      // rows, where a single mode is meaningless — chip omitted there.
-      const meta = [modeChip(row.mode), row.skin_rarity ? `<span style="color:${rarityColor}">${escapeHtml(row.skin_rarity)}</span>` : ""]
+      // Mode chip: which mode the run was played in. Shown only on the mixed
+      // "all" filter — when you've filtered to one mode every row shares it,
+      // so the chip is redundant. Also null on aggregate (total) rows.
+      const showModeChip = mode === "all";
+      const meta = [showModeChip ? modeChip(row.mode) : "", row.skin_rarity ? `<span style="color:${rarityColor}">${escapeHtml(row.skin_rarity)}</span>` : ""]
         .filter(Boolean)
         .join('<span class="opacity-30">·</span>');
       r.innerHTML = `

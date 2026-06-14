@@ -109,27 +109,27 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
           )}
         </svg>
       </div>
-      <h1 class="menu-title text-6xl font-bold tracking-tight">Glide</h1>
-      <p class="mt-2 text-[12px] font-hand opacity-60">guide the paper plane through the gaps</p>
+      <h1 class="menu-title text-7xl font-bold tracking-tight">Glide</h1>
+      <p class="mt-2 text-[14px] font-hand opacity-60">guide the paper plane through the gaps</p>
 
       <div class="mt-6 grid grid-cols-2 gap-3">
-        <button data-action="play" class="paper-note tilt-l bg-paper text-ink font-bold py-5 text-xl transition">
+        <button data-action="play" class="paper-note paper-eyelet paper-eyelet-lg tilt-l bg-paper text-ink font-bold py-5 text-2xl transition">
           Play
         </button>
-        <button data-action="daily" class="paper-note tilt-r bg-paper text-ink font-bold py-3 px-4 text-left transition">
-          <div class="text-[10px] uppercase tracking-wider opacity-60 flex items-center gap-1.5">
+        <button data-action="daily" class="paper-note paper-eyelet tilt-r bg-paper text-ink font-bold py-3 px-4 pl-7 text-left transition">
+          <div class="text-[11px] uppercase tracking-wider opacity-60 flex items-center gap-1.5">
             <span>Daily</span>${tierChip}
           </div>
-          <div class="text-sm leading-tight mt-0.5">${modifierLine ? meta.daily!.modifierBlurbs.map(escapeHtml).join(" + ") : "same seed worldwide"}</div>
-          <div class="text-[9px] opacity-50 mt-1">${dailyLine}</div>
+          <div class="text-base leading-tight mt-0.5">${modifierLine ? meta.daily!.modifierBlurbs.map(escapeHtml).join(" + ") : "same seed worldwide"}</div>
+          <div class="text-[10px] opacity-50 mt-1">${dailyLine}</div>
         </button>
       </div>
 
       <div class="mt-3 grid grid-cols-2 gap-2">
-        <button data-action="ranked" class="paper-note-outline tilt-r border border-paper/40 text-paper font-bold py-3 text-sm transition">
+        <button data-action="ranked" class="paper-note-outline paper-eyelet tilt-r border border-paper/40 text-paper font-bold py-3 text-base transition">
           Ranked
         </button>
-        <button data-action="inbox" class="paper-note-outline tilt-l relative border border-paper/40 text-paper font-bold py-3 text-sm transition">
+        <button data-action="inbox" class="paper-note-outline paper-eyelet tilt-l relative border border-paper/40 text-paper font-bold py-3 text-base transition">
           Challenges
           ${meta.inboxUnseen && meta.inboxUnseen > 0
             ? `<span class="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center">${meta.inboxUnseen > 9 ? "9+" : meta.inboxUnseen}</span>`
@@ -138,13 +138,13 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
       </div>
 
       <div class="mt-3 grid grid-cols-3 gap-1.5">
-        <button data-action="friends" class="paper-note-outline tilt-l border border-paper/40 text-paper font-bold py-2.5 text-[11px] transition">
+        <button data-action="friends" class="paper-note-outline paper-eyelet tilt-l border border-paper/40 text-paper font-bold py-2.5 text-[13px] transition">
           Friends
         </button>
-        <button data-action="leaderboard" class="paper-note-outline tilt-r border border-paper/40 text-paper font-bold py-2.5 text-[11px] transition">
+        <button data-action="leaderboard" class="paper-note-outline paper-eyelet tilt-r border border-paper/40 text-paper font-bold py-2.5 text-[13px] transition">
           Board
         </button>
-        <button data-action="skins" class="paper-note-outline tilt-l border border-paper/40 text-paper font-bold py-2.5 text-[11px] transition">
+        <button data-action="skins" class="paper-note-outline paper-eyelet tilt-l border border-paper/40 text-paper font-bold py-2.5 text-[13px] transition">
           Hangar
         </button>
       </div>

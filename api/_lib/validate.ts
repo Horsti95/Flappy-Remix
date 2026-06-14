@@ -13,6 +13,10 @@ export interface SubmitBody {
   challenge_short_id?: string | null;
   ranked_match_id?: string | null;
   ranked_round?: number | null;
+  // Cosmetic snapshot (best-effort; ignored if malformed — see submit-run.ts).
+  shape?: string | null;
+  body?: [number, number, number] | null;
+  accent?: [number, number, number] | null;
 }
 
 export const MAX_INPUTS = 10000;

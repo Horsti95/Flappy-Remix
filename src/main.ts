@@ -1367,6 +1367,11 @@ async function trySubmit(sim: { score: number; dieTick: number }): Promise<Submi
     rankedMatchId: currentRunMode === "ranked" ? activeRanked?.match.id : undefined,
     rankedRound: currentRunMode === "ranked" ? activeRanked?.round : undefined,
     equippedSkinId: equippedSkin?.id ?? null,
+    // Cosmetic snapshot at submit time: the shape + skin colors this run was
+    // flown with, so the leaderboard shows the run's actual look later.
+    shape: equippedShapeId,
+    body: renderer.options.skin.body,
+    accent: renderer.options.skin.accent,
   });
 }
 

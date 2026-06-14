@@ -49,6 +49,11 @@ export interface SubmitPayload {
   rankedMatchId?: string | null;
   rankedRound?: number | null;
   equippedSkinId?: string | null;
+  /** Cosmetic snapshot: the shape + skin colors this run was flown with, so
+   *  the leaderboard shows what the run actually used (not the current equip). */
+  shape?: string | null;
+  body?: [number, number, number] | null;
+  accent?: [number, number, number] | null;
 }
 
 export async function submitRun(payload: SubmitPayload): Promise<SubmitResult | null> {
@@ -72,6 +77,9 @@ export async function submitRun(payload: SubmitPayload): Promise<SubmitResult | 
       ranked_match_id: payload.rankedMatchId ?? null,
       ranked_round: payload.rankedRound ?? null,
       equipped_skin_id: payload.equippedSkinId ?? null,
+      shape: payload.shape ?? null,
+      body: payload.body ?? null,
+      accent: payload.accent ?? null,
     }),
   });
   if (!res.ok) {

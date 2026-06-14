@@ -1007,12 +1007,14 @@ function shapeSvgWithColors(
   }
 }
 
-// Sprite-backed gallery swatch: PNG flat-tinted to the body color, unique
+// Sprite-backed gallery swatch: grayscale PNG MULTIPLIED by the body color
+// (matches in-game), preserving fold shading + black outlines. Unique
 // filter id per sprite.
 function spriteSwatch(id: string, body: [number, number, number]): string {
   const fid = `sw-${id}`;
+  const [r, g, b] = [body[0] / 255, body[1] / 255, body[2] / 255].map((v) => v.toFixed(3));
   return svg(
-    `<defs><filter id="${fid}"><feColorMatrix type="matrix" values="0 0 0 0 ${(body[0] / 255).toFixed(3)}  0 0 0 0 ${(body[1] / 255).toFixed(3)}  0 0 0 0 ${(body[2] / 255).toFixed(3)}  0 0 0 1 0"/></filter></defs>
+    `<defs><filter id="${fid}" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="${r} 0 0 0 0  ${g} 0 0 0 0  ${b} 0 0 0 0  0 0 0 1 0"/></filter></defs>
      <image href="/sprites/${id}.png" x="-16" y="-16" width="32" height="32" filter="url(#${fid})"/>`,
   );
 }

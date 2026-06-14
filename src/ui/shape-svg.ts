@@ -154,10 +154,13 @@ export function soccerBallSvg(): string {
   return `<circle cx="0" cy="0" r="${R}" fill="${white}" stroke="${black}" stroke-width="1.2"/>${seams}${panels}`;
 }
 
-// Sprite-backed preview: the PNG flat-tinted to the body color via an SVG
-// color-matrix (unique filter id per sprite so multiple can coexist).
+// Sprite-backed preview: the grayscale PNG MULTIPLIED by the body color
+// (matches in-game getTintedSprite) so fold shading + black outlines survive.
+// The art is grayscale (inR=inG=inB=L), so outR = (body/255)·L: dark lines
+// stay dark, light body takes the colour. Unique filter id per sprite.
 function spritePreview(id: string, body: [number, number, number]): string {
   const fid = `tint-${id}`;
-  return `<defs><filter id="${fid}"><feColorMatrix type="matrix" values="0 0 0 0 ${(body[0] / 255).toFixed(3)}  0 0 0 0 ${(body[1] / 255).toFixed(3)}  0 0 0 0 ${(body[2] / 255).toFixed(3)}  0 0 0 1 0"/></filter></defs>
+  const [r, g, b] = [body[0] / 255, body[1] / 255, body[2] / 255].map((v) => v.toFixed(3));
+  return `<defs><filter id="${fid}" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="${r} 0 0 0 0  ${g} 0 0 0 0  ${b} 0 0 0 0  0 0 0 1 0"/></filter></defs>
           <image href="/sprites/${id}.png" x="-19" y="-19" width="38" height="38" filter="url(#${fid})"/>`;
 }

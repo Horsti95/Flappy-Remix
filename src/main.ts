@@ -122,13 +122,12 @@ let activeChallenge: FetchedChallenge | null = null;
 let activeRanked: { match: RankedMatch; round: number } | null = null;
 let pendingChallengeTarget: { friend: Friend | null } | null = null;
 let inboxUnseen = 0;
-// Progressive onboarding: the very first launch drops the player into a
-// can't-lose practice run with piece-by-piece coaching hints, ending at a
-// target score with a "you got it" sign-off. Distinct from the plain
-// "practice mode" the menu offers (which is silent + endless).
+// Lightweight first-run coaching: the first real run of any mode shows three
+// quick coach boxes in-context (tap → through the gaps → +1 per gap), then
+// never again (gated by tutorialSeen). No forced practice run — "practice
+// mode" stays a separate, opt-in menu entry.
 let onboardingActive = false;
 let onboardingFlapped = false;
-const ONBOARDING_TARGET = 20;
 
 app.innerHTML = `
   <section id="stage" role="application" aria-label="Glide play area" class="relative w-full h-full max-w-md max-h-[100svh] aspect-[9/16] mx-auto bg-sky-day overflow-hidden touch-none select-none">
@@ -231,12 +230,12 @@ const input = new InputController(stage, {
       if (settings.haptics) triggerFlapHaptic();
       loop?.flap();
       if (settings.sound) playFlap();
-      // First flap of the guided onboarding: clear the start prompt and
-      // immediately drip the first coaching card so it doesn't conflict.
+      // First-run coaching: clear the start prompt on the first tap and show
+      // the "through the gaps" box.
       if (onboardingActive && !onboardingFlapped) {
         onboardingFlapped = true;
         clearCenterHint();
-        showCoachCard("👆", "Keep tapping!");
+        showCoachCard("🪶", "Through the gaps →");
       }
       // Flap-FX spawns a particle burst at the plane's last-rendered
       // position. The renderer ticks + paints them in subsequent
@@ -354,14 +353,10 @@ loadEquippedSkin().then(async () => {
   }
   showMenu();
   hideSplash();
-  // Brand-new players go straight into a guided practice run — no upfront
-  // wall of text. Coaching appears piece by piece while they fly. Returning
-  // players see the "what's new" modal after an update. Never both at once.
-  if (!tutorialSeen()) {
-    startOnboarding();
-  } else {
-    maybeShowWhatsNew();
-  }
+  // No forced intro run. Brand-new players just see the menu; the first
+  // real run of ANY mode shows a few quick coach boxes in-context (armed in
+  // startRun, gated by tutorialSeen). Returning players get "what's new".
+  maybeShowWhatsNew();
 });
 
 // Show the "what's new" modal once after an update. First-time players are
@@ -866,12 +861,12 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
         if (settings.sound && equippedThemeId === "stadium" && sc > 0 && sc % 20 === 0) {
           playCheer();
         }
-        // Guided onboarding: drip-feed coaching cards as gates pass.
-        if (onboardingActive) {
-          if (sc === 2)  showCoachCard("🎯", "+1 per gap");
-          else if (sc === 5)  showCoachCard("✨", "Can't crash — fly free!");
-          else if (sc === 12) showCoachCard("🎮", "Ready? Hit Play!");
-          if (sc >= ONBOARDING_TARGET) finishOnboarding();
+        // First-run coaching: the last box on the first scored gap, then done
+        // for good — coaching never interrupts a seasoned player.
+        if (onboardingActive && sc === 1) {
+          showCoachCard("🎯", "+1 per gap");
+          onboardingActive = false;
+          markTutorialSeen();
         }
       },
       onDeath: async (sim) => {
@@ -1110,6 +1105,15 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
   }
   loop.start();
 
+  // First-run coaching: arm the 3 coach boxes on the player's very first run
+  // of any real mode (not a challenge-create flow). Gated by tutorialSeen so
+  // it shows exactly once. The start prompt persists until the first tap.
+  if (!tutorialSeen() && runMode !== "challenge-create") {
+    onboardingActive = true;
+    onboardingFlapped = false;
+    showCenterHint("Tap to glide ✨");
+  }
+
   // Practice-mode badge: persistent in-run label so players always know
   // this isn't a real run. Shown over the overlays div (outside canvas).
   if (runMode === "training") {
@@ -1306,50 +1310,6 @@ function showCoachCard(emoji: string, text: string): void {
     card.style.opacity = "0";
     window.setTimeout(() => card.remove(), 500);
   }, 3500);
-}
-
-/** Kick off the first-launch guided practice run. */
-function startOnboarding(): void {
-  onboardingActive = true;
-  onboardingFlapped = false;
-  startRun("training");
-  // Initial prompt persists until the first tap.
-  showCenterHint("Tap to fly ✨");
-}
-
-/** Graduate the player out of the guided run with a warm sign-off. */
-function finishOnboarding(): void {
-  if (!onboardingActive) return;
-  onboardingActive = false;
-  markTutorialSeen();
-  loop?.stop();
-  loop = null;
-  mode = "dead";
-  pauseBtn.classList.add("hidden");
-  clearCenterHint();
-  overlays.querySelector("[data-coach-card]")?.remove();
-  overlays.innerHTML = "";
-  const card = document.createElement("div");
-  card.dataset.noFlap = "true";
-  card.className =
-    "pointer-events-auto absolute inset-0 z-30 bg-black/85 backdrop-blur-sm font-display text-paper flex flex-col items-center justify-center text-center px-8";
-  card.innerHTML = `
-    <div class="text-5xl mb-4">🎉</div>
-    <h2 class="text-2xl font-bold mb-2">you got it!</h2>
-    <p class="text-sm opacity-80 max-w-xs leading-relaxed">
-      That's the whole game — tap to fly, mind the gaps. Find <b>practice mode</b>
-      any time at the bottom of the home screen. Happy playing!
-    </p>
-    <button data-go class="mt-8 rounded-2xl bg-paper text-ink font-bold px-8 py-3 active:scale-95 transition">let's play</button>
-  `;
-  card.querySelector("[data-go]")?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    card.remove();
-    showMenu();
-    maybeShowWhatsNew();
-  });
-  overlays.appendChild(card);
-  announce("Practice complete. You got it! Tap let's play to continue.");
 }
 
 /** Rarity to show on shares / profile for the current equip. Chameleon is a

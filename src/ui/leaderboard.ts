@@ -145,12 +145,19 @@ export function renderLeaderboard(
       const meChip = isMe
         ? `<span class="text-[9px] uppercase tracking-wider bg-paper text-ink rounded px-1 py-0.5 font-bold">you</span>`
         : "";
+      // Mode chip: which mode the run was played in. Shown only on the mixed
+      // "all" filter — when you've filtered to one mode every row shares it,
+      // so the chip is redundant. Also null on aggregate (total) rows.
+      const showModeChip = mode === "all";
+      const meta = [showModeChip ? modeChip(row.mode) : "", row.skin_rarity ? `<span style="color:${rarityColor}">${escapeHtml(row.skin_rarity)}</span>` : ""]
+        .filter(Boolean)
+        .join('<span class="opacity-30">·</span>');
       r.innerHTML = `
         <div class="w-7 flex items-center justify-center shrink-0">${rankBadge(rank)}</div>
         ${plane}
         <div class="flex-1 min-w-0">
           <div class="text-sm truncate flex items-center gap-1.5">${row.username ? escapeHtml(row.username) : anonName(row.user_id)} ${meChip}</div>
-          <div class="text-[10px] opacity-50" style="color:${rarityColor}">${row.skin_rarity ?? ""}</div>
+          <div class="text-[10px] opacity-50 flex items-center gap-1.5">${meta}</div>
         </div>
         <div class="font-bold ${podium ? "text-xl" : "text-lg"} tabular-nums">${row.score}</div>
       `;
@@ -193,6 +200,20 @@ function rankBadge(rank: number): string {
     return `<span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold" style="background:${m.bg};color:${m.fg}">${rank}</span>`;
   }
   return `<span class="text-[11px] opacity-60 tabular-nums">${rank}</span>`;
+}
+
+/** Tiny tinted chip for the mode a run was played in. Returns "" for null
+ *  (aggregate "total" rows) or unknown modes so the meta line stays clean. */
+function modeChip(mode: string | null): string {
+  if (!mode) return "";
+  const styles: Record<string, string> = {
+    casual: "background:rgba(255,255,255,0.12);color:#e5e7eb",
+    daily: "background:rgba(245,197,66,0.20);color:#f5c542",
+    ranked: "background:rgba(124,160,255,0.20);color:#9db4ff",
+  };
+  const style = styles[mode];
+  if (!style) return "";
+  return `<span class="text-[9px] uppercase tracking-wider rounded px-1 py-0.5" style="${style}">${escapeHtml(mode)}</span>`;
 }
 
 function seg(attr: "scope" | "period" | "mode", id: string, label: string, active: boolean): string {

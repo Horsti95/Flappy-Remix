@@ -12,6 +12,7 @@ export interface LeaderboardRow {
   score: number;
   created_at: string;
   daily_date: string | null;
+  mode: string | null;
   shape: string | null;
   body: [number, number, number] | null;
   accent: [number, number, number] | null;
@@ -76,6 +77,7 @@ export async function fetchLeaderboard(
       score: r.score as number,
       created_at: r.created_at as string,
       daily_date: (r.daily_date ?? null) as string | null,
+      mode: (r.mode ?? null) as string | null,
       shape: (r.equipped_shape ?? null) as string | null,
       body:
         r.body_r === null || r.body_r === undefined

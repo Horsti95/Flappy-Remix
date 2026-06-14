@@ -9,6 +9,7 @@ function row(p: Partial<LeaderboardRow>): LeaderboardRow {
     score: p.score ?? 0,
     created_at: p.created_at ?? "2026-01-01T00:00:00Z",
     daily_date: p.daily_date ?? null,
+    mode: p.mode ?? null,
     shape: p.shape ?? null,
     body: p.body ?? null,
     accent: p.accent ?? null,

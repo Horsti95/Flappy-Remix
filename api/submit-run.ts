@@ -171,6 +171,13 @@ export default async function handler(req: Request): Promise<Response> {
     if ("reason" in pre) return json({ accepted: false, reason: pre.reason }, 200);
   }
 
+  // Cosmetic snapshot: capture the shape + skin colors the run was flown
+  // with. Validated defensively — anything malformed is dropped to null so a
+  // bad client payload can never fail an otherwise-valid submission.
+  const snapShape = typeof body.shape === "string" && body.shape.length <= 64 ? body.shape : null;
+  const snapBody = sanitizeRgb(body.body);
+  const snapAccent = sanitizeRgb(body.accent);
+
   const run = await admin
     .from("runs")
     .insert({
@@ -184,6 +191,13 @@ export default async function handler(req: Request): Promise<Response> {
       equipped_skin_id: body.equipped_skin_id ?? null,
       mode: effectiveMode,
       daily_date: effectiveDailyDate,
+      shape: snapShape,
+      body_r: snapBody?.[0] ?? null,
+      body_g: snapBody?.[1] ?? null,
+      body_b: snapBody?.[2] ?? null,
+      accent_r: snapAccent?.[0] ?? null,
+      accent_g: snapAccent?.[1] ?? null,
+      accent_b: snapAccent?.[2] ?? null,
     })
     .select("id")
     .single();
@@ -483,6 +497,17 @@ export default async function handler(req: Request): Promise<Response> {
     level: levelFromTotalXp(newXp).level,
     ranked: rankedSummary,
   }, 200);
+}
+
+/** Coerce an untrusted RGB triple into [0..255] ints, or null if malformed. */
+function sanitizeRgb(v: unknown): [number, number, number] | null {
+  if (!Array.isArray(v) || v.length !== 3) return null;
+  const out: number[] = [];
+  for (const c of v) {
+    if (typeof c !== "number" || !Number.isFinite(c)) return null;
+    out.push(Math.max(0, Math.min(255, Math.round(c))));
+  }
+  return out as [number, number, number];
 }
 
 /** Hex SHA-256 via Web Crypto (available in the edge runtime). */

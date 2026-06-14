@@ -136,20 +136,36 @@ a:focus-visible {
   border: 0;
 }
 
-/* Gallery swatch plate — a neutral mid-gray checkerboard behind color
-   previews so both very-dark and very-light skins stay readable (a black
-   skin no longer vanishes on a dark card). The inset ring keeps the swatch
-   edge visible against any background. QoL only, no layout change. */
-.swatch-plate {
-  background-color: #8a9099;
+/* Hangar surface — a warm "desk" backdrop (coffee/cork) instead of cold
+   black, so the cream paper cards read as notes on a workbench. Kept dark
+   enough that the existing light text + not-yet-paper'd list rows stay
+   legible (a full-parchment surface would hide them). Faint grain +
+   vignette for tactility. Text defaults to cream; paper cards override. */
+.hangar-surface {
+  color: #f4ead5;
+  background-color: #2a251e;
   background-image:
-    linear-gradient(45deg, #6f757e 25%, transparent 25%),
-    linear-gradient(-45deg, #6f757e 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #6f757e 75%),
-    linear-gradient(-45deg, transparent 75%, #6f757e 75%);
+    radial-gradient(120% 80% at 50% 0%, rgba(120, 100, 70, 0.22), transparent 60%),
+    radial-gradient(140% 100% at 50% 110%, rgba(0, 0, 0, 0.45), transparent 55%),
+    repeating-linear-gradient(2deg, rgba(255, 240, 210, 0.018) 0 2px, transparent 2px 8px),
+    repeating-linear-gradient(92deg, rgba(0, 0, 0, 0.05) 0 3px, transparent 3px 12px),
+    linear-gradient(180deg, #2f2920 0%, #221e18 100%);
+}
+
+/* Gallery swatch plate — warm two-tone "kraft" check behind colour previews
+   so BOTH very-dark and very-light skins stay readable (dark skin doesn't
+   vanish on cream; light skin doesn't vanish on white). Fits the paper look
+   while keeping that legibility. Inked edge keeps the swatch defined. */
+.swatch-plate {
+  background-color: #b9a888;
+  background-image:
+    linear-gradient(45deg, #a08e6c 25%, transparent 25%),
+    linear-gradient(-45deg, #a08e6c 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #a08e6c 75%),
+    linear-gradient(-45deg, transparent 75%, #a08e6c 75%);
   background-size: 14px 14px;
   background-position: 0 0, 0 7px, 7px -7px, -7px 0;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(26, 26, 26, 0.35);
 }
 
 /* ── Design system: button hierarchy ───────────────────────────────────────
@@ -214,6 +230,121 @@ a:focus-visible {
   .font-hand {
     font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", "Chalkboard SE", cursive;
   }
+}
+
+/* ── Hangar (gallery) — Paper Sky identity ─────────────────────────────────
+   The Hangar reads as a flight-journal of folded-paper cards rather than a
+   dark tile dump. These classes give it a cohesive cream-paper treatment that
+   still sits legibly on the dark backdrop. Visual only. */
+
+/* Soft cream "folded note" card. Faint grain + gentle shadow + a slightly
+   mismatched (hand-drawn) corner radius so no two cards feel machine-cut.
+   Text on a paper-note must use the ink color for contrast. */
+.paper-note {
+  background-color: #f3e8cf;
+  background-image:
+    repeating-linear-gradient(1.5deg, rgba(120, 90, 40, 0.035) 0 2px, transparent 2px 8px),
+    repeating-linear-gradient(92deg, rgba(60, 40, 10, 0.03) 0 3px, transparent 3px 12px);
+  color: #2a2118;
+  border: 1px solid rgba(120, 95, 50, 0.28);
+  border-radius: 14px 11px 13px 10px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    1px 2px 0 rgba(0, 0, 0, 0.28),
+    0 8px 16px -6px rgba(0, 0, 0, 0.45);
+}
+.paper-note.is-equipped {
+  border-color: #1a1a1a;
+  box-shadow:
+    0 0 0 2px #1a1a1a,
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    1px 2px 0 rgba(0, 0, 0, 0.28),
+    0 8px 16px -6px rgba(0, 0, 0, 0.45);
+}
+.paper-note.is-locked {
+  background-color: #d9cfba;
+  color: #5a5446;
+  border-style: dashed;
+  border-color: rgba(90, 75, 45, 0.4);
+  box-shadow: 1px 2px 0 rgba(0, 0, 0, 0.18);
+}
+
+/* Section header styled like a strip of masking tape on the journal page. */
+.paper-section-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.7rem;
+  margin: 0.1rem 0 0.1rem 0.25rem;
+  color: #2a2118;
+  background: #efe3c6;
+  border-radius: 3px;
+  transform: rotate(-1.2deg);
+  box-shadow: 1px 2px 0 rgba(0, 0, 0, 0.25);
+  font-size: 13px;
+  line-height: 1.1;
+}
+.paper-section-header .ph-count {
+  font-size: 10px;
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Folder tabs for the loadout/section navigation. Inactive tabs are dim
+   paper edges; the active one lifts into a full cream tab with ink text. */
+.paper-tab {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0.4rem 0.2rem 0.45rem;
+  border-radius: 9px 9px 0 0;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(244, 234, 213, 0.5);
+  background: rgba(244, 234, 213, 0.08);
+  border: 1px solid rgba(244, 234, 213, 0.12);
+  border-bottom: none;
+  transition: background 0.12s ease, color 0.12s ease, transform 0.12s ease;
+}
+.paper-tab:hover {
+  color: rgba(244, 234, 213, 0.8);
+  background: rgba(244, 234, 213, 0.14);
+}
+.paper-tab.is-active {
+  color: #1a1a1a;
+  background: #f3e8cf;
+  border-color: rgba(120, 95, 50, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 -3px 8px -3px rgba(0, 0, 0, 0.4);
+  z-index: 2;
+}
+
+/* The "your plane" hero — a framed luggage tag pinned to the journal. */
+.hangar-hero {
+  position: relative;
+  background-color: #f3e8cf;
+  background-image:
+    repeating-linear-gradient(1deg, rgba(120, 90, 40, 0.04) 0 2px, transparent 2px 9px),
+    repeating-linear-gradient(91deg, rgba(60, 40, 10, 0.03) 0 3px, transparent 3px 13px);
+  border: 1px solid rgba(120, 95, 50, 0.3);
+  border-radius: 16px 13px 15px 12px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    1px 3px 0 rgba(0, 0, 0, 0.3),
+    0 12px 22px -8px rgba(0, 0, 0, 0.5);
+}
+.hangar-hero::before {
+  /* punched luggage-tag eyelet */
+  content: "";
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.28);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset;
 }
 
 /* House-ad banner: intentionally reads as a joke/placeholder, not real

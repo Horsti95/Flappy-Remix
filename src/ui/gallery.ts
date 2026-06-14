@@ -100,12 +100,13 @@ export function renderGallery(
   const collection = unlockProgress();
   wrap.innerHTML = `
     <div class="px-5 pt-5 pb-2 flex items-baseline justify-between">
-      <h2 class="text-xl font-bold">gallery <span class="text-[11px] font-normal opacity-50 ml-1 tabular-nums">${collection.unlocked}/${collection.total}</span></h2>
+      <h2 class="text-xl font-bold font-hand">Hangar <span class="text-[11px] font-normal opacity-50 ml-1 tabular-nums font-display">${collection.unlocked}/${collection.total}</span></h2>
       <button data-close class="text-sm underline opacity-70">close</button>
     </div>
     <div data-next class="px-5 pb-2"></div>
-    <div data-loadout class="flex items-stretch gap-1 px-2 py-2 border-b border-white/10"></div>
-    <div data-body class="mt-2 px-3 flex-1 overflow-y-auto pb-28"></div>
+    <div data-hero class="px-4 pb-1"></div>
+    <div data-loadout class="flex items-end gap-1 px-3 pt-3"></div>
+    <div data-body class="px-3 pt-3 flex-1 overflow-y-auto pb-28 border-t border-paper/20"></div>
   `;
   host.appendChild(wrap);
 
@@ -193,23 +194,59 @@ export function renderGallery(
     return { body: DEFAULT_SKIN.body, accent: DEFAULT_SKIN.accent };
   }
 
-  // Single navigation row: 7 equal-width boxes that double as tabs AND as a
-  // live "loadout" preview of what you're flying. flex-1 + min-w-0 guarantees
-  // all seven fit the viewport width with no horizontal scroll.
+  // "Your plane" HERO — a larger framed preview of what you're currently
+  // flying (equipped shape painted in the equipped colours), captioned like a
+  // handwritten luggage tag. Visual identity anchor for the Hangar.
+  function renderHero(): void {
+    const host = wrap.querySelector("[data-hero]") as HTMLDivElement;
+    const { body, accent } = resolveEquippedColors();
+    const shape = SHAPES.find((s) => s.id === currentEquipped.shapeId);
+    const shapeName = shape?.name ?? "paper plane";
+    // Name the equipped colour source for the tag subtitle.
+    let colorName = "cream + ink";
+    if (currentEquipped.presetId) {
+      colorName = PRESET_SKINS.find((p) => p.id === currentEquipped.presetId)?.name ?? colorName;
+    } else if (currentEquipped.achColorId) {
+      colorName = ACHIEVEMENTS.find((a) => a.id === currentEquipped.achColorId)?.name ?? colorName;
+    } else if (currentEquipped.skinId) {
+      const skin = getCachedOwnedSkins()?.find((s) => s.id === currentEquipped.skinId);
+      colorName = skin ? `${skin.rarity} livery` : "custom livery";
+    }
+    const preview = shapeSvgWithColors(currentEquipped.shapeId, body, accent);
+    host.innerHTML = `
+      <div class="hangar-hero flex items-center gap-4 px-4 py-3">
+        <div class="shrink-0 w-24 h-24 rounded-xl flex items-center justify-center overflow-hidden swatch-plate" data-hero-preview></div>
+        <div class="min-w-0 flex-1 pl-2">
+          <div class="font-hand text-[11px] text-ink/55 leading-none">now flying</div>
+          <div class="font-hand text-2xl text-ink font-bold leading-tight capitalize truncate">${escapeHtml(shapeName)}</div>
+          <div class="font-hand text-[13px] text-ink/65 leading-tight capitalize truncate">${escapeHtml(colorName)}</div>
+        </div>
+      </div>`;
+    const slot = host.querySelector("[data-hero-preview]") as HTMLDivElement;
+    slot.innerHTML = preview;
+    const svgEl = slot.querySelector("svg");
+    if (svgEl) { svgEl.style.cssText = "display:block;width:82%;height:82%"; svgEl.removeAttribute("class"); }
+  }
+  renderHero();
+
+  // Navigation row: 7 equal-width folder TABS that also preview each equip
+  // slot. The compact icon tile sits inside the paper tab; the active tab
+  // lifts up. flex-1 + min-w-0 keeps all seven on one line, no scroll.
   function renderLoadout(): void {
+    // Keep the hero plane preview in sync with whatever is equipped — every
+    // equip handler refreshes the loadout, so refresh the hero alongside it.
+    renderHero();
     const strip = wrap.querySelector("[data-loadout]") as HTMLDivElement;
     strip.innerHTML = "";
 
     const addBox = (labelText: string, tab: Tab, content: HTMLElement | string): void => {
       const btn = document.createElement("button");
       btn.dataset.noFlap = "true";
-      btn.className = "flex flex-col items-center gap-0.5 flex-1 min-w-0";
       const isActive = activeTab === tab;
+      btn.className = `paper-tab flex flex-col items-center gap-1 ${isActive ? "is-active" : ""}`;
       const preview = document.createElement("div");
-      // Every box is the same rounded plate (darker than the strip so the tile
-      // reads clearly), with an inset edge ring; the active one gets a paper ring.
-      preview.className = `w-full aspect-square rounded-lg flex items-center justify-center overflow-hidden relative bg-white/[0.13] ${
-        isActive ? "ring-2 ring-paper" : "ring-1 ring-white/15"
+      preview.className = `w-full aspect-square rounded-md flex items-center justify-center overflow-hidden relative ${
+        isActive ? "bg-black/10 ring-1 ring-ink/20" : "bg-white/[0.13] ring-1 ring-white/15"
       }`;
       if (typeof content === "string") {
         preview.innerHTML = content;
@@ -221,7 +258,7 @@ export function renderGallery(
         preview.appendChild(content);
       }
       const lbl = document.createElement("div");
-      lbl.className = `text-[8px] leading-none truncate w-full text-center ${isActive ? "text-paper font-bold" : "text-paper/45"}`;
+      lbl.className = "text-[8px] leading-none truncate w-full text-center";
       lbl.textContent = labelText;
       btn.appendChild(preview);
       btn.appendChild(lbl);
@@ -765,6 +802,16 @@ function tierChip(tier: Tier): string {
   return `<div class="absolute top-1 left-1 text-[8px] uppercase tracking-wider rounded px-1 py-0.5 font-bold" style="background:${TIER_COLOR[tier]}22;color:${TIER_COLOR[tier]}">${TIER_LABEL[tier]}</div>`;
 }
 
+/** Ink-on-paper "equipped" stamp for paper-note cards (top-right). */
+function equippedChipPaper(): string {
+  return `<div class="absolute top-1 right-1 text-[9px] font-bold bg-ink text-paper rounded-full px-1.5 py-0.5">equipped</div>`;
+}
+
+/** Muted "locked" chip that reads on a dim paper card (top-right). */
+function lockedChipPaper(): string {
+  return `<div class="absolute top-1 right-1 text-[9px] font-bold bg-black/15 text-ink/70 rounded-full px-1.5 py-0.5">locked</div>`;
+}
+
 /** Sort a list unlocked-first, then easiest tier first. Stable on ties. */
 function byTier<T>(items: T[], unlockedOf: (t: T) => boolean, tierOf: (t: T) => Tier): T[] {
   return items
@@ -787,25 +834,19 @@ function shapeCard(
   const unlocked = unlockedOverride ?? state.unlocked;
   const el = document.createElement("button");
   el.dataset.noFlap = "true";
-  el.className = `relative rounded-2xl p-3 flex flex-col items-center text-[11px] gap-2 border-2 ${
-    equipped ? "border-paper" : unlocked ? "border-white/10" : "border-white/5"
-  } bg-white/5 ${unlocked ? "active:scale-95" : "opacity-50 cursor-not-allowed"} transition`;
+  el.className = `paper-note relative p-3 flex flex-col items-center text-[11px] gap-2 ${
+    equipped ? "is-equipped" : ""
+  } ${unlocked ? "active:scale-95" : "is-locked cursor-not-allowed"} transition`;
   el.innerHTML = `
     <div class="w-full aspect-square flex items-center justify-center swatch-plate rounded-xl">
       ${shapeSvg(shape.id, unlocked)}
     </div>
-    <div class="font-bold">${shape.name}</div>
-    <div class="opacity-60 text-[10px] text-center leading-tight">${
+    <div class="font-bold font-hand text-[13px]">${shape.name}</div>
+    <div class="opacity-70 text-[10px] text-center leading-tight">${
       unlocked ? shape.blurb : displayHint(state.hint)
     }</div>
     ${tier ? tierChip(tier) : ""}
-    ${
-      equipped
-        ? `<div class="absolute top-1 right-1 text-[9px] bg-paper text-ink rounded-full px-1.5 py-0.5">equipped</div>`
-        : !unlocked
-          ? `<div class="absolute top-1 right-1 text-[9px] bg-white/15 rounded-full px-1.5 py-0.5">locked</div>`
-          : ""
-    }
+    ${equipped ? equippedChipPaper() : !unlocked ? lockedChipPaper() : ""}
   `;
   el.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -823,17 +864,17 @@ function skinCard(
 ): HTMLElement {
   const el = document.createElement("button");
   el.dataset.noFlap = "true";
-  el.className = `relative rounded-2xl p-3 flex flex-col items-center text-[10px] gap-2 border-2 ${
-    equipped ? "border-paper" : "border-white/10"
-  } bg-white/5 active:scale-95 transition`;
+  el.className = `paper-note relative p-3 flex flex-col items-center text-[10px] gap-2 ${
+    equipped ? "is-equipped" : ""
+  } active:scale-95 transition`;
   el.style.setProperty("--ring", RARITY_COLOR[row.rarity]);
   el.innerHTML = `
     <div class="w-full aspect-square flex items-center justify-center swatch-plate rounded-xl">
       ${shapeSvgWithColors(shapeId, row.body, row.accent)}
     </div>
     <div class="font-bold capitalize" style="color: var(--ring)">${row.rarity}</div>
-    <div class="opacity-50">@${row.unlocked_at_games}</div>
-    ${equipped ? `<div class="absolute top-1 right-1 text-[9px] bg-paper text-ink rounded-full px-1.5 py-0.5">equipped</div>` : ""}
+    <div class="opacity-60">@${row.unlocked_at_games}</div>
+    ${equipped ? equippedChipPaper() : ""}
   `;
   el.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -845,16 +886,16 @@ function skinCard(
 function defaultSkinCard(equipped: boolean, shapeId: ShapeId, onTap: () => void): HTMLElement {
   const el = document.createElement("button");
   el.dataset.noFlap = "true";
-  el.className = `relative rounded-2xl p-3 flex flex-col items-center text-[10px] gap-2 border-2 ${
-    equipped ? "border-paper" : "border-white/10"
-  } bg-white/5 active:scale-95 transition`;
+  el.className = `paper-note relative p-3 flex flex-col items-center text-[10px] gap-2 ${
+    equipped ? "is-equipped" : ""
+  } active:scale-95 transition`;
   el.innerHTML = `
     <div class="w-full aspect-square flex items-center justify-center swatch-plate rounded-xl">
       ${shapeSvgWithColors(shapeId, DEFAULT_SKIN.body, DEFAULT_SKIN.accent)}
     </div>
-    <div class="font-bold opacity-70">default</div>
-    <div class="opacity-50">cream + ink</div>
-    ${equipped ? `<div class="absolute top-1 right-1 text-[9px] bg-paper text-ink rounded-full px-1.5 py-0.5">equipped</div>` : ""}
+    <div class="font-bold opacity-80">default</div>
+    <div class="opacity-60">cream + ink</div>
+    ${equipped ? equippedChipPaper() : ""}
   `;
   el.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -1076,10 +1117,24 @@ function progressRing(done: number, total: number): string {
 }
 
 function headerLabel(text: string): HTMLElement {
-  const el = document.createElement("div");
-  el.className = "px-3 mt-1 mb-2 text-[10px] uppercase tracking-wider opacity-60 font-bold";
-  el.textContent = text;
-  return el;
+  // Paper-section header — a strip of "masking tape" on the journal page.
+  // A trailing " — n / n" count is split into a dimmer tabular span.
+  const wrap = document.createElement("div");
+  wrap.className = "px-2 mt-3 mb-2";
+  const tape = document.createElement("div");
+  tape.className = "paper-section-header font-hand font-bold";
+  const m = text.match(/^(.*?)(\s—\s.+)$/);
+  if (m) {
+    tape.append(m[1]);
+    const c = document.createElement("span");
+    c.className = "ph-count";
+    c.textContent = m[2].replace(/^\s—\s/, "");
+    tape.appendChild(c);
+  } else {
+    tape.textContent = text;
+  }
+  wrap.appendChild(tape);
+  return wrap;
 }
 
 function themeCard(theme: Theme, equipped: boolean, stats: GalleryStats, onTap: () => void, tier?: Tier): HTMLElement {
@@ -1087,9 +1142,9 @@ function themeCard(theme: Theme, equipped: boolean, stats: GalleryStats, onTap: 
   const state = isThemesLabMode() ? { unlocked: true, hint: realState.hint } : realState;
   const el = document.createElement("button");
   el.dataset.noFlap = "true";
-  el.className = `relative rounded-2xl p-3 flex flex-col items-center text-[11px] gap-2 border-2 ${
-    equipped ? "border-paper" : state.unlocked ? "border-white/10" : "border-white/5"
-  } bg-white/5 ${state.unlocked ? "active:scale-95" : "opacity-50 cursor-not-allowed"} transition`;
+  el.className = `paper-note relative p-3 flex flex-col items-center text-[11px] gap-2 ${
+    equipped ? "is-equipped" : ""
+  } ${state.unlocked ? "active:scale-95" : "is-locked cursor-not-allowed"} transition`;
   const c = theme.colors;
   el.innerHTML = `
     <div class="w-full aspect-square rounded-xl overflow-hidden relative" style="background: linear-gradient(180deg, ${c.skyTop} 0%, ${c.skyBottom} 100%)">
@@ -1101,16 +1156,10 @@ function themeCard(theme: Theme, equipped: boolean, stats: GalleryStats, onTap: 
       <div class="absolute left-3 right-3 bottom-3 h-12 rounded" style="background:${c.pipeBody}"></div>
       ${c.fogIntensity ? `<div class="absolute inset-0" style="background: radial-gradient(circle at 45% 55%, transparent 25%, rgba(205,214,221,${c.fogIntensity}) 80%)"></div>` : ""}
     </div>
-    <div class="font-bold flex items-center gap-1">${escapeHtml(theme.name)}${hasZones(theme.id) || theme.backgroundStages ? `<span class="text-[8px] uppercase tracking-wider rounded px-1 py-0.5" style="background:#a855f733;color:#c79bff">interactive</span>` : ""}</div>
-    <div class="opacity-60 text-[10px] text-center leading-tight">${state.unlocked ? escapeHtml(theme.blurb) : escapeHtml(displayHint(state.hint))}</div>
+    <div class="font-bold font-hand text-[13px] flex items-center gap-1">${escapeHtml(theme.name)}${hasZones(theme.id) || theme.backgroundStages ? `<span class="text-[8px] uppercase tracking-wider rounded px-1 py-0.5" style="background:#a855f733;color:#7c3aed">interactive</span>` : ""}</div>
+    <div class="opacity-70 text-[10px] text-center leading-tight">${state.unlocked ? escapeHtml(theme.blurb) : escapeHtml(displayHint(state.hint))}</div>
     ${tier ? tierChip(tier) : ""}
-    ${
-      equipped
-        ? `<div class="absolute top-1 right-1 text-[9px] bg-paper text-ink rounded-full px-1.5 py-0.5">equipped</div>`
-        : !state.unlocked
-          ? `<div class="absolute top-1 right-1 text-[9px] bg-white/15 rounded-full px-1.5 py-0.5">locked</div>`
-          : ""
-    }
+    ${equipped ? equippedChipPaper() : !state.unlocked ? lockedChipPaper() : ""}
   `;
   el.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -1134,8 +1183,8 @@ function achievementColorCard(
   const mystery = !got && a.secret === true;
   const el = document.createElement("div");
   el.dataset.noFlap = "true";
-  el.className = `relative rounded-2xl p-3 flex flex-col items-center text-[10px] gap-2 border-2 bg-white/5 ${
-    equipped ? "border-paper" : got ? "border-emerald-400/40" : mystery ? "border-white/10" : "border-white/5 opacity-80"
+  el.className = `paper-note relative p-3 flex flex-col items-center text-[10px] gap-2 ${
+    equipped ? "is-equipped" : got ? "" : "is-locked"
   }${got ? " active:scale-95 transition" : ""}`;
   const rewardColor = a.reward.type === "color" ? a.reward : { body: DEFAULT_SKIN.body, accent: DEFAULT_SKIN.accent };
   const body = mystery ? ([18, 18, 22] as [number, number, number]) : rewardColor.body;
@@ -1148,9 +1197,9 @@ function achievementColorCard(
   const stateLabel = got && equipped ? "equipped" : got ? "unlocked" : mystery ? "secret" : "preview · locked";
   el.innerHTML = `
     ${preview}
-    <div class="font-bold capitalize leading-tight text-center">${mystery ? "???" : escapeHtml(a.name)}</div>
-    <div class="opacity-60 text-[10px] text-center leading-snug">${escapeHtml(a.blurb)}</div>
-    <div class="text-[9px] uppercase tracking-wider font-bold ${got ? "text-emerald-300" : "opacity-50"}">${stateLabel}</div>
+    <div class="font-bold font-hand text-[13px] capitalize leading-tight text-center">${mystery ? "???" : escapeHtml(a.name)}</div>
+    <div class="opacity-70 text-[10px] text-center leading-snug">${escapeHtml(a.blurb)}</div>
+    <div class="text-[9px] uppercase tracking-wider font-bold ${got ? "text-emerald-700" : "opacity-55"}">${stateLabel}</div>
   `;
   if (got) {
     el.style.cursor = "pointer";
@@ -1387,9 +1436,9 @@ function presetCard(
   const isChameleon = p.id === "chameleon";
   const el = document.createElement("button");
   el.dataset.noFlap = "true";
-  el.className = `relative rounded-2xl p-3 flex flex-col items-center text-[10px] gap-2 border-2 ${
-    equipped ? "border-paper" : isChameleon && state.unlocked ? "border-fuchsia-400/50" : state.unlocked ? "border-white/10" : "border-white/5"
-  } bg-white/5 ${state.unlocked ? "active:scale-95" : "opacity-50 cursor-not-allowed"} transition`;
+  el.className = `paper-note relative p-3 flex flex-col items-center text-[10px] gap-2 ${
+    equipped ? "is-equipped" : state.unlocked ? "" : "is-locked"
+  } ${state.unlocked ? "active:scale-95" : "cursor-not-allowed"} transition`;
   const swatch = isChameleon
     ? `<div class="w-full aspect-square flex items-center justify-center rounded-xl" style="background:conic-gradient(from 0deg, #ef4444, #f59e0b, #eab308, #22c55e, #06b6d4, #6366f1, #a855f7, #ef4444)">
          <div class="w-[78%] h-[78%] flex items-center justify-center rounded-lg bg-black/35">${shapeSvgWithColors(shapeId, p.body, p.accent)}</div>
@@ -1399,16 +1448,10 @@ function presetCard(
        </div>`;
   el.innerHTML = `
     ${swatch}
-    <div class="font-bold">${escapeHtml(p.name)}</div>
-    <div class="opacity-60 text-[10px] text-center leading-tight">${state.unlocked ? (isChameleon ? "random every run" : "ready") : escapeHtml(state.hint ?? "locked")}</div>
-    ${isChameleon ? `<div class="text-[8px] uppercase tracking-wider rounded px-1 py-0.5 font-bold" style="background:#a855f733;color:#d8b4fe">legendary</div>` : ""}
-    ${
-      equipped
-        ? `<div class="absolute top-1 right-1 text-[9px] bg-paper text-ink rounded-full px-1.5 py-0.5">equipped</div>`
-        : !state.unlocked
-          ? `<div class="absolute top-1 right-1 text-[9px] bg-white/15 rounded-full px-1.5 py-0.5">locked</div>`
-          : ""
-    }
+    <div class="font-bold font-hand text-[13px]">${escapeHtml(p.name)}</div>
+    <div class="opacity-70 text-[10px] text-center leading-tight">${state.unlocked ? (isChameleon ? "random every run" : "ready") : escapeHtml(state.hint ?? "locked")}</div>
+    ${isChameleon ? `<div class="text-[8px] uppercase tracking-wider rounded px-1 py-0.5 font-bold" style="background:#a855f733;color:#7c3aed">legendary</div>` : ""}
+    ${equipped ? equippedChipPaper() : !state.unlocked ? lockedChipPaper() : ""}
   `;
   el.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -1470,12 +1513,12 @@ function playtesterCard(): HTMLElement {
   const el = document.createElement("div");
   el.dataset.noFlap = "true";
   el.className =
-    "relative rounded-2xl p-3 flex flex-col items-center text-[11px] gap-2 border-2 border-emerald-300/50 bg-emerald-300/10";
+    "paper-note relative p-3 flex flex-col items-center text-[11px] gap-2";
   el.innerHTML = `
     <div class="w-full aspect-square flex items-center justify-center swatch-plate rounded-xl text-4xl">🧪</div>
-    <div class="font-bold">Playtester</div>
+    <div class="font-bold font-hand text-[13px]">Playtester</div>
     <div class="opacity-70 text-[12px] text-center leading-tight">here before launch</div>
-    <div class="absolute top-1 right-1 text-[9px] bg-emerald-300 text-ink rounded-full px-1.5 py-0.5">forever</div>
+    <div class="absolute top-1 right-1 text-[9px] font-bold bg-emerald-600 text-paper rounded-full px-1.5 py-0.5">forever</div>
   `;
   return el;
 }
@@ -1483,12 +1526,12 @@ function playtesterCard(): HTMLElement {
 function devBadgeCard(): HTMLElement {
   const el = document.createElement("div");
   el.dataset.noFlap = "true";
-  el.className = "rounded-2xl bg-white/5 border-2 border-accent-ranked/30 p-4 flex flex-col items-center gap-2 text-center";
+  el.className = "paper-note p-4 flex flex-col items-center gap-2 text-center";
   el.innerHTML = `
     <div class="text-3xl">⚡</div>
-    <div class="font-bold text-sm">Developer</div>
-    <div class="text-[10px] opacity-60 leading-snug">made this game</div>
-    <div class="text-[9px] uppercase tracking-wider font-bold" style="color:#c084fc">dev badge</div>
+    <div class="font-bold font-hand text-[15px]">Developer</div>
+    <div class="text-[10px] opacity-70 leading-snug">made this game</div>
+    <div class="text-[9px] uppercase tracking-wider font-bold" style="color:#7c3aed">dev badge</div>
   `;
   return el;
 }
@@ -1497,15 +1540,15 @@ function badgeCard(badge: SeasonBadge, isBest: boolean): HTMLElement {
   const medal = badge.rank === 1 ? "🥇" : badge.rank <= 3 ? "🥈" : "🏅";
   const el = document.createElement("div");
   el.dataset.noFlap = "true";
-  el.className = `relative rounded-2xl p-3 flex flex-col items-center text-[11px] gap-2 border-2 ${
-    isBest ? "border-amber-300/60 bg-amber-300/10" : "border-white/10 bg-white/5"
+  el.className = `paper-note relative p-3 flex flex-col items-center text-[11px] gap-2 ${
+    isBest ? "is-equipped" : ""
   }`;
   el.innerHTML = `
     <div class="w-full aspect-square flex items-center justify-center swatch-plate rounded-xl text-4xl">${medal}</div>
-    <div class="font-bold">Season ${badge.season_id}</div>
-    <div class="opacity-70 text-[12px]">Rank #${badge.rank}</div>
-    <div class="opacity-50 text-[10px]">Rating ${badge.rating}</div>
-    ${isBest ? `<div class="absolute top-1 right-1 text-[9px] bg-amber-300 text-ink rounded-full px-1.5 py-0.5">best</div>` : ""}
+    <div class="font-bold font-hand text-[13px]">Season ${badge.season_id}</div>
+    <div class="opacity-75 text-[12px]">Rank #${badge.rank}</div>
+    <div class="opacity-60 text-[10px]">Rating ${badge.rating}</div>
+    ${isBest ? `<div class="absolute top-1 right-1 text-[9px] font-bold bg-amber-500 text-ink rounded-full px-1.5 py-0.5">best</div>` : ""}
   `;
   return el;
 }
@@ -1514,18 +1557,17 @@ function badgeCard(badge: SeasonBadge, isBest: boolean): HTMLElement {
 function collectibleBadgeCard(def: BadgeDef, unlocked: boolean): HTMLElement {
   const el = document.createElement("div");
   el.dataset.noFlap = "true";
-  el.className = `relative rounded-2xl p-4 flex flex-col items-center gap-2 text-center border-2 ${
-    unlocked ? "bg-white/5" : "bg-white/[0.02] border-white/10 opacity-60"
+  el.className = `paper-note relative p-4 flex flex-col items-center gap-2 text-center ${
+    unlocked ? "" : "is-locked"
   }`;
-  if (unlocked) el.style.borderColor = `${def.color}66`;
   el.innerHTML = `
     <div class="text-3xl ${unlocked ? "" : "grayscale opacity-60"}">${def.emoji}</div>
-    <div class="font-bold text-sm">${escapeHtml(def.name)}</div>
-    <div class="text-[10px] opacity-60 leading-snug">${escapeHtml(def.hint)}</div>
+    <div class="font-bold font-hand text-[15px]">${escapeHtml(def.name)}</div>
+    <div class="text-[10px] opacity-70 leading-snug">${escapeHtml(def.hint)}</div>
     ${
       unlocked
         ? `<div class="text-[9px] uppercase tracking-wider font-bold" style="color:${def.color}">earned</div>`
-        : `<div class="absolute top-1 right-1 text-[9px] bg-white/10 rounded-full px-1.5 py-0.5">locked</div>`
+        : lockedChipPaper()
     }
   `;
   return el;
@@ -1584,9 +1626,9 @@ function pillarCard(
 ): HTMLElement {
   const el = document.createElement("button");
   el.dataset.noFlap = "true";
-  el.className = `relative rounded-2xl p-3 flex flex-col items-center text-[11px] gap-2 border-2 ${
-    equipped ? "border-paper" : unlocked ? "border-white/10" : "border-white/5"
-  } bg-white/5 ${unlocked ? "active:scale-95" : "opacity-50 cursor-not-allowed"} transition`;
+  el.className = `paper-note relative p-3 flex flex-col items-center text-[11px] gap-2 ${
+    equipped ? "is-equipped" : unlocked ? "" : "is-locked"
+  } ${unlocked ? "active:scale-95" : "cursor-not-allowed"} transition`;
   // Mini preview: render the style onto a small canvas with a gap in the middle.
   const cv = document.createElement("canvas");
   cv.width = 120;
@@ -1610,17 +1652,17 @@ function pillarCard(
     });
   }
   const label = document.createElement("div");
-  label.className = "font-bold capitalize";
+  label.className = "font-bold font-hand text-[13px] capitalize";
   label.textContent = style.name;
   const sub = document.createElement("div");
-  sub.className = "text-[10px] opacity-60 text-center leading-snug";
+  sub.className = "text-[10px] opacity-70 text-center leading-snug";
   sub.textContent = unlocked ? style.blurb : displayHint(hint);
   el.appendChild(cv);
   el.appendChild(label);
   el.appendChild(sub);
   if (style.hardensDaily) {
     const chip = document.createElement("div");
-    chip.className = "text-[9px] uppercase tracking-wider text-amber-300";
+    chip.className = "text-[9px] uppercase tracking-wider text-amber-700 font-bold";
     chip.textContent = "harder daily";
     el.appendChild(chip);
   }
@@ -1631,9 +1673,14 @@ function pillarCard(
   }
   if (equipped) {
     const eq = document.createElement("div");
-    eq.className = "absolute top-1 right-1 text-[9px] bg-paper text-ink rounded-full px-1.5 py-0.5";
+    eq.className = "absolute top-1 right-1 text-[9px] font-bold bg-ink text-paper rounded-full px-1.5 py-0.5";
     eq.textContent = "equipped";
     el.appendChild(eq);
+  } else if (!unlocked) {
+    const lk = document.createElement("div");
+    lk.className = "absolute top-1 right-1 text-[9px] font-bold bg-black/15 text-ink/70 rounded-full px-1.5 py-0.5";
+    lk.textContent = "locked";
+    el.appendChild(lk);
   }
   el.addEventListener("click", (e) => {
     e.stopPropagation();

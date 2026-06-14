@@ -473,28 +473,6 @@ function showMenu(): void {
       onPlay: () => { pushSubView(); playCasual(); },
       onTraining: () => { pushSubView(); startRun("training"); },
       onPlayDaily: () => { pushSubView(); openDailyLanding(); },
-      onRaceBest: () => {
-        try {
-          const raw = localStorage.getItem("pflug.pbRun.v1");
-          if (!raw) return;
-          const pb = JSON.parse(raw) as { seed: number; inputs: { tick: number; action: "flap" }[]; score: number; daily_date?: string | null };
-          activeChallenge = {
-            short_id: "pb",
-            seed: pb.seed >>> 0,
-            inputs: pb.inputs,
-            creator_score: pb.score,
-            creator_username: "your best",
-            creator_skin: null,
-            creator_shape: equippedShapeId,
-            creator_theme: null,
-            daily_date: pb.daily_date ?? null,
-            depth: 0,
-            can_respond_again: false,
-          };
-          pushSubView();
-          startRun("race");
-        } catch { /* corrupted save — ignore */ }
-      },
       onToggleSetting,
       onSetGhostOpacity: (pct: number) => {
         settings.ghostOpacity = pct;
@@ -941,18 +919,6 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
             mode: currentRunMode as Exclude<RunMode, "training">,
             isNewPb,
           });
-          // Keep the PB run's replay so the player can race their own best
-          // ("race" mode replays it as a ghost on the same seed + physics).
-          if (isNewPb && loop) {
-            try {
-              localStorage.setItem("pflug.pbRun.v1", JSON.stringify({
-                seed: currentSeed >>> 0,
-                inputs: loop.getRecordedInputs(),
-                score,
-                daily_date: currentRunMode === "daily" ? dailyInfo?.date ?? null : null,
-              }));
-            } catch { /* localStorage blocked */ }
-          }
           runProgress = { prevBest, isNewPb, xp, nextUnlock: nextUnlockHint(updatedStats) };
           // Server is the XP authority once a run is accepted; adopt its
           // total quietly so local and server levels can't drift apart.
@@ -1244,6 +1210,8 @@ function openProfile(username: string): void {
         startRun("race");
       })();
     },
+    // "race my best" label + behaviour when you're viewing your own profile.
+    username.toLowerCase() === (authState().profile?.username ?? "").toLowerCase(),
   );
 }
 

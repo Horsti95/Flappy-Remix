@@ -15,6 +15,7 @@ export function renderProfile(
   username: string,
   onClose: () => void,
   onRaceBestRun?: (username: string) => void,
+  isSelf?: boolean,
 ): () => void {
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
@@ -59,7 +60,9 @@ export function renderProfile(
       btn.dataset.noFlap = "true";
       btn.className =
         "mt-4 w-full rounded-2xl bg-paper text-ink font-bold py-3 active:scale-95 transition";
-      btn.textContent = `🏁 race their best (${profile.best_score})`;
+      btn.textContent = isSelf
+        ? `🏁 race my best (${profile.best_score})`
+        : `🏁 race their best (${profile.best_score})`;
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
         onRaceBestRun(username);

@@ -16,7 +16,6 @@ import { feedbackFormHtml, bindFeedbackForm } from "./feedback-form";
 
 export interface MenuCallbacks {
   onPlay(): void;
-  onRaceBest(): void;
   onTraining(): void;
   onPlayDaily(): void;
   onToggleSetting(key: keyof Settings): void;
@@ -79,12 +78,6 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   const modifierLine = meta.daily && meta.daily.modifierNames.length > 0
     ? `<div class="mt-1 text-[11px] opacity-70 truncate">${meta.daily.modifierNames.map(escapeHtml).join(" + ")}</div>`
     : "";
-  // "Race your best" appears once there's a PB replay worth chasing (30+).
-  let raceBest: number | null = null;
-  try {
-    const pb = JSON.parse(localStorage.getItem("pflug.pbRun.v1") ?? "null") as { score?: number } | null;
-    if (pb?.score && pb.score >= 30) raceBest = pb.score;
-  } catch { /* ignore */ }
   const levelBadge = `<span class="mr-1.5 inline-flex items-center text-[10px] font-bold bg-paper/20 rounded-full px-2 py-0.5">LV ${levelFromTotalXp(loadTotalXp()).level}</span>`;
   const streakBadge = meta.streakDays > 0
     ? `<span class="ml-2 inline-flex items-center gap-1 text-[11px] font-bold bg-orange-500/20 text-orange-300 rounded-full px-2.5 py-0.5">🔥 ${meta.streakDays}</span>`
@@ -149,7 +142,6 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
         </button>
       </div>
       <button data-action="training" class="block mx-auto mt-3 text-[11px] opacity-50 hover:opacity-90 transition-opacity underline">🪶 practice mode (untracked)</button>
-      ${raceBest ? `<button data-action="race-best" class="block mx-auto mt-1.5 text-[11px] opacity-50 hover:opacity-90 transition-opacity underline">🏁 race your best (${raceBest})</button>` : ""}
       ${
         SUPPORT_ENABLED
           ? `<a href="${escapeHtml(SUPPORT_URL)}" target="_blank" rel="noopener noreferrer" data-support class="block mt-4 text-center text-[11px] opacity-50 hover:opacity-90 transition-opacity">☕ buy me a coffee</a>`
@@ -241,10 +233,6 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   wrap.querySelector('[data-action="daily"]')?.addEventListener("click", (e) => {
     e.stopPropagation();
     cbs.onPlayDaily();
-  });
-  wrap.querySelector('[data-action="race-best"]')?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    cbs.onRaceBest();
   });
   wrap.querySelector('[data-action="training"]')?.addEventListener("click", (e) => {
     e.stopPropagation();

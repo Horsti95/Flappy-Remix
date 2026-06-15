@@ -1288,9 +1288,9 @@ function showCoachCard(emoji: string, text: string): void {
   card.className =
     "pointer-events-none absolute bottom-20 inset-x-4 z-20 flex justify-center";
   card.innerHTML = `
-    <div class="bg-black/80 backdrop-blur-sm rounded-2xl px-5 py-3 text-paper font-display text-center shadow-xl max-w-xs" style="border:1px solid rgba(244,234,213,0.15)">
+    <div class="paper-note px-5 py-3 text-center max-w-xs">
       <div class="text-2xl mb-1">${emoji}</div>
-      <div class="text-sm font-bold leading-snug">${text}</div>
+      <div class="text-sm font-bold font-hand leading-snug">${text}</div>
     </div>
   `;
   overlays.appendChild(card);

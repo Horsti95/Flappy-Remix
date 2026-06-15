@@ -50,16 +50,19 @@ export function renderEventPopup(host: HTMLElement, ev: GameEvent, onClose: () =
     "pointer-events-auto absolute inset-0 z-40 bg-black/60 backdrop-blur-sm font-display flex items-center justify-center px-4";
 
   const { plays, rewards } = eventProgress(ev);
-  const maxThreshold = Math.max(...ev.rewards.map((r) => r.threshold));
+  const maxThreshold = Math.max(...ev.rewards.filter((r) => !r.onFinalDay).map((r) => r.threshold));
   const unlockedCount = rewards.filter((r) => r.unlocked).length;
   const pct = Math.min(100, Math.round((plays / maxThreshold) * 100));
+  const finalDate = ev.until.slice(5).replace("-", "/"); // mm/dd
 
   const rows = rewards
     .map((r) => {
       const left = Math.max(0, r.threshold - plays);
       const status = r.unlocked
         ? `<span class="text-[10px] font-bold uppercase tracking-wider text-emerald-700">unlocked</span>`
-        : `<span class="text-[10px] opacity-60">play ${left} more</span>`;
+        : r.onFinalDay
+          ? `<span class="text-[10px] opacity-60">play on ${finalDate}</span>`
+          : `<span class="text-[10px] opacity-60">play ${left} more</span>`;
       return `
         <div class="flex items-center gap-3 py-1.5 ${r.unlocked ? "" : "opacity-70"}">
           <div class="w-9 h-9 shrink-0 flex items-center justify-center swatch-plate rounded-lg">${rewardIcon(r.kind, r.id)}</div>

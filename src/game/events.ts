@@ -22,8 +22,12 @@ export interface EventReward {
   id: string;
   /** Display name for the popup. */
   label: string;
-  /** Games to play during the window before this unlocks. */
+  /** Games to play during the window before this unlocks. Ignored when
+   *  {@link onFinalDay} is set. */
   threshold: number;
+  /** Finale reward: unlocks by playing a game on the event's FINAL day,
+   *  regardless of how many games were played overall. */
+  onFinalDay?: boolean;
 }
 
 export interface GameEvent {
@@ -48,11 +52,13 @@ export const EVENTS: GameEvent[] = [
     rewards: [
       { kind: "shape", id: "soccer-ball", label: "match ball", threshold: 1 },
       { kind: "pillar", id: "candy", label: "red-card posts", threshold: 2 },
-      { kind: "preset", id: "preset-gold", label: "golden boot", threshold: 4 },
-      { kind: "gate", id: "pop_choir", label: "crowd chant chime", threshold: 7 },
-      { kind: "fx", id: "sparkle", label: "confetti flap", threshold: 11 },
-      { kind: "pillar", id: "gold", label: "trophy posts", threshold: 15 },
-      { kind: "preset", id: "preset-crimson", label: "home kit", threshold: 20 },
+      { kind: "preset", id: "preset-crimson", label: "home kit", threshold: 5 },
+      { kind: "gate", id: "pop_choir", label: "crowd chant chime", threshold: 8 },
+      { kind: "preset", id: "preset-ocean", label: "away kit", threshold: 11 },
+      { kind: "fx", id: "sparkle", label: "confetti flap", threshold: 14 },
+      { kind: "pillar", id: "gold", label: "trophy posts", threshold: 18 },
+      // Finale: the golden boot is awarded for showing up on the final day.
+      { kind: "preset", id: "preset-gold", label: "golden boot", threshold: 0, onFinalDay: true },
     ],
   },
 ];
@@ -76,6 +82,19 @@ function playsKey(eventId: string): string {
   return `pflug.event.${eventId}.plays`;
 }
 
+function finalDayKey(eventId: string): string {
+  return `pflug.event.${eventId}.finalday`;
+}
+
+/** Whether the player played a game on this event's FINAL day (latched). */
+export function finalDayPlayed(eventId: string): boolean {
+  try {
+    return localStorage.getItem(finalDayKey(eventId)) === "1";
+  } catch {
+    return false;
+  }
+}
+
 /** How many games the player has completed during this event's window. */
 export function eventPlays(eventId: string): number {
   try {
@@ -95,12 +114,19 @@ export function recordEventPlay(now: Date = new Date()): EventReward[] {
   if (!ev) return [];
   const before = eventPlays(ev.id);
   const after = before + 1;
+  const onFinalDay = isoToday(now) === ev.until;
+  const finalFirst = onFinalDay && !finalDayPlayed(ev.id);
   try {
     localStorage.setItem(playsKey(ev.id), String(after));
+    if (onFinalDay) localStorage.setItem(finalDayKey(ev.id), "1");
   } catch {
     /* localStorage blocked — event progress just won't persist */
   }
-  return ev.rewards.filter((r) => before < r.threshold && after >= r.threshold);
+  // Rewards that JUST crossed: threshold rewards that ticked over, plus any
+  // final-day reward the moment the player shows up on the last day.
+  return ev.rewards.filter((r) =>
+    r.onFinalDay ? finalFirst : before < r.threshold && after >= r.threshold,
+  );
 }
 
 /** Whether `id` of `kind` has been earned through ANY event (window-agnostic:
@@ -108,9 +134,13 @@ export function recordEventPlay(now: Date = new Date()): EventReward[] {
 export function isEventGranted(kind: EventRewardKind, id: string): boolean {
   for (const ev of EVENTS) {
     const plays = eventPlays(ev.id);
-    if (plays <= 0) continue;
     for (const r of ev.rewards) {
-      if (r.kind === kind && r.id === id && plays >= r.threshold) return true;
+      if (r.kind !== kind || r.id !== id) continue;
+      if (r.onFinalDay) {
+        if (finalDayPlayed(ev.id)) return true;
+      } else if (plays > 0 && plays >= r.threshold) {
+        return true;
+      }
     }
   }
   return false;
@@ -122,9 +152,13 @@ export function eventProgress(ev: GameEvent): {
   rewards: Array<EventReward & { unlocked: boolean }>;
 } {
   const plays = eventPlays(ev.id);
+  const final = finalDayPlayed(ev.id);
   return {
     plays,
-    rewards: ev.rewards.map((r) => ({ ...r, unlocked: plays >= r.threshold })),
+    rewards: ev.rewards.map((r) => ({
+      ...r,
+      unlocked: r.onFinalDay ? final : plays >= r.threshold,
+    })),
   };
 }
 

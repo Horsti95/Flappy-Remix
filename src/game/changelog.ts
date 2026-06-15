@@ -8,7 +8,7 @@
  * Bump APP_VERSION + prepend an entry when shipping notable changes.
  */
 
-export const APP_VERSION = "0.19.0";
+export const APP_VERSION = "0.20.0";
 
 export interface ChangeEntry {
   version: string;
@@ -19,6 +19,20 @@ export interface ChangeEntry {
 
 // Newest first.
 export const CHANGELOG: ChangeEntry[] = [
+  {
+    version: "0.20.0",
+    date: "2026-06-15",
+    title: "Paper everywhere, World Cup & device sync",
+    notes: [
+      "📄 The whole app now wears the paper look: main menu, pause, daily, settings and account are folded-paper cards in the hand-drawn font.",
+      "⚽ World Cup event is live — just play (any mode) to earn the kit: match ball, team palettes, an away kit, crowd-chant chime, confetti flap and trophy posts. Show up on the final day for the golden boot.",
+      "🎨 Gallery colours fixed: every shape now previews its OWN colour (origami included), not the one you've got equipped.",
+      "💌 The love letter is now a two-colour sprite, and the new origami planes sit truer to their hitbox. New “Show hitbox” option in Settings.",
+      "📱 Link devices without an email: generate a code on one device, enter it on another to carry your profile across.",
+      "🙌 Supporter badge can now be granted by a code.",
+      "👋 New flyers get quick in-game tips on their very first run, whatever mode they start in.",
+    ],
+  },
   {
     version: "0.19.0",
     date: "2026-06-11",

@@ -15,7 +15,7 @@ export function renderLeaderboard(
   wrap.className = "pointer-events-auto absolute inset-0 z-30 bg-black/80 backdrop-blur-sm font-display text-paper flex flex-col";
   wrap.innerHTML = `
     <div class="px-5 pt-5 pb-3 flex items-center justify-between">
-      <h2 class="text-xl font-bold">leaderboard</h2>
+      <h2 class="text-2xl font-bold font-hand">leaderboard</h2>
       <button data-close class="text-sm underline opacity-70">close</button>
     </div>
     <div data-scopes class="px-5 grid grid-cols-2 gap-2 text-[12px]">

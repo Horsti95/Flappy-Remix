@@ -113,16 +113,16 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
           <div class="text-[10px] uppercase tracking-wider opacity-65 flex items-center gap-1.5">
             <span class="font-hand text-[12px] font-bold normal-case tracking-normal">Daily</span>${tierChip}
           </div>
-          <div class="text-sm leading-tight mt-0.5">${modifierLine ? meta.daily!.modifierBlurbs.map(escapeHtml).join(" + ") : "same seed worldwide"}</div>
+          <div class="text-sm leading-tight mt-0.5 font-hand font-bold">${modifierLine ? meta.daily!.modifierBlurbs.map(escapeHtml).join(" + ") : "same seed worldwide"}</div>
           <div class="text-[9px] opacity-55 mt-1">${dailyLine}</div>
         </button>
       </div>
 
       <div class="mt-3 grid grid-cols-2 gap-2">
-        <button data-action="ranked" class="paper-note font-bold py-3 text-sm active:scale-95 transition">
+        <button data-action="ranked" class="paper-note font-hand font-bold py-3 text-base active:scale-95 transition">
           Ranked
         </button>
-        <button data-action="inbox" class="relative paper-note font-bold py-3 text-sm active:scale-95 transition">
+        <button data-action="inbox" class="relative paper-note font-hand font-bold py-3 text-base active:scale-95 transition">
           Challenges
           ${meta.inboxUnseen && meta.inboxUnseen > 0
             ? `<span class="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center">${meta.inboxUnseen > 9 ? "9+" : meta.inboxUnseen}</span>`
@@ -131,13 +131,13 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
       </div>
 
       <div class="mt-3 grid grid-cols-3 gap-1.5">
-        <button data-action="friends" class="paper-note font-bold py-2.5 text-[10px] active:scale-95 transition">
+        <button data-action="friends" class="paper-note font-hand font-bold py-2.5 text-[12px] active:scale-95 transition">
           Friends
         </button>
-        <button data-action="leaderboard" class="paper-note font-bold py-2.5 text-[10px] active:scale-95 transition">
+        <button data-action="leaderboard" class="paper-note font-hand font-bold py-2.5 text-[12px] active:scale-95 transition">
           Board
         </button>
-        <button data-action="skins" class="paper-note font-bold py-2.5 text-[10px] active:scale-95 transition">
+        <button data-action="skins" class="paper-note font-hand font-bold py-2.5 text-[12px] active:scale-95 transition">
           Gallery
         </button>
       </div>

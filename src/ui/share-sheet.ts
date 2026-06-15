@@ -12,7 +12,7 @@ export function renderShareSheet(host: HTMLElement, data: ShareCardData, onClose
   wrap.className = "pointer-events-auto absolute inset-0 z-40 bg-black/85 backdrop-blur-sm font-display text-paper flex flex-col";
   wrap.innerHTML = `
     <div class="px-5 pt-5 pb-3 flex items-center justify-between">
-      <h2 class="text-xl font-bold">share your run</h2>
+      <h2 class="text-2xl font-bold font-hand">share your run</h2>
       <button data-close class="text-sm underline opacity-70">close</button>
     </div>
     <div class="px-5 flex-1 flex flex-col items-center justify-start gap-4 overflow-y-auto pb-4">

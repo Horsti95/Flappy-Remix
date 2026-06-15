@@ -7,9 +7,13 @@ describe("events — active window", () => {
   it("has a coherent World Cup package", () => {
     expect(wc).toBeTruthy();
     expect(wc.rewards.length).toBeGreaterThanOrEqual(5);
-    // Thresholds strictly increasing so the popup reads as a ladder.
-    const ts = wc.rewards.map((r) => r.threshold);
+    // Non-finale thresholds strictly increasing so the popup reads as a ladder.
+    const ts = wc.rewards.filter((r) => !r.onFinalDay).map((r) => r.threshold);
     for (let i = 1; i < ts.length; i++) expect(ts[i]).toBeGreaterThan(ts[i - 1]);
+    // Exactly one finale (golden boot) gated on the final day.
+    const finale = wc.rewards.filter((r) => r.onFinalDay);
+    expect(finale).toHaveLength(1);
+    expect(finale[0].id).toBe("preset-gold");
   });
 
   it("is active inside the window (inclusive) and dormant outside", () => {

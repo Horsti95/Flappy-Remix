@@ -89,6 +89,13 @@ export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData): v
   // from the run, not a static badge. Drawn before the bird so it sits in front.
   drawPillarScene(ctx, data, theme);
 
+  // Vignette — darken the edges so the eye lands on the bird + score.
+  const vg = ctx.createRadialGradient(W / 2, H * 0.46, H * 0.22, W / 2, H * 0.5, H * 0.64);
+  vg.addColorStop(0, "rgba(0,0,0,0)");
+  vg.addColorStop(1, "rgba(0,0,0,0.45)");
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, W, H);
+
   // Brand watermark top
   ctx.fillStyle = "#f4ead5";
   ctx.font = "600 56px system-ui,sans-serif";
@@ -129,7 +136,9 @@ export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData): v
     drawChip(ctx, W - 96 - 280, chipY, 280, 88, `streak ${data.streakDays}`);
   }
 
-  // The bird — gliding through the centre pillar's gap, with its aura glow.
+  // Motion: speed streaks + soft puffs trailing the bird (drawn first, so the
+  // bird sits on top). Then the bird with its aura glow, gliding through the gap.
+  drawSpeedTrail(ctx, W / 2, H * 0.42, 240, data.skin, data.auraId);
   drawShareShape(ctx, W / 2, H * 0.42, 240, data.skin, data.shape ?? DEFAULT_SHAPE_ID, data.auraId);
 
   // Score
@@ -254,6 +263,17 @@ function drawPillarScene(ctx: CanvasRenderingContext2D, data: ShareCardData, the
   ];
   ctx.save();
   ctx.translate(0, sceneTop);
+  // Parallax back layer — a dimmer, slimmer pillar row set further back for depth.
+  ctx.save();
+  ctx.globalAlpha = 0.32;
+  for (const [x, gapCentre] of [[W * 0.32, birdSceneY - 250], [W * 0.68, birdSceneY + 230]] as Array<[number, number]>) {
+    style.draw({
+      ctx, x, gapY: clampGap(gapCentre - (gapH + 90) / 2), gapH: gapH + 90,
+      worldHeight: sceneH, pipeWidth: pipeWidth * 0.62, over, bodyColor, capColor, highContrast: false,
+    });
+  }
+  ctx.restore();
+  // Foreground pillars.
   for (const [x, gapCentre] of pillars) {
     style.draw({
       ctx,
@@ -267,6 +287,49 @@ function drawPillarScene(ctx: CanvasRenderingContext2D, data: ShareCardData, the
       capColor,
       highContrast: false,
     });
+  }
+  ctx.restore();
+}
+
+/** Anime-style motion behind the bird: tapered speed streaks + a couple of soft
+ *  puffs, tinted by the equipped aura (or the skin accent). Pure flair. */
+function drawSpeedTrail(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+  skin: SkinColors,
+  auraId?: AuraId,
+): void {
+  const tint = (auraId ? auraColor(auraId) : null) ?? skin.accent;
+  const col = `rgb(${tint.join(",")})`;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(-0.18);
+  // Soft puffs drifting back.
+  ctx.fillStyle = col;
+  for (let i = 1; i <= 3; i++) {
+    ctx.globalAlpha = 0.2 - i * 0.045;
+    ctx.beginPath();
+    ctx.arc(-size * (0.5 + i * 0.4), size * 0.05 * i, Math.max(8, size * (0.24 - i * 0.05)), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Tapered speed streaks extending left from the bird.
+  ctx.globalAlpha = 0.5;
+  ctx.strokeStyle = col;
+  ctx.lineCap = "round";
+  const streaks: Array<[number, number, number]> = [
+    [-size * 0.28, size * 1.5, 10],
+    [-size * 0.06, size * 2.1, 15],
+    [size * 0.14, size * 1.8, 12],
+    [size * 0.32, size * 1.2, 8],
+  ];
+  for (const [y, len, w] of streaks) {
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    ctx.moveTo(-size * 0.5, y);
+    ctx.lineTo(-size * 0.5 - len, y);
+    ctx.stroke();
   }
   ctx.restore();
 }

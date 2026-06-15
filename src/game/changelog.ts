@@ -31,6 +31,9 @@ export const CHANGELOG: ChangeEntry[] = [
       "📱 Link devices without an email: generate a code on one device, enter it on another to carry your profile across.",
       "🙌 Supporter badge can now be granted by a code.",
       "👋 New flyers get quick in-game tips on their very first run, whatever mode they start in.",
+      "🎨 Milestones now let you PICK 1 of 3 colours (levels, a big goal, the World Cup finale) — choose wisely, the other two lock for good.",
+      "⏸️ Your unfinished casual run is now protected: jump to daily or ranked and the game checks before you lose it.",
+      "🔒 Locked items in the gallery are clearly greyed out now.",
     ],
   },
   {

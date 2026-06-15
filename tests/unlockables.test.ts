@@ -99,15 +99,19 @@ const MAXED: UnlockStats = {
 describe("unlockables registry", () => {
   it("includes every source item exactly once", () => {
     const all = getUnlockables(FRESH);
+    // Hidden shapes and "pick 1 of 3" choice presets are intentionally excluded
+    // from the play-to-unlock collection.
+    const pickableShapes = SHAPES.filter((s) => !s.hidden).length;
+    const collectiblePresets = PRESET_SKINS.filter((p) => !p.choice).length;
     expect(all).toHaveLength(
-      SHAPES.length + THEMES.length + PRESET_SKINS.length + ACHIEVEMENTS.length,
+      pickableShapes + THEMES.length + collectiblePresets + ACHIEVEMENTS.length,
     );
     expect(new Set(all.map((u) => u.uid)).size).toBe(all.length);
   });
 
   it("normalized unlocked state matches each source's own check", () => {
     const all = getUnlockables(MAXED);
-    for (const s of SHAPES) {
+    for (const s of SHAPES.filter((s) => !s.hidden)) {
       const u = all.find((x) => x.uid === `shape:${s.id}`)!;
       expect(u.unlocked).toBe(s.unlock(MAXED).unlocked);
     }
@@ -129,7 +133,7 @@ describe("unlockables registry", () => {
 
   it("progress is 0% fresh and 100% maxed (per kind and overall)", () => {
     expect(unlockProgress(undefined, MAXED).pct).toBe(100);
-    expect(unlockProgress("palette", MAXED).unlocked).toBe(PRESET_SKINS.length);
+    expect(unlockProgress("palette", MAXED).unlocked).toBe(PRESET_SKINS.filter((p) => !p.choice).length);
     // Fresh: only always-on items (e.g. the default shape/theme) count.
     const fresh = unlockProgress(undefined, FRESH);
     expect(fresh.unlocked).toBeLessThan(fresh.total);

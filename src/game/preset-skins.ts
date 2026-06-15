@@ -1,5 +1,6 @@
 import type { AchievementStats } from "./achievements";
 import { isEventGranted } from "./events";
+import { CHOICE_PRESETS, isChoicePicked } from "./color-choices";
 
 type RGB = [number, number, number];
 
@@ -18,6 +19,9 @@ export interface PresetSkin {
   name: string;
   body: RGB;
   accent: RGB;
+  /** True for "pick 1 of 3" milestone colours (see game/color-choices.ts). The
+   *  gallery only surfaces these once resolved (picked or locked-forever). */
+  choice?: boolean;
   unlock(stats: AchievementStats): { unlocked: boolean; hint?: string };
 }
 
@@ -61,6 +65,8 @@ export const PRESET_SKINS: PresetSkin[] = [
   // so it reads as "random every time".
   { id: "chameleon", name: "Chameleon", body: [168, 85, 247], accent: [30, 10, 50],
     unlock: (s) => ({ unlocked: s.totalGames >= 1234, hint: "play 1234 games" }) },
+  // "Pick 1 of 3" milestone colours — equippable once chosen (see color-choices.ts).
+  ...CHOICE_PRESETS,
 ];
 
 const PRESET_KEY = "pflug.equippedPreset.v1";
@@ -91,6 +97,7 @@ let labMode = false;
 export function setPresetLabMode(on: boolean): void { labMode = on; }
 export function presetUnlock(p: PresetSkin, stats: AchievementStats): { unlocked: boolean; hint?: string } {
   if (labMode) return { unlocked: true };
+  if (isChoicePicked(p.id)) return { unlocked: true };
   if (isEventGranted("preset", p.id)) return { unlocked: true };
   return p.unlock(stats);
 }

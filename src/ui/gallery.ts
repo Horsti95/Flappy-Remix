@@ -1,5 +1,6 @@
 import { listOwnedSkins, getCachedOwnedSkins, type SkinRow } from "../social/skins";
 import { isEventGranted } from "../game/events";
+import { isChoicePicked, isChoiceRejected } from "../game/color-choices";
 import { unlockProgress } from "../game/unlockables";
 import { tierForUnlock, tierRank, TIER_COLOR, TIER_LABEL, type Tier } from "../game/tiers";
 import { RARITY_COLOR, rarityRank } from "../game/rarity";
@@ -708,7 +709,13 @@ export function renderGallery(
     const presetGrid = document.createElement("div");
     presetGrid.className = "grid grid-cols-3 gap-3.5 px-2 pt-1";
     body.appendChild(presetGrid);
-    for (const p of PRESET_SKINS) {
+    // "Pick 1 of 3" milestone colours only appear once decided: the one you
+    // picked (equippable) and the ones you passed on (locked forever). Pending
+    // sets stay hidden so future milestones aren't spoiled.
+    const visiblePresets = PRESET_SKINS.filter(
+      (p) => !p.choice || isChoicePicked(p.id) || isChoiceRejected(p.id),
+    );
+    for (const p of visiblePresets) {
       presetGrid.appendChild(
         presetCard(p, currentEquipped.presetId === p.id, achStats, currentEquipped.shapeId, () => {
           if (!presetUnlock(p, achStats).unlocked) return;

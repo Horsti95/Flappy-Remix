@@ -100,9 +100,12 @@ function achievementUnlockable(a: AchievementDef, stats: UnlockStats): Unlockabl
 /** Build the full normalized list for the given stats. */
 export function getUnlockables(stats: UnlockStats = loadAchievementStats()): Unlockable[] {
   return [
-    ...SHAPES.map((s) => shapeUnlockable(s, stats)),
+    // Hidden shapes (retired variants) and "pick 1 of 3" choice colours are not
+    // part of the play-to-unlock collection: the former aren't pickable, the
+    // latter can never be 100%-owned (you keep one per set, by design).
+    ...SHAPES.filter((s) => !s.hidden).map((s) => shapeUnlockable(s, stats)),
     ...THEMES.map((t) => themeUnlockable(t, stats)),
-    ...PRESET_SKINS.map((p) => presetUnlockable(p, stats)),
+    ...PRESET_SKINS.filter((p) => !p.choice).map((p) => presetUnlockable(p, stats)),
     ...ACHIEVEMENTS.map((a) => achievementUnlockable(a, stats)),
   ];
 }

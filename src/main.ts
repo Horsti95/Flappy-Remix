@@ -15,7 +15,7 @@ import {
   renderGameOver,
   type GameOverResult,
 } from "./ui/menu";
-import { addRunXp, syncTotalXp } from "./game/xp";
+import { addRunXp, syncTotalXp, levelFromTotalXp, loadTotalXp } from "./game/xp";
 import { nextUnlockHint } from "./game/next-unlock";
 import { setGateSoundLabMode } from "./game/gate-sounds";
 import { initAuth, authState, subscribeAuth } from "./social/auth";
@@ -62,7 +62,9 @@ import { renderInbox } from "./ui/inbox";
 import { renderProfile } from "./ui/profile";
 import { renderWhatsNew } from "./ui/whats-new";
 import { renderEventPopup } from "./ui/event-popup";
-import { recordEventPlay, getActiveEvent, eventAnnounced } from "./game/events";
+import { recordEventPlay, getActiveEvent, eventAnnounced, finalDayPlayed } from "./game/events";
+import { pendingChoiceSets } from "./game/color-choices";
+import { renderColorChoice } from "./ui/color-choice";
 import { renderTutorial, tutorialSeen, markTutorialSeen, firstRealRunSeen, markFirstRealRunSeen } from "./ui/tutorial";
 import { isFirstRun, markChangelogSeen, unseenChanges, CHANGELOG } from "./game/changelog";
 import { renderQuests } from "./ui/quests";
@@ -606,6 +608,29 @@ function showMenu(): void {
       inboxUnseen,
     },
   );
+  // Offer any pending "pick 1 of 3" milestone colour once we're on the menu.
+  maybeShowColorChoice();
+}
+
+// Show a pending colour-choice card (level / goal / event milestone). Picking
+// commits the colour and locks the other two forever.
+function maybeShowColorChoice(): void {
+  if (mode !== "menu" || panelOpen) return;
+  const pending = pendingChoiceSets({
+    level: levelFromTotalXp(loadTotalXp()).level,
+    stats: loadAchievementStats(),
+    eventFinalDay: (id) => finalDayPlayed(id),
+  });
+  if (pending.length === 0) return;
+  panelOpen = true;
+  renderColorChoice(overlays, pending[0], equippedShapeId, (colorId) => {
+    setEquippedPresetLocal(colorId);
+    equippedSkin = null;
+    setEquippedAchievementColorLocal(null);
+    void loadEquippedSkin();
+    showToast("colour unlocked & equipped");
+    showMenu();
+  });
 }
 
 function openDailyLanding(): void {

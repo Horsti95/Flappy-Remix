@@ -1,4 +1,4 @@
-import { drawShareCard, type ShareCardData } from "../social/share-card";
+import { drawShareCard, shareCardBlob, type ShareCardData } from "../social/share-card";
 import {
   buildShareText,
   nativeShareOrFallback,
@@ -32,8 +32,27 @@ export function renderShareSheet(host: HTMLElement, data: ShareCardData, onClose
   host.appendChild(wrap);
 
   const canvas = wrap.querySelector("[data-card]") as HTMLCanvasElement;
-  // Hi-res offscreen render for the share blob, downscaled on screen.
-  drawShareCard(canvas, data);
+  // Animate the preview: the equipped tap-FX loops behind the bird (+ a gentle
+  // bob). The exported/shared/downloaded image is always a STILL frame (drawn
+  // without a time arg), so only the on-screen preview moves. Respect
+  // prefers-reduced-motion by painting a single still frame.
+  let rafId = 0;
+  const stopAnim = (): void => {
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = 0;
+  };
+  const reduceMotion =
+    typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduceMotion) {
+    drawShareCard(canvas, data);
+  } else {
+    const start = performance.now();
+    const tick = (): void => {
+      drawShareCard(canvas, data, (performance.now() - start) / 1000);
+      rafId = requestAnimationFrame(tick);
+    };
+    tick();
+  }
 
   const links = buildShareText(data);
   (wrap.querySelector("[data-whatsapp]") as HTMLAnchorElement).href = whatsappUrl(links);
@@ -43,6 +62,7 @@ export function renderShareSheet(host: HTMLElement, data: ShareCardData, onClose
 
   wrap.querySelector("[data-close]")?.addEventListener("click", (e) => {
     e.stopPropagation();
+    stopAnim();
     onClose();
   });
   wrap.querySelector("[data-native]")?.addEventListener("click", async (e) => {
@@ -60,17 +80,20 @@ export function renderShareSheet(host: HTMLElement, data: ShareCardData, onClose
       status.textContent = "copy blocked by browser";
     }
   });
-  wrap.querySelector("[data-download]")?.addEventListener("click", (e) => {
+  wrap.querySelector("[data-download]")?.addEventListener("click", async (e) => {
     e.stopPropagation();
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `pflug-${data.score}.png`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    }, "image/png");
+    // Download a STILL frame (not the current animated preview frame) so the
+    // saved PNG is consistent.
+    const blob = await shareCardBlob(data);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `pflug-${data.score}.png`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   });
 
-  return () => wrap.remove();
+  return () => {
+    stopAnim();
+    wrap.remove();
+  };
 }

@@ -8,6 +8,7 @@ import { hasSprite, getTintedSprite, getSpriteContentBox } from "../game/sprites
 import { getPillarStyle, type PillarStyleId } from "../game/pillars";
 import { getPillarColor } from "../game/pillar-colors";
 import { auraColor, type AuraId } from "../game/aura";
+import { type FlapFxId } from "../game/flap-fx";
 
 export interface ShareCardData {
   shape?: ShapeId;
@@ -16,6 +17,11 @@ export interface ShareCardData {
   pillarStyleId?: PillarStyleId;
   pillarColorId?: string;
   auraId?: AuraId;
+  /** Equipped tap/flap FX + its colour tint — drawn behind the bird (animated
+   *  in the share-sheet preview, a still representative frame in the export).
+   *  flapFxColor null/undefined = the effect's own default colour. */
+  flapFxId?: FlapFxId;
+  flapFxColor?: [number, number, number] | null;
   score: number;
   username: string | null;
   skin: SkinColors;
@@ -42,7 +48,12 @@ export interface ShareCardData {
 const W = 1080;
 const H = 1920;
 
-export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData): void {
+/**
+ * @param t  Animation time in seconds. Omit for a STILL frame (the exported /
+ *           downloaded PNG); the share-sheet preview passes elapsed time to
+ *           animate the equipped tap-FX + a gentle bird bob on a loop.
+ */
+export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData, t?: number): void {
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext("2d", { alpha: false });
@@ -136,10 +147,12 @@ export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData): v
     drawChip(ctx, W - 96 - 280, chipY, 280, 88, `streak ${data.streakDays}`);
   }
 
-  // Motion: speed streaks + soft puffs trailing the bird (drawn first, so the
-  // bird sits on top). Then the bird with its aura glow, gliding through the gap.
-  drawSpeedTrail(ctx, W / 2, H * 0.42, 240, data.skin, data.auraId);
-  drawShareShape(ctx, W / 2, H * 0.42, 240, data.skin, data.shape ?? DEFAULT_SHAPE_ID, data.auraId);
+  // The equipped tap FX emits behind the bird (drawn first, so the bird sits on
+  // top), then the bird with its aura glow gliding through the gap. The bird
+  // bobs on the same loop as the FX so the preview reads like a live flap.
+  const birdY = H * 0.42 + (t !== undefined ? Math.sin((t / FX_LOOP) * Math.PI * 2) * 12 : 0);
+  drawFlapFx(ctx, W / 2, birdY, 240, data, t);
+  drawShareShape(ctx, W / 2, birdY, 240, data.skin, data.shape ?? DEFAULT_SHAPE_ID, data.auraId);
 
   // Score
   ctx.fillStyle = "#f4ead5";
@@ -291,45 +304,101 @@ function drawPillarScene(ctx: CanvasRenderingContext2D, data: ShareCardData, the
   ctx.restore();
 }
 
-/** Anime-style motion behind the bird: tapered speed streaks + a couple of soft
- *  puffs, tinted by the equipped aura (or the skin accent). Pure flair. */
-function drawSpeedTrail(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  cy: number,
-  size: number,
-  skin: SkinColors,
-  auraId?: AuraId,
-): void {
-  const tint = (auraId ? auraColor(auraId) : null) ?? skin.accent;
-  const col = `rgb(${tint.join(",")})`;
+// One flap cadence for the looping preview (seconds). >= the longest particle
+// life (0.55s) so only one batch is ever in flight — keeps the loop clean.
+const FX_LOOP = 0.7;
+// Still-frame export samples the loop here (mid-flight, so the FX reads clearly).
+const FX_STILL_AGE = 0.16;
+
+type FxKind = "puff" | "line" | "sparkle" | "ring";
+interface FxParticle { dx0: number; dy0: number; vx: number; vy: number; life: number; kind: FxKind; }
+
+/** Deterministic particle batch for one flap — mirrors spawnFlapFx() but with
+ *  fixed (non-random) spreads so a given frame is reproducible. World units. */
+function fxBatch(id: FlapFxId): FxParticle[] {
+  switch (id) {
+    case "wind_puff":
+      return Array.from({ length: 6 }, (_, i) => {
+        const spread = (i - 2.5) * 4;
+        return { dx0: spread, dy0: 8, vx: spread * 1.2, vy: 80 + ((i * 7) % 20), life: 0.55, kind: "puff" };
+      });
+    case "speed_lines":
+      return Array.from({ length: 4 }, (_, i) => ({ dx0: -14, dy0: (i - 1.5) * 5, vx: -220, vy: 0, life: 0.32, kind: "line" }));
+    case "sparkle":
+      return Array.from({ length: 8 }, (_, i) => {
+        const ang = (i / 8) * Math.PI + Math.PI; // downward hemisphere
+        const speed = 40 + ((i * 13) % 50);
+        return { dx0: 0, dy0: 4, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, life: 0.5, kind: "sparkle" };
+      });
+    case "ring_pulse":
+      return [{ dx0: 0, dy0: 0, vx: 0, vy: 0, life: 0.35, kind: "ring" }];
+    default:
+      return [];
+  }
+}
+
+function fxDefaultColor(kind: FxKind): [number, number, number] {
+  return kind === "sparkle" ? [255, 235, 150] : [244, 234, 213];
+}
+
+/**
+ * The equipped tap FX, emitting behind the bird in its real in-game style
+ * (puff / speed-lines / sparkle / ring), tinted by the equipped FX colour.
+ * `t` undefined → a still representative frame; otherwise it animates on the
+ * FX_LOOP cadence. Particle visuals match render.ts's particle switch.
+ */
+function drawFlapFx(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number, data: ShareCardData, t?: number): void {
+  const id = data.flapFxId ?? "off";
+  if (id === "off") return;
+  const batch = fxBatch(id);
+  if (batch.length === 0) return;
+  const age = t !== undefined ? t % FX_LOOP : FX_STILL_AGE;
+  const s = size / 28; // same world→card scale as the shape, so FX sits right
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(-0.18);
-  // Soft puffs drifting back.
-  ctx.fillStyle = col;
-  for (let i = 1; i <= 3; i++) {
-    ctx.globalAlpha = 0.2 - i * 0.045;
-    ctx.beginPath();
-    ctx.arc(-size * (0.5 + i * 0.4), size * 0.05 * i, Math.max(8, size * (0.24 - i * 0.05)), 0, Math.PI * 2);
-    ctx.fill();
-  }
-  // Tapered speed streaks extending left from the bird.
-  ctx.globalAlpha = 0.5;
-  ctx.strokeStyle = col;
+  ctx.scale(s, s);
   ctx.lineCap = "round";
-  const streaks: Array<[number, number, number]> = [
-    [-size * 0.28, size * 1.5, 10],
-    [-size * 0.06, size * 2.1, 15],
-    [size * 0.14, size * 1.8, 12],
-    [size * 0.32, size * 1.2, 8],
-  ];
-  for (const [y, len, w] of streaks) {
-    ctx.lineWidth = w;
-    ctx.beginPath();
-    ctx.moveTo(-size * 0.5, y);
-    ctx.lineTo(-size * 0.5 - len, y);
-    ctx.stroke();
+  for (const p of batch) {
+    if (age >= p.life) continue;
+    const tt = age / p.life;
+    const alpha = Math.max(0, 1 - tt);
+    const rgb = data.flapFxColor ?? fxDefaultColor(p.kind);
+    const col = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})`;
+    ctx.fillStyle = col;
+    ctx.strokeStyle = col;
+    const px = p.dx0 + p.vx * age;
+    const py = p.dy0 + p.vy * age;
+    switch (p.kind) {
+      case "puff": {
+        const r = 3 + tt * 6;
+        ctx.beginPath();
+        ctx.arc(px, py, r, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+      case "line": {
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.lineTo(px - 10 - tt * 14, py);
+        ctx.stroke();
+        break;
+      }
+      case "sparkle": {
+        const r = 1.4 + (1 - tt) * 1.2;
+        ctx.fillRect(px - r / 2, py - r / 2, r, r);
+        break;
+      }
+      case "ring": {
+        const r = 4 + tt * 30;
+        ctx.lineWidth = 2 * (1 - tt);
+        ctx.beginPath();
+        ctx.arc(px, py, r, 0, Math.PI * 2);
+        ctx.stroke();
+        break;
+      }
+    }
   }
   ctx.restore();
 }

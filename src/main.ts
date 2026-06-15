@@ -57,7 +57,7 @@ import { getShowEquippedInMenu } from "./game/menu-prefs";
 import { renderDailyLanding } from "./ui/daily-landing";
 import { renderRankedPanel } from "./ui/ranked";
 import { playFlap, playCheer, playGatePass, playDeath, setSoundLabMode, setActiveFlapSound, FLAP_SOUND_OPTIONS, triggerFlapHaptic, triggerGateHaptic, triggerDeathHaptic, setGatePitchEnabled } from "./game/sfx";
-import { clearParticles, getActiveFlapFx, setFxLabMode, spawnFlapFx, setActiveFlapFx, FLAP_FX_OPTIONS } from "./game/flap-fx";
+import { clearParticles, getActiveFlapFx, getFlapFxColor, FX_COLORS, setFxLabMode, spawnFlapFx, setActiveFlapFx, FLAP_FX_OPTIONS } from "./game/flap-fx";
 import { type RankedMatch, createRankedChallenge } from "./social/ranked";
 import { createChallenge, fetchChallenge, fetchBestRunChallenge, ghostSkinFromChallenge, fetchUnseenChallengeCount, type FetchedChallenge } from "./social/challenges";
 import { renderInbox } from "./ui/inbox";
@@ -1166,6 +1166,14 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
   }
 }
 
+/** Equipped flap-FX tint as an RGB tuple, or null when set to the per-effect
+ *  default colour. Feeds the share card's animated tap-FX. */
+function equippedFlapFxColor(): [number, number, number] | null {
+  const id = getFlapFxColor();
+  if (id === "default") return null;
+  return FX_COLORS.find((c) => c.id === id)?.rgb ?? null;
+}
+
 async function openShare(score: number, result: SubmitResult | null): Promise<void> {
   const s = authState();
   const dailyPick = currentRunMode === "daily" ? dailyInfo?.pick : null;
@@ -1205,6 +1213,8 @@ async function openShare(score: number, result: SubmitResult | null): Promise<vo
     pillarStyleId: getEquippedPillarLocal(),
     pillarColorId: getEquippedPillarColorLocal(),
     auraId: getEquippedAura(),
+    flapFxId: getActiveFlapFx(),
+    flapFxColor: equippedFlapFxColor(),
     rarity: currentRarity(),
     streakDays: result?.streak_days ?? s.profile?.streak_days ?? 0,
     mode: challengeShortId ? "challenge" : currentRunMode === "ranked" ? "ranked" : currentRunMode === "daily" ? "daily" : currentRunMode === "challenge" ? "challenge" : "casual",
@@ -1231,6 +1241,8 @@ function shareChallenge(score: number, shortId: string, addressedTo: string | nu
     pillarStyleId: getEquippedPillarLocal(),
     pillarColorId: getEquippedPillarColorLocal(),
     auraId: getEquippedAura(),
+    flapFxId: getActiveFlapFx(),
+    flapFxColor: equippedFlapFxColor(),
     rarity: currentRarity(),
     streakDays: s.profile?.streak_days ?? 0,
     mode: "challenge",

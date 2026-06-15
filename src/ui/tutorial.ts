@@ -70,21 +70,21 @@ export function renderTutorial(host: HTMLElement, cbs: TutorialCallbacks): () =>
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
   wrap.className =
-    "pointer-events-auto absolute inset-0 z-40 bg-black/85 backdrop-blur-sm font-display text-paper flex flex-col";
+    "pointer-events-auto absolute inset-0 z-40 bg-black/60 backdrop-blur-sm font-display flex items-center justify-center px-4";
+  // Paper-bulletin card carousel — matches the Hangar's folded-paper identity.
   wrap.innerHTML = `
-    <div class="px-5 pt-5 pb-3 flex items-center justify-between">
-      <h2 class="text-xl font-bold">how to play</h2>
-      <button data-skip class="text-sm underline opacity-70">skip</button>
-    </div>
-    <div class="flex-1 flex flex-col items-center justify-center px-8 text-center">
-      <div data-emoji class="text-6xl mb-5"></div>
-      <h3 data-title class="text-2xl font-bold mb-3"></h3>
-      <p data-body class="text-sm leading-relaxed opacity-80 max-w-xs"></p>
-    </div>
-    <div data-dots class="flex items-center justify-center gap-2 mb-5"></div>
-    <div class="px-6 pb-8 flex items-center gap-3">
-      <button data-back class="rounded-2xl px-5 py-3 bg-white/10 text-sm font-bold disabled:opacity-30">back</button>
-      <button data-next class="flex-1 rounded-2xl px-5 py-3 bg-paper text-ink text-sm font-bold"></button>
+    <div class="paper-note w-full max-w-xs p-6 flex flex-col items-center text-center">
+      <div class="self-end -mt-2 -mr-2">
+        <button data-skip class="text-[11px] underline opacity-55">skip</button>
+      </div>
+      <div data-emoji class="text-6xl mb-4"></div>
+      <h3 data-title class="font-hand text-2xl font-bold mb-2"></h3>
+      <p data-body class="text-sm leading-relaxed opacity-75 max-w-xs"></p>
+      <div data-dots class="flex items-center justify-center gap-2 mt-5 mb-5"></div>
+      <div class="w-full flex items-center gap-3">
+        <button data-back class="btn px-5 py-3 text-sm font-bold bg-black/10 disabled:opacity-30">back</button>
+        <button data-next class="btn flex-1 px-5 py-3 text-sm font-bold bg-ink text-paper"></button>
+      </div>
     </div>
   `;
   host.appendChild(wrap);
@@ -108,7 +108,7 @@ export function renderTutorial(host: HTMLElement, cbs: TutorialCallbacks): () =>
     dotsEl.innerHTML = STEPS.map(
       (_, i) =>
         `<span class="h-1.5 rounded-full transition-all ${
-          i === idx ? "w-5 bg-paper" : "w-1.5 bg-white/30"
+          i === idx ? "w-5 bg-ink" : "w-1.5 bg-black/20"
         }"></span>`,
     ).join("");
   }

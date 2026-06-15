@@ -356,11 +356,20 @@ loadEquippedSkin().then(async () => {
   }
   showMenu();
   hideSplash();
-  // No forced intro run. Brand-new players just see the menu; the first
-  // real run of ANY mode shows a few quick coach boxes in-context (armed in
-  // startRun, gated by tutorialSeen). Returning players get "what's new".
-  maybeShowWhatsNew();
-  maybeShowEvent();
+  // Onboarding variant A — AUTO-START: brand-new players are greeted by the
+  // (paper-styled) how-to-play carousel, which leads straight into a can't-die
+  // practice run. Returning players skip to what's-new / event bulletins.
+  if (!tutorialSeen()) {
+    pushSubView();
+    panelOpen = true;
+    renderTutorial(overlays, {
+      onClose: () => showMenu(),
+      onPractice: () => startRun("training"),
+    });
+  } else {
+    maybeShowWhatsNew();
+    maybeShowEvent();
+  }
 });
 
 // Announce a live event package once (paper "available now" bulletin). Skips if

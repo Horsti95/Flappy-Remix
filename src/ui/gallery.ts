@@ -1,6 +1,7 @@
 import { listOwnedSkins, getCachedOwnedSkins, type SkinRow } from "../social/skins";
 import { isEventGranted } from "../game/events";
 import { isChoicePicked, isChoiceRejected } from "../game/color-choices";
+import { colorName } from "../game/color-name";
 import { unlockProgress } from "../game/unlockables";
 import { tierForUnlock, tierRank, TIER_COLOR, TIER_LABEL, type Tier } from "../game/tiers";
 import { RARITY_COLOR, rarityRank } from "../game/rarity";
@@ -161,14 +162,14 @@ export function renderGallery(
     const shape = SHAPES.find((s) => s.id === currentEquipped.shapeId);
     const shapeName = shape?.name ?? "paper plane";
     // Name the equipped colour source for the tag subtitle.
-    let colorName = "cream + ink";
+    let paletteLabel = "cream + ink";
     if (currentEquipped.presetId) {
-      colorName = PRESET_SKINS.find((p) => p.id === currentEquipped.presetId)?.name ?? colorName;
+      paletteLabel = PRESET_SKINS.find((p) => p.id === currentEquipped.presetId)?.name ?? paletteLabel;
     } else if (currentEquipped.achColorId) {
-      colorName = ACHIEVEMENTS.find((a) => a.id === currentEquipped.achColorId)?.name ?? colorName;
+      paletteLabel = ACHIEVEMENTS.find((a) => a.id === currentEquipped.achColorId)?.name ?? paletteLabel;
     } else if (currentEquipped.skinId) {
       const skin = getCachedOwnedSkins()?.find((s) => s.id === currentEquipped.skinId);
-      colorName = skin ? `${skin.rarity} livery` : "custom livery";
+      paletteLabel = skin ? colorName(skin.body, skin.accent) : "custom livery";
     }
     const preview = shapeSvgWithColors(currentEquipped.shapeId, body, accent);
     host.innerHTML = `
@@ -177,7 +178,7 @@ export function renderGallery(
         <div class="min-w-0 flex-1 pl-2">
           <div class="font-hand text-[11px] text-ink/55 leading-none">now flying</div>
           <div class="font-hand text-2xl text-ink font-bold leading-tight capitalize truncate">${escapeHtml(shapeName)}</div>
-          <div class="font-hand text-[13px] text-ink/65 leading-tight capitalize truncate">${escapeHtml(colorName)}</div>
+          <div class="font-hand text-[13px] text-ink/65 leading-tight capitalize truncate">${escapeHtml(paletteLabel)}</div>
         </div>
       </div>`;
     const slot = host.querySelector("[data-hero-preview]") as HTMLDivElement;
@@ -869,8 +870,8 @@ function skinCard(
     <div class="w-full aspect-square flex items-center justify-center swatch-plate rounded-xl">
       ${shapeSvgWithColors(shapeId, row.body, row.accent)}
     </div>
-    <div class="font-bold capitalize" style="color: var(--ring)">${row.rarity}</div>
-    <div class="opacity-60">@${row.unlocked_at_games}</div>
+    <div class="font-bold font-hand text-[12px] capitalize leading-tight text-center">${escapeHtml(colorName(row.body, row.accent))}</div>
+    <div class="opacity-60 text-[9px] uppercase tracking-wider"><span style="color: var(--ring)">${row.rarity}</span> · @${row.unlocked_at_games}</div>
     ${equipped ? equippedChipPaper() : ""}
   `;
   el.addEventListener("click", (e) => {

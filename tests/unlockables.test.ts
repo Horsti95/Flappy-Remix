@@ -94,6 +94,9 @@ const MAXED: UnlockStats = {
   timeTravelerDone: true,
   returnedDone: true,
   hotStreakDone: true,
+  diedPillarL5: true,
+  diedTopL5: true,
+  diedBottomL5: true,
 };
 
 describe("unlockables registry", () => {

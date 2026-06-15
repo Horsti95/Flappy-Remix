@@ -198,14 +198,22 @@ function tintMatrix(c: [number, number, number]): string {
  * `body`) — so both colours show, exactly like the in-game composite. Sprites
  * without an accent layer (e.g. the crane) render just the base.
  */
+// SVG filter ids are document-global, so a fixed `tint-<id>-b` collides across
+// every preview of the same sprite on the page — and a duplicate `url(#id)`
+// resolves to the FIRST definition. That made e.g. the three choice swatches
+// (and any card sharing the menu mascot's shape) all inherit whatever colour
+// was painted first. A per-call counter keeps each preview's filters unique.
+let previewUid = 0;
+
 function spritePreview(
   id: string,
   body: [number, number, number],
   accent?: [number, number, number],
   hasAccent = false,
 ): string {
-  const baseFid = `tint-${id}-b`;
-  const accFid = `tint-${id}-a`;
+  const uid = previewUid++;
+  const baseFid = `tint-${id}-b-${uid}`;
+  const accFid = `tint-${id}-a-${uid}`;
   const X = -19, W = 38;
   let defs = `<filter id="${baseFid}"><feColorMatrix type="matrix" values="${tintMatrix(body)}"/></filter>`;
   let layers = "";

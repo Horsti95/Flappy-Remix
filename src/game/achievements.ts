@@ -63,6 +63,15 @@ export interface AchievementStats {
    *  so existing stored stats / test fixtures stay valid without a migration. */
   feedbackGiven?: boolean;
 
+  // --- Death-cause goals (gated to level 5+, latched once earned). Each is set
+  // in updateStatsAfterRun when a run ends that way at/after level 5.
+  /** Crashed into a pillar at level 5+. */
+  diedPillarL5?: boolean;
+  /** Hit the ceiling (flew off the top) at level 5+. */
+  diedTopL5?: boolean;
+  /** Hit the floor (sank to the bottom) at level 5+. */
+  diedBottomL5?: boolean;
+
   // --- Secret-achievement latches. All optional (like `feedbackGiven`) so
   // stored stats and fixtures predating them stay valid. Each latches true
   // inside `updateStatsAfterRun` and is never reset, so once a secret is
@@ -1114,6 +1123,32 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     secret: true,
     check: (s) => s.bestRankedFloor >= 250,
   },
+
+  // --- Death-cause goals (unlock from level 5 onward) ---
+  {
+    id: "wall_hugger",
+    name: "wall hugger",
+    blurb: "from level 5: crash into a pillar",
+    category: "special",
+    reward: { type: "color", body: [120, 128, 134], accent: [40, 44, 48] },
+    check: (s) => s.diedPillarL5 === true,
+  },
+  {
+    id: "icarus",
+    name: "icarus",
+    blurb: "from level 5: fly off the top",
+    category: "special",
+    reward: { type: "color", body: [125, 196, 240], accent: [255, 244, 180] },
+    check: (s) => s.diedTopL5 === true,
+  },
+  {
+    id: "deep_diver",
+    name: "deep diver",
+    blurb: "from level 5: sink to the bottom",
+    category: "special",
+    reward: { type: "color", body: [30, 70, 120], accent: [120, 200, 210] },
+    check: (s) => s.diedBottomL5 === true,
+  },
 ];
 
 const STATS_KEY = "pflug.achievementStats.v1";
@@ -1159,10 +1194,25 @@ export function saveAchievementStats(stats: AchievementStats): void {
 
 export function updateStatsAfterRun(
   stats: AchievementStats,
-  run: { score: number; mode: string; tier?: string; inputCount?: number; ticks?: number },
+  run: {
+    score: number;
+    mode: string;
+    tier?: string;
+    inputCount?: number;
+    ticks?: number;
+    deathCause?: "ceiling" | "floor" | "pillar" | null;
+    level?: number;
+  },
 ): AchievementStats {
   const s = { ...stats };
   s.totalGames++;
+
+  // Death-cause goals — only count once the pilot has some experience (level 5+).
+  if ((run.level ?? 0) >= 5 && run.deathCause) {
+    if (run.deathCause === "pillar") s.diedPillarL5 = true;
+    else if (run.deathCause === "ceiling") s.diedTopL5 = true;
+    else if (run.deathCause === "floor") s.diedBottomL5 = true;
+  }
   s.totalScore += run.score;
   if (run.score > s.bestScore) s.bestScore = run.score;
 

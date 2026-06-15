@@ -152,20 +152,13 @@ a:focus-visible {
     linear-gradient(180deg, #2f2920 0%, #221e18 100%);
 }
 
-/* Gallery swatch plate — warm two-tone "kraft" check behind colour previews
-   so BOTH very-dark and very-light skins stay readable (dark skin doesn't
-   vanish on cream; light skin doesn't vanish on white). Fits the paper look
-   while keeping that legibility. Inked edge keeps the swatch defined. */
+/* Gallery swatch plate — a flat warm "kraft" panel behind colour previews. A
+   single mid-tan tone (not a checkerboard) keeps BOTH very-dark and very-light
+   skins readable while reading as a clean, slightly-inset box that's distinct
+   from the cream paper card around it. Inked edge keeps the swatch defined. */
 .swatch-plate {
-  background-color: #b9a888;
-  background-image:
-    linear-gradient(45deg, #a08e6c 25%, transparent 25%),
-    linear-gradient(-45deg, #a08e6c 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #a08e6c 75%),
-    linear-gradient(-45deg, transparent 75%, #a08e6c 75%);
-  background-size: 14px 14px;
-  background-position: 0 0, 0 7px, 7px -7px, -7px 0;
-  box-shadow: inset 0 0 0 1px rgba(26, 26, 26, 0.35);
+  background-color: #c9bb9a;
+  box-shadow: inset 0 0 0 1px rgba(26, 26, 26, 0.22);
 }
 
 /* ── Design system: button hierarchy ───────────────────────────────────────

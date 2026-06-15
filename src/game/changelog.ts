@@ -33,7 +33,8 @@ export const CHANGELOG: ChangeEntry[] = [
       "👋 New flyers get quick in-game tips on their very first run, whatever mode they start in.",
       "🎨 Milestones now let you PICK 1 of 3 colours (levels, a big goal, the World Cup finale) — choose wisely, the other two lock for good.",
       "⏸️ Your unfinished casual run is now protected: jump to daily or ranked and the game checks before you lose it.",
-      "🔒 Locked items in the gallery are clearly greyed out now.",
+      "🔒 Locked items in the gallery (shapes, colours, backgrounds) are clearly greyed out now.",
+      "🎯 Three new goals from level 5: crash a pillar, fly off the top, sink to the bottom — each grants a colour.",
     ],
   },
   {

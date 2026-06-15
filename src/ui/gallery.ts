@@ -1203,8 +1203,11 @@ function themeCard(theme: Theme, equipped: boolean, stats: GalleryStats, onTap: 
     equipped ? "is-equipped" : ""
   } ${state.unlocked ? "active:scale-95" : "is-locked cursor-not-allowed"} transition`;
   const c = theme.colors;
+  // Locked backgrounds read as unavailable: desaturate + dim the sky preview,
+  // matching the greyed-out shape / colour cards.
+  const lockDim = state.unlocked ? "" : "filter:grayscale(0.95);opacity:0.55;";
   el.innerHTML = `
-    <div class="w-full aspect-square rounded-xl overflow-hidden relative" style="background: linear-gradient(180deg, ${c.skyTop} 0%, ${c.skyBottom} 100%)">
+    <div class="w-full aspect-square rounded-xl overflow-hidden relative" style="${lockDim}background: linear-gradient(180deg, ${c.skyTop} 0%, ${c.skyBottom} 100%)">
       ${c.horizonBand ? `
         <div class="absolute left-0 right-0" style="top:${(c.horizonBand.topY/640)*100}%;bottom:0;background:linear-gradient(180deg,${c.horizonBand.topColor} 0%,${c.horizonBand.bottomColor} 100%)"></div>
         ${c.horizonBand.second ? `<div class="absolute left-0 right-0" style="top:${(c.horizonBand.second.topY/640)*100}%;bottom:0;background:linear-gradient(180deg,${c.horizonBand.second.topColor} 0%,${c.horizonBand.second.bottomColor} 100%)"></div>` : ""}

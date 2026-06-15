@@ -943,6 +943,9 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
             tier: currentRunMode === "daily" ? dailyInfo?.pick.tier : undefined,
             inputCount: loop?.getRecordedInputs().length,
             ticks,
+            // Death-cause goals (level 5+): how the run ended + current level.
+            deathCause: sim.deathCause,
+            level: levelFromTotalXp(loadTotalXp()).level,
           });
           // A finished ranked match folds in its match-level unlocks (total
           // across rounds / per-round floor) once the server marks it complete.

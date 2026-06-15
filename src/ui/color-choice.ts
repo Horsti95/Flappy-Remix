@@ -66,7 +66,7 @@ export function renderColorChoice(
       selected = btn.dataset.pick!;
       const opt = set.options.find((o) => o.id === selected)!;
       markSelected(selected);
-      goBtn.textContent = `choose ${opt.name} — lock the rest`;
+      goBtn.textContent = `choose ${opt.name} — lose the rest`;
       confirm.classList.remove("hidden");
     });
   });

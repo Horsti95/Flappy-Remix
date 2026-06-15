@@ -37,6 +37,8 @@ export class Sim {
   score = 0;
   alive = true;
   dieTick = -1;
+  /** How the run ended: which surface killed the bird (null while alive). */
+  deathCause: "ceiling" | "floor" | "pillar" | null = null;
   /** Practice/training: never die. Bird clamps inside the world and passes
    *  through pipes. Off for all scored modes, so determinism is untouched. */
   noFail = false;
@@ -183,8 +185,12 @@ export class Sim {
       }
       return;
     }
-    if (this.birdY - r < 0 || this.birdY + r > this.cfg.worldHeight) {
-      this.kill();
+    if (this.birdY - r < 0) {
+      this.kill("ceiling");
+      return;
+    }
+    if (this.birdY + r > this.cfg.worldHeight) {
+      this.kill("floor");
       return;
     }
     const bx = this.cfg.birdX;
@@ -193,12 +199,12 @@ export class Sim {
       if (p.x + this.cfg.pipeWidth < bx - r) continue;
       if (p.x > bx + r) break;
       if (this.circleRect(bx, by, r, p.x, 0, this.cfg.pipeWidth, p.gapY)) {
-        this.kill();
+        this.kill("pillar");
         return;
       }
       const bottomY = p.gapY + p.gapH;
       if (this.circleRect(bx, by, r, p.x, bottomY, this.cfg.pipeWidth, this.cfg.worldHeight - bottomY)) {
-        this.kill();
+        this.kill("pillar");
         return;
       }
     }
@@ -212,8 +218,9 @@ export class Sim {
     return dx * dx + dy * dy < cr * cr;
   }
 
-  private kill(): void {
+  private kill(cause: "ceiling" | "floor" | "pillar"): void {
     this.alive = false;
     this.dieTick = this.tick;
+    this.deathCause = cause;
   }
 }

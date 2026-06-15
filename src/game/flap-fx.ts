@@ -1,4 +1,5 @@
 import type { AchievementStats } from "./achievements";
+import { isEventGranted } from "./events";
 
 export type FlapFxId = "off" | "wind_puff" | "speed_lines" | "sparkle" | "ring_pulse";
 
@@ -23,6 +24,7 @@ export const FLAP_FX_OPTIONS: FlapFxOption[] = [
 ];
 
 export function flapFxUnlock(id: FlapFxId, stats: AchievementStats): { unlocked: boolean; hint?: string } {
+  if (isEventGranted("fx", id)) return { unlocked: true };
   return FLAP_FX_OPTIONS.find((o) => o.id === id)?.unlock(stats) ?? { unlocked: false };
 }
 

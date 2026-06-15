@@ -1,4 +1,5 @@
 import { listOwnedSkins, getCachedOwnedSkins, type SkinRow } from "../social/skins";
+import { isEventGranted } from "../game/events";
 import { unlockProgress } from "../game/unlockables";
 import { tierForUnlock, tierRank, TIER_COLOR, TIER_LABEL, type Tier } from "../game/tiers";
 import { RARITY_COLOR, rarityRank } from "../game/rarity";
@@ -604,7 +605,8 @@ export function renderGallery(
     const body = wrap.querySelector("[data-body]") as HTMLDivElement;
     body.innerHTML = "";
     const granted = new Set(getGrantedShapesLocal());
-    const isUnlocked = (sh: ShapeMeta): boolean => granted.has(sh.id) || sh.unlock(stats).unlocked;
+    const isUnlocked = (sh: ShapeMeta): boolean =>
+      granted.has(sh.id) || isEventGranted("shape", sh.id) || sh.unlock(stats).unlocked;
     // Paper fleet first (the game's identity), then the clearly-labelled
     // novelty section so off-vibe shapes read as a joke, not a grab bag.
     const pickable = SHAPES.filter((sh) => !sh.hidden);

@@ -1,4 +1,5 @@
 import type { AchievementStats } from "./achievements";
+import { isEventGranted } from "./events";
 
 /**
  * Gate-pass sound styles. Every style still pitches with the gap's vertical
@@ -89,5 +90,6 @@ export function gateSoundUnlocked(
   stats: AchievementStats,
 ): { unlocked: boolean; hint?: string } {
   if (labMode) return { unlocked: true };
+  if (isEventGranted("gate", style.id)) return { unlocked: true };
   return style.unlock(stats);
 }

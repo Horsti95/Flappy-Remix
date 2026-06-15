@@ -61,6 +61,8 @@ import { createChallenge, fetchChallenge, fetchBestRunChallenge, ghostSkinFromCh
 import { renderInbox } from "./ui/inbox";
 import { renderProfile } from "./ui/profile";
 import { renderWhatsNew } from "./ui/whats-new";
+import { renderEventPopup } from "./ui/event-popup";
+import { recordEventPlay, getActiveEvent, eventAnnounced } from "./game/events";
 import { renderTutorial, tutorialSeen, markTutorialSeen, firstRealRunSeen, markFirstRealRunSeen } from "./ui/tutorial";
 import { isFirstRun, markChangelogSeen, unseenChanges, CHANGELOG } from "./game/changelog";
 import { renderQuests } from "./ui/quests";
@@ -358,7 +360,19 @@ loadEquippedSkin().then(async () => {
   // real run of ANY mode shows a few quick coach boxes in-context (armed in
   // startRun, gated by tutorialSeen). Returning players get "what's new".
   maybeShowWhatsNew();
+  maybeShowEvent();
 });
+
+// Announce a live event package once (paper "available now" bulletin). Skips if
+// a what's-new panel already opened this launch — it'll show next time.
+function maybeShowEvent(): void {
+  if (panelOpen) return;
+  const ev = getActiveEvent();
+  if (!ev || eventAnnounced(ev.id)) return;
+  pushSubView();
+  panelOpen = true;
+  renderEventPopup(overlays, ev, () => showMenu());
+}
 
 // Show the "what's new" modal once after an update. First-time players are
 // not ambushed — we just record the current version as seen.
@@ -882,6 +896,9 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
             /* localStorage blocked — non-fatal */
           }
         }
+        // Event participation: a completed tracked run counts toward any live
+        // event package (date-latched — earned kit is kept after the window).
+        recordEventPlay();
         announce(`Run ended. Score ${score}. Press R to play again.`);
         const result = await trySubmit(sim);
         // Newly-earned achievements this run — surfaced as full-screen

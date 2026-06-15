@@ -1,4 +1,5 @@
 import type { AchievementStats } from "./achievements";
+import { isEventGranted } from "./events";
 
 type RGB = [number, number, number];
 
@@ -90,5 +91,6 @@ let labMode = false;
 export function setPresetLabMode(on: boolean): void { labMode = on; }
 export function presetUnlock(p: PresetSkin, stats: AchievementStats): { unlocked: boolean; hint?: string } {
   if (labMode) return { unlocked: true };
+  if (isEventGranted("preset", p.id)) return { unlocked: true };
   return p.unlock(stats);
 }

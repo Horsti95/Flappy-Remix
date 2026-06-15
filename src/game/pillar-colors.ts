@@ -8,6 +8,7 @@
  */
 
 import type { AchievementStats } from "./achievements";
+import { isEventGranted } from "./events";
 
 export interface PillarColor {
   id: string;
@@ -88,5 +89,6 @@ export function pillarColorUnlocked(
   stats: AchievementStats,
 ): { unlocked: boolean; hint?: string } {
   if (labMode) return { unlocked: true };
+  if (isEventGranted("pillar", color.id)) return { unlocked: true };
   return color.unlock(stats);
 }

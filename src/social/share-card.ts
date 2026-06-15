@@ -4,6 +4,7 @@ import { TIER_COLOR, TIER_LABEL, type Tier } from "../game/daily-twist";
 import { DEFAULT_SHAPE_ID, getShape, type ShapeId } from "../game/shapes";
 import { DEFAULT_THEME_ID, getTheme, type ThemeId } from "../game/themes";
 import { hasBackgroundImage, getBackgroundImage } from "../game/backgrounds";
+import { hasSprite, getTintedSprite, getSpriteContentBox } from "../game/sprites";
 
 export interface ShareCardData {
   shape?: ShapeId;
@@ -221,13 +222,38 @@ function drawShareShape(
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(-0.18);
-  // The shape draw functions are radius-based; size ≈ 2r so we feed
-  // r = size/2 and the existing canvas math takes care of the rest.
-  // Strokes inside scale uniformly with the transform.
-  const s = size / 28;
-  ctx.scale(s, s);
-  ctx.lineWidth = 1.5 / s;
-  getShape(shapeId).draw(ctx, 14, skin, false);
+  // Sprite-backed shapes (origami swan/dove/butterfly/…) must paint their PNG
+  // sprite — the same path the in-game renderer uses. Their `.draw` is only a
+  // polygon FALLBACK, so calling it directly rendered the wrong silhouette on
+  // the share card. The sprite filename can differ from the shape id (e.g.
+  // "rocket-origami" → "rocket"), so resolve it via the optional `sprite` field.
+  const spriteId = getShape(shapeId).sprite ?? shapeId;
+  const tinted = hasSprite(spriteId) ? getTintedSprite(spriteId, skin) : null;
+  if (tinted) {
+    // Normalise to the same footprint as in-game: trim transparent padding via
+    // the content box and scale the longer content side to 1.25× the nominal
+    // size (≈ SPRITE_FOOTPRINT × hitbox diameter in render.ts).
+    const target = size * 1.25;
+    const box = getSpriteContentBox(spriteId);
+    if (box) {
+      const sw = tinted.width, sh = tinted.height;
+      const sx = box.x * sw, sy = box.y * sh, srcW = box.w * sw, srcH = box.h * sh;
+      const scl = target / Math.max(srcW, srcH);
+      const dw = srcW * scl, dh = srcH * scl;
+      ctx.drawImage(tinted, sx, sy, srcW, srcH, -dw / 2, -dh / 2, dw, dh);
+    } else {
+      ctx.drawImage(tinted, -target / 2, -target / 2, target, target);
+    }
+  } else {
+    // Vector shapes (and the offline/not-yet-loaded sprite fallback): the draw
+    // functions are radius-based; size ≈ 2r so we feed r = size/2 and the
+    // existing canvas math takes care of the rest. Strokes scale with the
+    // transform.
+    const s = size / 28;
+    ctx.scale(s, s);
+    ctx.lineWidth = 1.5 / s;
+    getShape(shapeId).draw(ctx, 14, skin, false);
+  }
   ctx.restore();
 }
 

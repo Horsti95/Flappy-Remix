@@ -218,6 +218,7 @@ const renderer = new Renderer(canvas, DEFAULT_CONFIG, {
   theme: equippedThemeId,
   reducedMotion: settings.reducedMotion,
   ghostOpacity: settings.ghostOpacity,
+  showHitbox: settings.showHitbox,
 });
 const observer = new ResizeObserver(() => renderer.resize());
 observer.observe(stage);
@@ -701,7 +702,7 @@ function applyQuestReward(c: QuestCompletion): void {
   }
 }
 
-type BoolSetting = "sound" | "gateSound" | "deathSound" | "highContrast" | "reducedMotion" | "haptics" | "gatePitch";
+type BoolSetting = "sound" | "gateSound" | "deathSound" | "highContrast" | "reducedMotion" | "haptics" | "gatePitch" | "showHitbox";
 function onToggleSetting(key: keyof Settings): void {
   // Only the boolean toggles route here; ghostOpacity uses its own slider.
   if (
@@ -711,7 +712,8 @@ function onToggleSetting(key: keyof Settings): void {
     key !== "highContrast" &&
     key !== "reducedMotion" &&
     key !== "haptics" &&
-    key !== "gatePitch"
+    key !== "gatePitch" &&
+    key !== "showHitbox"
   )
     return;
   const k = key as BoolSetting;
@@ -730,6 +732,7 @@ function onToggleSetting(key: keyof Settings): void {
   }
   renderer.options.highContrast = settings.highContrast;
   renderer.options.reducedMotion = settings.reducedMotion;
+  renderer.options.showHitbox = settings.showHitbox;
   // Update the toggle button in-place so the settings panel stays open.
   const btn = overlays.querySelector<HTMLButtonElement>(`[data-toggle="${k}"]`);
   if (btn) {

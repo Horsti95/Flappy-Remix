@@ -16,6 +16,9 @@ export interface Settings {
   gatePitch: boolean;
   /** Challenge-ghost opacity 0..100 (%), in 5% steps. 0 = ghost hidden. */
   ghostOpacity: number;
+  /** Debug/accessibility: draw the bird's collision circle so you can see the
+   *  true hitbox vs. the rendered sprite. Off by default. */
+  showHitbox: boolean;
 }
 
 const KEY = "pflug.settings.v1";
@@ -29,6 +32,7 @@ export const DEFAULT_SETTINGS: Settings = {
   haptics: true,
   gatePitch: false,
   ghostOpacity: 25,
+  showHitbox: false,
 };
 
 export function loadSettings(): Settings {

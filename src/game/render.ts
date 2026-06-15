@@ -7,7 +7,7 @@ import { DEFAULT_SHAPE_ID, getShape, type ShapeId } from "./shapes";
 import { getParticles, tickParticles } from "./flap-fx";
 import { auraColor, getEquippedAura } from "./aura";
 import { type VisualEffect } from "./daily-twist";
-import { preloadSprites, hasSprite, getTintedSprite } from "./sprites";
+import { preloadSprites, hasSprite, getTintedSprite, getSpriteContentBox } from "./sprites";
 import { getPillarStyle, type PillarStyleId } from "./pillars";
 import { getPillarColor } from "./pillar-colors";
 import { zoneFor } from "./depth-zones";
@@ -33,6 +33,8 @@ export interface RenderOptions {
   pillarColor?: string;
   /** Challenge-ghost opacity, 0..100 (%). */
   ghostOpacity?: number;
+  /** Debug/accessibility: stroke the bird's collision circle. */
+  showHitbox?: boolean;
 }
 
 export class Renderer {
@@ -674,12 +676,38 @@ export class Renderer {
       ? getTintedSprite(spriteId, skin)
       : null;
     if (tinted) {
-      // The sprite art faces right; size it to ~the collision diameter so it
-      // sits where the polygon would. Cosmetic only — hitbox is unchanged.
-      const size = r * 3.0;
-      ctx.drawImage(tinted, -size / 2, -size / 2, size, size);
+      // The sprite art faces right. Normalise every sprite to the same
+      // footprint: trim its transparent padding (via the content box) and scale
+      // so the longer content side maps to SPRITE_FOOTPRINT × the collision
+      // diameter. This keeps origami close to the hitbox and consistent across
+      // shapes (a wide eagle and a compact heart now read the same size).
+      // Cosmetic only — the hitbox itself is unchanged.
+      const SPRITE_FOOTPRINT = 1.25; // longer side ≈ 1.25 × hitbox diameter
+      const box = getSpriteContentBox(spriteId);
+      if (box) {
+        const sw = tinted.width, sh = tinted.height;
+        const sx = box.x * sw, sy = box.y * sh, srcW = box.w * sw, srcH = box.h * sh;
+        const target = r * 2 * SPRITE_FOOTPRINT;
+        const s = target / Math.max(srcW, srcH);
+        const dw = srcW * s, dh = srcH * s;
+        ctx.drawImage(tinted, sx, sy, srcW, srcH, -dw / 2, -dh / 2, dw, dh);
+      } else {
+        // Content box not ready yet — fall back to a fixed box near the hitbox.
+        const size = r * 2.6;
+        ctx.drawImage(tinted, -size / 2, -size / 2, size, size);
+      }
     } else {
       getShape(shapeId).draw(ctx, r, skin, this.options.highContrast);
+    }
+    if (this.options.showHitbox) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(255,60,60,0.9)";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 3]);
+      ctx.stroke();
+      ctx.restore();
     }
     ctx.restore();
   }

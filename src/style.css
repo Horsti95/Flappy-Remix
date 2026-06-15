@@ -287,6 +287,33 @@ a:focus-visible {
   box-shadow: 1px 2px 0 rgba(0, 0, 0, 0.18);
 }
 
+/* Small "torn paper" chip — the journal equivalent of a pill/badge. Used for
+   daily-twist modifier call-outs (e.g. "gap +20px") and other heads-up notes so
+   they match the Hangar's folded-paper identity instead of dark glassy pills. */
+.paper-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.22rem 0.6rem;
+  background-color: #f3e8cf;
+  background-image:
+    repeating-linear-gradient(1.5deg, rgba(120, 90, 40, 0.04) 0 2px, transparent 2px 8px);
+  color: #2a2118;
+  border: 1px solid rgba(120, 95, 50, 0.3);
+  border-radius: 8px 6px 7px 6px;
+  box-shadow: 1px 1.5px 0 rgba(0, 0, 0, 0.22);
+  font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", "Chalkboard SE", cursive;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+.paper-chip-stat {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  padding: 0.45rem 0.6rem;
+}
+
 /* Section header styled like a strip of masking tape on the journal page. */
 .paper-section-header {
   display: inline-flex;

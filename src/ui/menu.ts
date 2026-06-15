@@ -78,9 +78,9 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   const modifierLine = meta.daily && meta.daily.modifierNames.length > 0
     ? `<div class="mt-1 text-[11px] opacity-70 truncate">${meta.daily.modifierNames.map(escapeHtml).join(" + ")}</div>`
     : "";
-  const levelBadge = `<span class="mr-1.5 inline-flex items-center text-[10px] font-bold bg-paper/20 rounded-full px-2 py-0.5">LV ${levelFromTotalXp(loadTotalXp()).level}</span>`;
+  const levelBadge = `<span class="mr-1.5 inline-flex items-center text-[10px] font-bold bg-ink/15 rounded-full px-2 py-0.5">LV ${levelFromTotalXp(loadTotalXp()).level}</span>`;
   const streakBadge = meta.streakDays > 0
-    ? `<span class="ml-2 inline-flex items-center gap-1 text-[11px] font-bold bg-orange-500/20 text-orange-300 rounded-full px-2.5 py-0.5">🔥 ${meta.streakDays}</span>`
+    ? `<span class="ml-2 inline-flex items-center gap-1 text-[11px] font-bold bg-orange-500/25 text-orange-700 rounded-full px-2.5 py-0.5">🔥 ${meta.streakDays}</span>`
     : "";
   const offlineBadge = meta.online === false
     ? `<div class="absolute top-3 left-1/2 -translate-x-1/2 text-[10px] rounded-full px-2 py-0.5 bg-orange-400/30 text-paper">offline${meta.pendingSubmissions ? ` · ${meta.pendingSubmissions} queued` : ""}</div>`
@@ -90,8 +90,8 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
 
   wrap.innerHTML = `
     ${offlineBadge}
-    <button data-settings class="absolute top-3 left-3 text-[18px] leading-none rounded-full px-3 py-1 bg-white/15 opacity-80 hover:opacity-100 transition-opacity" aria-label="Settings">⚙</button>
-    <button data-account class="absolute top-3 right-3 text-[11px] rounded-full px-3 py-1 bg-white/15">${levelBadge}${escapeHtml(meta.accountLabel)}${streakBadge}</button>
+    <button data-settings class="absolute top-3 left-3 paper-chip text-[16px] leading-none active:scale-95 transition" aria-label="Settings">⚙</button>
+    <button data-account class="absolute top-3 right-3 paper-chip active:scale-95 transition">${levelBadge}${escapeHtml(meta.accountLabel)}${streakBadge}</button>
     <div data-menu-content class="px-6 max-w-sm w-full">
       <div class="relative h-16 mb-2">
         <svg viewBox="-20 -20 40 40" data-menu-mascot class="menu-mascot absolute left-1/2 -translate-x-1/2 w-16 h-16">
@@ -106,23 +106,23 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
       <p class="mt-2 text-[11px] italic opacity-60">guide the paper plane through the gaps</p>
 
       <div class="mt-6 grid grid-cols-2 gap-3">
-        <button data-action="play" class="rounded-2xl bg-paper text-ink font-bold py-5 text-lg shadow-lg active:scale-95 transition">
+        <button data-action="play" class="paper-note font-hand font-bold py-5 text-2xl active:scale-95 transition">
           Play
         </button>
-        <button data-action="daily" class="rounded-2xl bg-paper text-ink font-bold py-3 px-4 text-left shadow-lg active:scale-95 transition">
-          <div class="text-[10px] uppercase tracking-wider opacity-60 flex items-center gap-1.5">
-            <span>Daily</span>${tierChip}
+        <button data-action="daily" class="paper-note py-3 px-4 text-left active:scale-95 transition">
+          <div class="text-[10px] uppercase tracking-wider opacity-65 flex items-center gap-1.5">
+            <span class="font-hand text-[12px] font-bold normal-case tracking-normal">Daily</span>${tierChip}
           </div>
           <div class="text-sm leading-tight mt-0.5">${modifierLine ? meta.daily!.modifierBlurbs.map(escapeHtml).join(" + ") : "same seed worldwide"}</div>
-          <div class="text-[9px] opacity-50 mt-1">${dailyLine}</div>
+          <div class="text-[9px] opacity-55 mt-1">${dailyLine}</div>
         </button>
       </div>
 
       <div class="mt-3 grid grid-cols-2 gap-2">
-        <button data-action="ranked" class="rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
+        <button data-action="ranked" class="paper-note font-bold py-3 text-sm active:scale-95 transition">
           Ranked
         </button>
-        <button data-action="inbox" class="relative rounded-2xl border border-paper/40 text-paper font-bold py-3 text-sm">
+        <button data-action="inbox" class="relative paper-note font-bold py-3 text-sm active:scale-95 transition">
           Challenges
           ${meta.inboxUnseen && meta.inboxUnseen > 0
             ? `<span class="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center">${meta.inboxUnseen > 9 ? "9+" : meta.inboxUnseen}</span>`
@@ -131,17 +131,17 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
       </div>
 
       <div class="mt-3 grid grid-cols-3 gap-1.5">
-        <button data-action="friends" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
+        <button data-action="friends" class="paper-note font-bold py-2.5 text-[10px] active:scale-95 transition">
           Friends
         </button>
-        <button data-action="leaderboard" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
+        <button data-action="leaderboard" class="paper-note font-bold py-2.5 text-[10px] active:scale-95 transition">
           Board
         </button>
-        <button data-action="skins" class="rounded-2xl border border-paper/40 text-paper font-bold py-2.5 text-[10px]">
+        <button data-action="skins" class="paper-note font-bold py-2.5 text-[10px] active:scale-95 transition">
           Gallery
         </button>
       </div>
-      <button data-action="training" class="block mx-auto mt-3 text-[11px] opacity-50 hover:opacity-90 transition-opacity underline">🪶 practice mode (untracked)</button>
+      <button data-action="training" class="block mx-auto mt-3 text-[11px] opacity-60 hover:opacity-90 transition-opacity underline">🪶 practice mode (untracked)</button>
       ${
         SUPPORT_ENABLED
           ? `<a href="${escapeHtml(SUPPORT_URL)}" target="_blank" rel="noopener noreferrer" data-support class="block mt-4 text-center text-[11px] opacity-50 hover:opacity-90 transition-opacity">☕ buy me a coffee</a>`
@@ -168,6 +168,7 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
         <div class="grid grid-cols-2 gap-2 text-[11px]">
           ${toggle("reducedMotion", "Reduced motion", settings.reducedMotion)}
           ${toggle("highContrast", "High contrast", settings.highContrast)}
+          ${toggle("showHitbox", "Show hitbox", settings.showHitbox)}
         </div>
         <label class="panel-row mt-2 rounded-2xl bg-white/5 cursor-pointer">
           <span class="opacity-90">Show my plane + sky in the menu</span>
@@ -333,12 +334,12 @@ export function renderPauseOverlay(host: HTMLElement, onResume: () => void, onQu
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
   wrap.id = "pause-overlay";
-  wrap.className = "pointer-events-auto absolute inset-0 z-10 flex items-center justify-center bg-black/50 text-paper font-display";
+  wrap.className = "pointer-events-auto absolute inset-0 z-10 flex items-center justify-center bg-black/55 backdrop-blur-sm text-paper font-display";
   wrap.innerHTML = `
-    <div class="text-center">
-      <div class="text-3xl font-bold">paused</div>
-      <button data-resume class="mt-6 rounded-2xl bg-paper text-ink font-bold py-3 px-8">resume</button>
-      <button data-quit class="block mt-3 mx-auto text-xs underline opacity-70">quit run</button>
+    <div class="paper-note px-8 py-7 text-center flex flex-col items-center">
+      <div class="text-3xl font-bold font-hand">paused</div>
+      <button data-resume class="btn mt-6 py-3 px-10 text-base bg-ink text-paper font-bold">resume</button>
+      <button data-quit class="mt-3 text-xs underline opacity-60">quit run</button>
     </div>
   `;
   host.appendChild(wrap);

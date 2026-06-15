@@ -39,7 +39,7 @@ export function renderDailyLanding(
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
   wrap.className =
-    "pointer-events-auto absolute inset-0 z-30 bg-black/85 backdrop-blur-sm font-display text-paper flex flex-col";
+    "hangar-surface pointer-events-auto absolute inset-0 z-30 backdrop-blur-sm font-display flex flex-col";
 
   const tierColor = TIER_COLOR[meta.pick.tier];
   const tierLabel = TIER_LABEL[meta.pick.tier];
@@ -67,22 +67,23 @@ export function renderDailyLanding(
       </span>
     </div>`;
 
-  // Modifiers: names prominent, blurbs folded into one compact secondary line.
-  const modifierBlurbs = meta.pick.modifiers.map((m) => m.blurb).join(" · ");
+  // Modifiers: each one its own paper chip (e.g. "gap +20px"), so the twist
+  // reads as torn notes pinned to the day rather than a grey text run-on.
+  const modifierChips = `
+    <div class="flex flex-wrap items-center justify-center gap-2">
+      ${meta.pick.modifiers
+        .map((m) => `<span class="paper-chip">${escapeHtml(m.blurb)}</span>`)
+        .join("")}
+    </div>`;
 
-  // Glass + visual-effect notes, integrated as small inline heads-up chips.
+  // Glass + visual-effect notes, as the same paper-chip heads-up.
   const noteChips: string[] = [];
   if (meta.pick.visualEffect) noteChips.push(visualChip(meta.pick.visualEffect));
   if (meta.glassHandicap) noteChips.push("🪟 glass pillars — harder to read");
   const notesRow =
     noteChips.length > 0
       ? `<div class="flex flex-wrap items-center justify-center gap-2">
-          ${noteChips
-            .map(
-              (c) =>
-                `<span class="rounded-full bg-white/5 px-3 py-1 text-[11px] opacity-80">${c}</span>`,
-            )
-            .join("")}
+          ${noteChips.map((c) => `<span class="paper-chip">${c}</span>`).join("")}
         </div>`
       : "";
 
@@ -98,9 +99,9 @@ export function renderDailyLanding(
       : `<div class="text-[11px] opacity-50">${formatPlays(meta.playsCount)} played today</div>`;
 
   const statCell = (label: string, value: string, color?: string) => `
-    <div class="rounded-xl bg-white/5 px-3 py-2.5">
+    <div class="paper-note px-3 py-2.5 rounded-xl">
       <div class="text-base font-bold leading-none"${color ? ` style="color:${color}"` : ""}>${value}</div>
-      <div class="mt-1 text-[9px] uppercase tracking-wider opacity-50">${label}</div>
+      <div class="mt-1 text-[9px] uppercase tracking-wider opacity-60">${label}</div>
     </div>`;
   const statsGrid = `
     <div class="mt-2 grid grid-cols-3 gap-2 text-center w-full max-w-[280px]">
@@ -119,8 +120,8 @@ export function renderDailyLanding(
       <div class="text-[10px] uppercase tracking-wider opacity-60">${escapeHtml(meta.date)}</div>
       <div class="font-hand text-[13px] opacity-70">Everyone flies the same wind today.</div>
       ${tierIntensityRow}
-      <div class="mt-1 text-2xl font-bold leading-tight">${escapeHtml(modifierList)}</div>
-      <div class="text-[12px] opacity-60 leading-snug max-w-[300px]">${escapeHtml(modifierBlurbs)}</div>
+      <div class="mt-1 text-2xl font-bold leading-tight font-hand">${escapeHtml(modifierList)}</div>
+      ${modifierChips}
       ${notesRow}
       ${statsGrid}
       ${streakNote}

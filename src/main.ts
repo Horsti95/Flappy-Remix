@@ -64,6 +64,7 @@ import { renderWhatsNew } from "./ui/whats-new";
 import { renderEventPopup } from "./ui/event-popup";
 import { recordEventPlay, getActiveEvent, eventAnnounced } from "./game/events";
 import { renderTutorial, tutorialSeen, markTutorialSeen, firstRealRunSeen, markFirstRealRunSeen } from "./ui/tutorial";
+import { renderOnboardingTour } from "./ui/onboarding-tour";
 import { isFirstRun, markChangelogSeen, unseenChanges, CHANGELOG } from "./game/changelog";
 import { renderQuests } from "./ui/quests";
 import { evaluateRun, type QuestCompletion } from "./game/quests";
@@ -356,12 +357,35 @@ loadEquippedSkin().then(async () => {
   }
   showMenu();
   hideSplash();
-  // No forced intro run. Brand-new players just see the menu; the first
-  // real run of ANY mode shows a few quick coach boxes in-context (armed in
-  // startRun, gated by tutorialSeen). Returning players get "what's new".
-  maybeShowWhatsNew();
-  maybeShowEvent();
+  // Onboarding variant B — POINTER TOUR: brand-new players stay on the menu and
+  // get a short paper-callout tour (Training → Gallery → Account → Play) that
+  // ends by starting the game. Returning players get what's-new / events.
+  if (!tutorialSeen()) {
+    maybeShowOnboardingTour();
+  } else {
+    maybeShowWhatsNew();
+    maybeShowEvent();
+  }
 });
+
+// Variant B pointer tour. Runs against the live menu buttons; the final step
+// starts a normal run. Marks the tutorial seen so it shows only once.
+function maybeShowOnboardingTour(): void {
+  if (mode !== "menu" || panelOpen) return;
+  renderOnboardingTour(
+    overlays,
+    [
+      { selector: '[data-action="training"]', title: "Warm up here", body: "Practice mode — a no-stakes run to find your tap. Nothing is tracked." },
+      { selector: '[data-action="skins"]', title: "Your hangar", body: "Unlock and equip planes, colours and flap effects as you play." },
+      { selector: "[data-account]", title: "Make it yours", body: "Claim a name and link other devices so your progress follows you." },
+      { selector: '[data-action="play"]', title: "Ready to fly?", body: "Tap Play and float through the gaps. +1 for every gap you clear." },
+    ],
+    {
+      onDone: () => markTutorialSeen(),
+      onFinish: () => { markTutorialSeen(); startRun("casual"); },
+    },
+  );
+}
 
 // Announce a live event package once (paper "available now" bulletin). Skips if
 // a what's-new panel already opened this launch — it'll show next time.

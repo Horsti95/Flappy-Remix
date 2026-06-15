@@ -1,28 +1,45 @@
 # TODO
 
-## Parked — decided/started, picked up later (added 2026-06-09)
+> See `ROADMAP.md` "Status snapshot — 2026-06-15" for phase-level status.
+> This file is the granular backlog.
 
-- **Onboarding misses deep-link arrivals.** The first-launch guided practice
-  run only fires on the menu path (`!tutorialSeen()` in `main.ts`); the
-  challenge / run / daily deep-link branches `return` before it, so friends who
-  arrive via a shared link never get the intro. Plan: show a lightweight
-  first-time "new here? try Practice" pointer (arrow at the Practice button) on
-  the menu for anyone who hasn't seen the tutorial, regardless of entry path —
-  so deep-link arrivals get pointed to practice after their first run. (Owner
-  leaning toward replacing the auto guided run with this lighter pointer.)
-- **Supporter badge → redeem-code grant.** The badge exists (badges-catalog.ts,
-  `grantBadge`) and the redeem-code flow exists (`api/redeem-code.ts`); wire a
-  code to also grant the "supporter" badge so the BMC Glider tier is
-  end-to-end. Small server + client extension.
-- **Seasonal-event rewards.** The new-year / pride / red-ribbon criteria in
-  `unlock-criteria.ts` are date-gated. Needs date-latched stat flags (earned
-  during the window, then kept) before they can grant real rewards.
-- **Emailless "sync code".** Privacy-first cross-device option (generate a code
-  on one device, enter on another to move/link the account) so progress can
-  travel without collecting an email. Reuses the redeem-code pattern.
+## ✅ Resolved (2026-06-15)
+
+- ~~**Supporter badge → redeem-code grant.**~~ Shipped: `skin_codes.unlocks_badge`
+  (migration 0028) → `api/redeem-code` returns it → client `grantBadge`.
+- ~~**Emailless "sync code".**~~ Shipped as device link codes (migration 0029,
+  `api/link-code.ts`, `auth.createLinkCode/redeemLinkCode`). ⚠ Untested against a
+  live two-device Supabase session — verify before relying on it.
+- ~~**Onboarding misses deep-link arrivals.**~~ Superseded: there's no auto tour
+  now — the in-game coach pop-ups fire on the **first run of any mode**, so
+  deep-link arrivals get them too.
+
+## Parked — decided/started, picked up later
+
+- **Seasonal-event rewards — finish the wiring.** Date-latched participation now
+  exists (`game/events.ts`) and the World Cup package ships, but the
+  `unlock-criteria.ts` seasonal entries (new-year / pride / red-ribbon) still
+  aren't wired to grant real rewards off those flags. Fold them into the event
+  framework.
 - **Art-dependent TBA rewards.** The fx-trail / background / shape planned
   rewards in `unlock-criteria.ts` need real particle/art work (the expensive
-  tier) — deferred from the cosmetics variety pass.
+  tier) — deferred from the cosmetics variety pass. Overlaps `feat/trails`.
+- **Shape-variety goals (proposed).** Optional "fly shape X for N games → a
+  globally-usable reward" goals, to reward sprite variety without per-sprite
+  colour gating (owner reasoning 2026-06-15: keep colours global).
+- **Full country packs.** The World Cup event reuses existing cosmetics; the
+  richer per-nation packs (flag badge + per-country origami livery) are still
+  open (Phase 1 `feat/country-packs`).
+
+## Next up (recommended order)
+
+1. `feat/trails` + `feat/gate-fx` — finish the per-run reward feel (Phase 2).
+2. `feat/daily-aftermath` — the daily's 3rd attempt becomes a results screen
+   with shareable emoji-row text (viral artifact).
+3. `feat/country-packs` — richer World Cup event.
+4. `feat/monetization-v1` groundwork — now unblocked (Phase 0 complete).
+5. `feat/ghost-watch` — unblocked now that the leaderboard cosmetic snapshot
+   ships.
 
 
 ## #4 — Ranked ghost (replay the opponent's round)

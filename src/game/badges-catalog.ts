@@ -90,6 +90,32 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     check: (s) => s.friendCount >= 10 && s.challengeWins >= 10,
   },
+
+  // --- Death-cause goals (paired with a colour reward; unlock from level 5) ---
+  {
+    id: "wall_hugger",
+    name: "wall hugger",
+    emoji: "🧱",
+    color: "#8a9298",
+    hint: "from level 5: crash into a pillar",
+    check: (s) => s.diedPillarL5 === true,
+  },
+  {
+    id: "icarus",
+    name: "icarus",
+    emoji: "🪽",
+    color: "#7dc4f0",
+    hint: "from level 5: fly off the top",
+    check: (s) => s.diedTopL5 === true,
+  },
+  {
+    id: "deep_diver",
+    name: "deep diver",
+    emoji: "🤿",
+    color: "#1e4678",
+    hint: "from level 5: sink to the bottom",
+    check: (s) => s.diedBottomL5 === true,
+  },
 ];
 
 const BY_ID = new Map(BADGES.map((b) => [b.id, b]));

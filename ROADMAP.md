@@ -14,6 +14,49 @@
 
 ---
 
+## Status snapshot — 2026-06-15
+
+Where we are after the paper-identity / event / progression push:
+
+- **Phase 0 (trust):** ✅ complete.
+- **Phase 1 (World Cup window):** ✅ essentially done — Glide rename, gate-pitch
+  toggle, leaderboard cosmetic snapshot, feedback→GitHub, onboarding v2 (now:
+  first-run in-game coach, any mode) all shipped. The **event framework + World
+  Cup package** shipped (reuses existing cosmetics, free by playing, paper
+  "available now" popup). *Still open:* full per-country packs (flag badges +
+  per-nation origami).
+- **Phase 2 (reward layer):** death screen v2 ✅, pilot XP ✅, PB ghost ✅,
+  **mint-choice ✅ (pick 1 of 3, locked forever — level + goal + event triggers)**,
+  hidden unlocks/secrets ✅. *Still open:* `feat/trails`, `feat/gate-fx` (the
+  every-10th-gate firework class), `feat/unlock-remap` (full class remap),
+  `feat/ascent-mastery`.
+- **Phase 3 (retention):** daily-champion mints ✅, hidden unlocks ✅, leaderboard
+  snapshot ✅ (unblocks ghost-watch). *Open:* streaks-v2, daily-aftermath
+  results screen, push notifications, weekly Paper Crown / monthly ladder,
+  ghost-watch.
+- **Phase 4 (identity & revenue):** `feat/paper-sky-art` ✅ mostly (crumple
+  death, folded-paper sprites, contraband category, **and now the global paper
+  UI pass: menu / pause / daily / settings / account / event / choice cards**).
+  *Open:* evolving-plane stickers, **monetization-v1 (now UNBLOCKED — Phase 0
+  done)**, seasons-v1, arcade mode.
+
+**Also shipped this push (not in the original phase tables):** emailless
+cross-device **link codes**, **supporter badge via redeem code**, **death-cause
+goals** (wall hugger / icarus / deep diver — colour + badge, from level 5),
+locked-card greying, flat swatch plate, app-wide hand-font headings.
+
+**Recommended next:** (1) `feat/trails` + `feat/gate-fx` to finish the per-run
+reward feel; (2) `feat/daily-aftermath` results screen (viral share text);
+(3) full **country packs** to make the World Cup event richer; (4) start
+`feat/monetization-v1` groundwork now that it's unblocked. See `TODO.md` for the
+parked-item backlog.
+
+⚠ **Migrations to apply (Supabase SQL editor), in order:** 0026 (xp), 0027 (run
+cosmetic snapshot), 0028 (code→badge grant), 0029 (link codes). Owner confirmed
+0028/0029 applied 2026-06-15.
+
+---
+
 ## Phase 0 — Trust & breakage (before anything public or paid)
 
 The game's brand is "a score you can trust"; these holes contradict it.
@@ -169,6 +212,35 @@ to `feat/mint-choice` so tokens have something to spend on.
 Open questions parked: menu redesign = flight-journal hub (post-World-Cup
 branch); celebration batching when many unlocks pop at once; backend
 latency (see devlog/0005 notes — region + roundtrips, not tier).
+
+## Shipped 2026-06-12…15 (paper identity, event, progression — on `claude/upbeat-hypatia-81uyhd` → main)
+
+- ✅ **Global Paper Sky UI pass**: main menu, pause, daily landing, settings and
+  account are folded-paper cards in the hand font; gear/account are paper chips;
+  daily twist modifiers and panel titles use the hand font; reusable
+  `.paper-chip` + de-chequered flat swatch plate; locked shapes / colours /
+  backgrounds greyed out.
+- ✅ **Gallery colour previews fixed** (sprite filter-id collision in gallery +
+  shape-svg): every card/swatch previews its OWN colour on the equipped sprite.
+- ✅ **Two-colour love-letter** sprite; **origami sprites normalised to the
+  hitbox** footprint; **Show hitbox** debug setting; retired duplicate gliding
+  swan/dove.
+- ✅ **World Cup event** (`game/events.ts`): play-to-earn package of existing
+  cosmetics, date-latched, paper "available now" popup; away kit + final-day
+  golden boot.
+- ✅ **Pick 1 of 3 colours** (`game/color-choices.ts`, = `feat/mint-choice`):
+  level 5/10, a score-75 goal, and the World Cup finale offer three colours; you
+  keep one, the other two lock forever. Surfaced in the gallery once resolved.
+- ✅ **Emailless device link codes** (migration 0029, `api/link-code.ts`):
+  generate on one device, redeem on another to carry the account across.
+- ✅ **Supporter badge via redeem code** (migration 0028,
+  `skin_codes.unlocks_badge`).
+- ✅ **Death-cause goals** (from level 5): wall hugger (pillar), icarus (top),
+  deep diver (bottom) — each grants a colour **and** an emoji badge. Sim records
+  `deathCause`.
+- ✅ **Onboarding consolidated**: no separate tour — the in-game coach pop-ups
+  fire on the first run of ANY mode (paper-styled). A/B branches retired.
+- ✅ Casual-run resume now guarded across Daily/Ranked entry too.
 
 ## Event-package calendar (idea inventory, 2026-06-11)
 

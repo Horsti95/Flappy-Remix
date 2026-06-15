@@ -2,13 +2,20 @@ import { DEFAULT_SKIN, type SkinColors } from "../game/skin";
 import { RARITY_COLOR, type Rarity } from "../game/rarity";
 import { TIER_COLOR, TIER_LABEL, type Tier } from "../game/daily-twist";
 import { DEFAULT_SHAPE_ID, getShape, type ShapeId } from "../game/shapes";
-import { DEFAULT_THEME_ID, getTheme, type ThemeId } from "../game/themes";
+import { DEFAULT_THEME_ID, getTheme, type Theme, type ThemeId } from "../game/themes";
 import { hasBackgroundImage, getBackgroundImage } from "../game/backgrounds";
 import { hasSprite, getTintedSprite, getSpriteContentBox } from "../game/sprites";
+import { getPillarStyle, type PillarStyleId } from "../game/pillars";
+import { getPillarColor } from "../game/pillar-colors";
+import { auraColor, type AuraId } from "../game/aura";
 
 export interface ShareCardData {
   shape?: ShapeId;
   themeId?: ThemeId;
+  /** Equipped pillar style/colour + aura, so the card mirrors the actual run. */
+  pillarStyleId?: PillarStyleId;
+  pillarColorId?: string;
+  auraId?: AuraId;
   score: number;
   username: string | null;
   skin: SkinColors;
@@ -66,8 +73,9 @@ export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData): v
       ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
     }
   }
-  // Dark overlay so text stays legible against any sky/art.
-  ctx.fillStyle = "rgba(10,10,20,0.45)";
+  // Uniform — but lighter — dark wash so text stays legible against any
+  // sky/art while the equipped world still reads in colour.
+  ctx.fillStyle = "rgba(10,10,20,0.30)";
   ctx.fillRect(0, 0, W, H);
 
   // Soft horizon arc
@@ -75,6 +83,11 @@ export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData): v
   ctx.beginPath();
   ctx.ellipse(W / 2, H * 0.62, W * 0.9, H * 0.28, 0, 0, Math.PI * 2);
   ctx.fill();
+
+  // Gameplay diorama: a pair of pillars in the equipped style + colour with a
+  // gap the bird is gliding through — so the card looks like an actual moment
+  // from the run, not a static badge. Drawn before the bird so it sits in front.
+  drawPillarScene(ctx, data, theme);
 
   // Brand watermark top
   ctx.fillStyle = "#f4ead5";
@@ -116,8 +129,8 @@ export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData): v
     drawChip(ctx, W - 96 - 280, chipY, 280, 88, `streak ${data.streakDays}`);
   }
 
-  // Skin preview
-  drawShareShape(ctx, W / 2, H * 0.42, 260, data.skin, data.shape ?? DEFAULT_SHAPE_ID);
+  // The bird — gliding through the centre pillar's gap, with its aura glow.
+  drawShareShape(ctx, W / 2, H * 0.42, 240, data.skin, data.shape ?? DEFAULT_SHAPE_ID, data.auraId);
 
   // Score
   ctx.fillStyle = "#f4ead5";
@@ -211,6 +224,53 @@ function roundRect(
   ctx.closePath();
 }
 
+/**
+ * The equipped pillar pair, drawn into a band of the card in the player's
+ * pillar style + colour. Three pillars (centre gap aligned to the bird, sides
+ * offset) give a real "scrolling field" feel. Uses the pillar draw functions
+ * verbatim — their numeric args double as canvas coords, so we translate to the
+ * scene's top and treat `worldHeight` as the band height.
+ */
+function drawPillarScene(ctx: CanvasRenderingContext2D, data: ShareCardData, theme: Theme): void {
+  const style = getPillarStyle(data.pillarStyleId ?? "solid");
+  const pc = data.pillarColorId ? getPillarColor(data.pillarColorId) : null;
+  const bodyColor = pc && pc.body ? pc.body : theme.colors.pipeBody;
+  const capColor = pc && pc.cap ? pc.cap : theme.colors.pipeCap;
+
+  const sceneTop = H * 0.14;
+  const sceneH = H * 0.50; // band: 0.14H .. 0.64H
+  const over = 60;
+  const pipeWidth = 168;
+  const gapH = 360;
+  const birdSceneY = H * 0.42 - sceneTop; // bird sits at H*0.42 on the card
+  const clampGap = (gy: number): number => Math.max(over, Math.min(gy, sceneH - gapH - over));
+  // [left-edge x, gap-centre] — `x` is the pillar's LEFT edge (see bodies()),
+  // so the centre pillar is offset by half its width to sit under the bird.
+  // Its gap holds the bird; the side pillars vary for a real scrolling field.
+  const pillars: Array<[number, number]> = [
+    [W * 0.02, birdSceneY - 150],
+    [W / 2 - pipeWidth / 2, birdSceneY],
+    [W * 0.76, birdSceneY + 120],
+  ];
+  ctx.save();
+  ctx.translate(0, sceneTop);
+  for (const [x, gapCentre] of pillars) {
+    style.draw({
+      ctx,
+      x,
+      gapY: clampGap(gapCentre - gapH / 2),
+      gapH,
+      worldHeight: sceneH,
+      pipeWidth,
+      over,
+      bodyColor,
+      capColor,
+      highContrast: false,
+    });
+  }
+  ctx.restore();
+}
+
 function drawShareShape(
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -218,9 +278,25 @@ function drawShareShape(
   size: number,
   skin: SkinColors,
   shapeId: ShapeId,
+  auraId?: AuraId,
 ): void {
   ctx.save();
   ctx.translate(cx, cy);
+  // Earned aura: a soft halo in the aura's colour behind the bird — mirrors the
+  // in-game render (radius ≈ 0.55r, blur ≈ 1.5r; size ≈ 2r here).
+  const aura = auraId ? auraColor(auraId) : null;
+  if (aura) {
+    ctx.save();
+    ctx.shadowColor = `rgb(${aura.join(",")})`;
+    ctx.shadowBlur = size * 0.75;
+    ctx.fillStyle = `rgb(${aura.join(",")})`;
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    ctx.arc(0, 0, size * 0.28, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fill();
+    ctx.restore();
+  }
   ctx.rotate(-0.18);
   // Sprite-backed shapes (origami swan/dove/butterfly/…) must paint their PNG
   // sprite — the same path the in-game renderer uses. Their `.draw` is only a

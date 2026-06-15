@@ -286,6 +286,14 @@ a:focus-visible {
   border-color: rgba(90, 75, 45, 0.4);
   box-shadow: 1px 2px 0 rgba(0, 0, 0, 0.18);
 }
+/* Locked cards read as clearly unavailable: their preview (shape / colour
+   swatch) is desaturated and dimmed, so a locked skin no longer looks like a
+   live, equippable one. The label still teases what it is. */
+.paper-note.is-locked .swatch-plate,
+.paper-note.is-locked svg {
+  filter: grayscale(0.95);
+  opacity: 0.55;
+}
 
 /* Small "torn paper" chip — the journal equivalent of a pill/badge. Used for
    daily-twist modifier call-outs (e.g. "gap +20px") and other heads-up notes so

@@ -487,7 +487,7 @@ function showMenu(): void {
     {
       onPlay: () => { pushSubView(); playCasual(); },
       onTraining: () => { pushSubView(); startRun("training"); },
-      onPlayDaily: () => { pushSubView(); openDailyLanding(); },
+      onPlayDaily: () => withCasualGuard(() => { pushSubView(); openDailyLanding(); }, "go to daily"),
       onToggleSetting,
       onSetGhostOpacity: (pct: number) => {
         settings.ghostOpacity = pct;
@@ -558,7 +558,7 @@ function showMenu(): void {
       },
       onOpenLeaderboard: () => { pushSubView(); panelOpen = true; renderLeaderboard(overlays, () => showMenu(), (username) => openProfile(username)); },
       onOpenFriends: () => openFriendsPanel(),
-      onOpenRanked: () => openRankedPanel(),
+      onOpenRanked: () => withCasualGuard(() => openRankedPanel(), "go to ranked"),
       onOpenQuests: () => {
         pushSubView();
         panelOpen = true;
@@ -1404,24 +1404,37 @@ function quitRunToMenu(): void {
 function playCasual(): void {
   const saved = loadSavedCasualRun();
   if (saved) {
-    promptResume(saved);
+    promptResume(saved, () => { clearSavedCasualRun(); startRun("casual"); }, "start a new run");
   } else {
     startRun("casual");
   }
 }
 
-function promptResume(saved: SavedRun): void {
+/** Guard another mode (daily / ranked / …) behind the unfinished casual run:
+ *  if one is saved, ask whether to continue it first. Choosing the other mode
+ *  KEEPS the casual save (it's only resumable from casual, never lost here). */
+function withCasualGuard(proceed: () => void, proceedLabel: string): void {
+  const saved = loadSavedCasualRun();
+  if (saved) promptResume(saved, proceed, proceedLabel);
+  else proceed();
+}
+
+/** Resume prompt. `proceed` runs the alternative (fresh casual / another mode);
+ *  the resume button always continues the saved casual run. */
+function promptResume(saved: SavedRun, proceed: () => void, proceedLabel: string): void {
   const card = document.createElement("div");
   card.dataset.noFlap = "true";
   card.className =
-    "pointer-events-auto absolute inset-0 z-30 bg-black/85 backdrop-blur-sm font-display text-paper flex flex-col items-center justify-center text-center px-8";
+    "pointer-events-auto absolute inset-0 z-30 bg-black/60 backdrop-blur-sm font-display flex items-center justify-center text-center px-6";
   card.innerHTML = `
-    <div class="text-4xl mb-3">⏸️</div>
-    <h2 class="text-xl font-bold mb-1">resume your run?</h2>
-    <p class="text-sm opacity-75 mb-7">you left a casual run at score ${saved.score}.</p>
-    <div class="w-full max-w-xs space-y-2">
-      <button data-resume class="w-full rounded-2xl bg-paper text-ink font-bold py-3 active:scale-95 transition">resume (score ${saved.score})</button>
-      <button data-new class="w-full rounded-2xl border border-paper/40 text-paper font-bold py-3 active:scale-95 transition">start new</button>
+    <div class="paper-note px-7 py-7 w-full max-w-xs flex flex-col items-center">
+      <div class="text-4xl mb-2">⏸️</div>
+      <h2 class="text-2xl font-bold font-hand mb-1">ongoing casual run</h2>
+      <p class="text-sm opacity-70 mb-6">you left a casual run at score ${saved.score}.</p>
+      <div class="w-full space-y-2">
+        <button data-resume class="btn w-full bg-ink text-paper font-bold py-3">continue (score ${saved.score})</button>
+        <button data-new class="btn w-full bg-black/10 font-bold py-3">${proceedLabel}</button>
+      </div>
     </div>
   `;
   card.querySelector("[data-resume]")?.addEventListener("click", (e) => {
@@ -1432,8 +1445,7 @@ function promptResume(saved: SavedRun): void {
   card.querySelector("[data-new]")?.addEventListener("click", (e) => {
     e.stopPropagation();
     card.remove();
-    clearSavedCasualRun();
-    startRun("casual");
+    proceed();
   });
   overlays.appendChild(card);
 }

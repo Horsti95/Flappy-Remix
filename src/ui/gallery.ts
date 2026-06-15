@@ -674,7 +674,7 @@ export function renderGallery(
       defaultSkinCard(currentEquipped.skinId === null, currentEquipped.shapeId, () => {
         currentEquipped.skinId = null;
         currentEquipped.presetId = null;
-        cbs.onEquipColorPreset(null);
+        currentEquipped.achColorId = null;
         cbs.onEquipSkin(null);
         renderLoadout();
         void renderSkins();
@@ -701,7 +701,7 @@ export function renderGallery(
           const newId = row.id === currentEquipped.skinId ? null : row.id;
           currentEquipped.skinId = newId;
           currentEquipped.presetId = null;
-          cbs.onEquipColorPreset(null);
+          currentEquipped.achColorId = null;
           cbs.onEquipSkin(newId);
           renderLoadout();
           void renderSkins();

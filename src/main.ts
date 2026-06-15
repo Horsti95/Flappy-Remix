@@ -24,6 +24,7 @@ import { renderGallery } from "./ui/gallery";
 import { renderLeaderboard } from "./ui/leaderboard";
 import {
   listOwnedSkins,
+  getCachedOwnedSkins,
   setEquippedSkin,
   getEquippedSkinIdLocal,
   getEquippedShapeLocal,
@@ -432,12 +433,6 @@ async function loadEquippedSkin(): Promise<void> {
     }
   }
   const s = authState();
-  if (!s.ready || s.offline) {
-    equippedSkin = null;
-    renderer.options.skin = DEFAULT_SKIN;
-    renderer.options.glow = false;
-    return;
-  }
   const wantedId = s.profile?.equipped_skin_id ?? getEquippedSkinIdLocal();
   if (!wantedId) {
     equippedSkin = null;
@@ -445,7 +440,14 @@ async function loadEquippedSkin(): Promise<void> {
     renderer.options.glow = false;
     return;
   }
-  const rows = await listOwnedSkins();
+  // Resolve the skin's colours from the live owned list when the backend is
+  // reachable, else fall back to the locally-cached owned skins. This lets an
+  // owned ("earned & minted") skin equip the same way a local preset does —
+  // including offline or before auth has resolved — instead of silently
+  // snapping back to the default skin.
+  let rows: SkinRow[] = [];
+  if (s.ready && !s.offline) rows = await listOwnedSkins();
+  if (rows.length === 0) rows = getCachedOwnedSkins() ?? [];
   const found = rows.find((r) => r.id === wantedId) ?? null;
   equippedSkin = found;
   renderer.options.skin = found ? rowToColors(found) : DEFAULT_SKIN;
@@ -517,6 +519,12 @@ function showMenu(): void {
           },
           {
             onEquipSkin: async (id) => {
+              // Equipping a minted/earned skin must clear any locally-equipped
+              // preset or achievement colour — both rank ABOVE owned skins in
+              // loadEquippedSkin()'s priority chain, so leaving one set makes the
+              // skin silently never apply.
+              setEquippedPresetLocal(null);
+              setEquippedAchievementColorLocal(null);
               await setEquippedSkin(id);
               await loadEquippedSkin();
             },

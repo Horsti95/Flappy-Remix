@@ -92,8 +92,17 @@ export async function setEquippedSkin(skinId: string | null): Promise<void> {
   try {
     localStorage.setItem(EQUIPPED_KEY, JSON.stringify(skinId));
   } catch { /* ignore */ }
-  if (!sb || !s.user) return;
-  await sb.from("profiles").update({ equipped_skin_id: skinId }).eq("user_id", s.user.id);
+  if (!sb || !s.user) return; // offline / signed-out: local equip still renders from cache
+  const { error } = await sb
+    .from("profiles")
+    .update({ equipped_skin_id: skinId })
+    .eq("user_id", s.user.id);
+  if (error) {
+    // Don't swallow it — a rejected equip (e.g. the ownership trigger) used to
+    // fail silently and snap back to default with no clue why.
+    console.error("[skins] setEquippedSkin", error);
+    return;
+  }
   await refreshProfile();
 }
 

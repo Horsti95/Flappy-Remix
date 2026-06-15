@@ -382,12 +382,17 @@ export function renderGallery(
       grid.appendChild(badgeCard(badge, badge.rank === bestRank));
     }
 
-    // Then the collectible badges: earned ones in full, then non-secret
-    // locked ones as dimmed teasers so players see what's next.
+    // Collectible badges: only the granted "meta" ones are surfaced here for
+    // now (reviewer + supporter; playtester/developer are the cards above).
+    // Play-earned collectibles (incl. the death-cause goals) still grant and
+    // show on the profile — they're just hidden from this gallery list.
+    const SHOWN_COLLECTIBLE_BADGES = new Set(["reviewer", "supporter"]);
     for (const def of earnedBadges(stats)) {
+      if (!SHOWN_COLLECTIBLE_BADGES.has(def.id)) continue;
       grid.appendChild(collectibleBadgeCard(def, true));
     }
     for (const def of lockedVisibleBadges(stats)) {
+      if (!SHOWN_COLLECTIBLE_BADGES.has(def.id)) continue;
       grid.appendChild(collectibleBadgeCard(def, false));
     }
   }

@@ -1128,7 +1128,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: "wall_hugger",
     name: "wall hugger",
-    blurb: "from level 5: crash into a pillar",
+    blurb: "crash into a pillar",
     category: "special",
     reward: { type: "color", body: [120, 128, 134], accent: [40, 44, 48] },
     check: (s) => s.diedPillarL5 === true,
@@ -1136,7 +1136,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: "icarus",
     name: "icarus",
-    blurb: "from level 5: fly off the top",
+    blurb: "fly off the top",
     category: "special",
     reward: { type: "color", body: [125, 196, 240], accent: [255, 244, 180] },
     check: (s) => s.diedTopL5 === true,
@@ -1144,7 +1144,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: "deep_diver",
     name: "deep diver",
-    blurb: "from level 5: sink to the bottom",
+    blurb: "sink to the bottom",
     category: "special",
     reward: { type: "color", body: [30, 70, 120], accent: [120, 200, 210] },
     check: (s) => s.diedBottomL5 === true,

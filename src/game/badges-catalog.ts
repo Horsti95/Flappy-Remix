@@ -97,7 +97,7 @@ export const BADGES: BadgeDef[] = [
     name: "wall hugger",
     emoji: "🧱",
     color: "#8a9298",
-    hint: "from level 5: crash into a pillar",
+    hint: "crash into a pillar",
     check: (s) => s.diedPillarL5 === true,
   },
   {
@@ -105,7 +105,7 @@ export const BADGES: BadgeDef[] = [
     name: "icarus",
     emoji: "🪽",
     color: "#7dc4f0",
-    hint: "from level 5: fly off the top",
+    hint: "fly off the top",
     check: (s) => s.diedTopL5 === true,
   },
   {
@@ -113,7 +113,7 @@ export const BADGES: BadgeDef[] = [
     name: "deep diver",
     emoji: "🤿",
     color: "#1e4678",
-    hint: "from level 5: sink to the bottom",
+    hint: "sink to the bottom",
     check: (s) => s.diedBottomL5 === true,
   },
 ];

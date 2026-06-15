@@ -1,7 +1,8 @@
-import { authState, claimUsername, signInWithGoogle, signInWithDiscord, signInWithEmail, signOut, subscribeAuth } from "../social/auth";
+import { authState, claimUsername, createLinkCode, redeemLinkCode, signOut, subscribeAuth } from "../social/auth";
 import { validateUsername } from "../social/profanity";
 import { refreshGrantedShapes } from "../social/grants";
 import { levelFromTotalXp, loadTotalXp } from "../game/xp";
+import { grantBadge } from "../game/badges-catalog";
 
 export function renderAccountPanel(host: HTMLElement, onClose: () => void, onViewProfile?: (username: string) => void): () => void {
   const wrap = document.createElement("div");
@@ -55,20 +56,31 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void, onVie
             ${
               linked
                 ? `<div class="text-[12px] opacity-70">✓ signed in with ${providerLabel}</div>`
-                : `<p class="text-xs opacity-70 mb-2">anonymous — sign in to keep your runs across devices.</p>
-                   <div class="space-y-2">
-                     <button data-mail class="btn-primary w-full py-2.5 text-sm">✉️ Continue with email</button>
-                     <form data-email-form class="hidden gap-2 items-stretch">
-                       <input data-email name="email" type="email" autocomplete="email" autocapitalize="none" spellcheck="false"
-                              class="flex-1 min-w-0 rounded-xl bg-white/10 px-3 py-2 text-base outline-none focus:bg-white/20"
-                              placeholder="you@email.com" />
-                       <button class="btn-secondary shrink-0 px-4 py-2 text-sm">send link</button>
-                     </form>
-                     <button data-google class="btn-primary w-full py-2.5 text-sm">Continue with Google</button>
-                     <button data-discord class="btn-primary w-full py-2.5 text-sm">Continue with Discord</button>
-                   </div>
-                   <div data-auth-status class="mt-2 text-[12px] min-h-[1em] opacity-70"></div>`
+                : `<p class="text-xs opacity-70">anonymous — claim a username, then use a device link code below to keep your runs across devices.</p>`
             }
+          </div>
+        </div>
+
+        <div class="panel-group-label">Sync across devices</div>
+        <div class="rounded-2xl bg-white/5 p-3 space-y-3">
+          <div>
+            <div class="text-[12px] opacity-70 mb-1.5">On this device (your account): generate a code, then enter it on another device.</div>
+            <button data-make-link class="btn-secondary w-full py-2.5 text-sm">generate link code</button>
+            <div data-link-out class="hidden mt-2 text-center">
+              <div class="font-mono text-2xl font-bold tracking-[0.3em] select-all" data-link-code></div>
+              <div class="text-[11px] opacity-60 mt-1" data-link-note></div>
+            </div>
+          </div>
+          <div class="pt-3 border-t border-white/5">
+            <div class="text-[12px] opacity-70 mb-1.5">Have a code from another device? Enter it to load that profile here.</div>
+            <form data-link-form class="flex gap-2 items-stretch">
+              <input data-link-input name="linkcode" autocomplete="off" autocapitalize="characters" spellcheck="false"
+                     maxlength="8"
+                     class="flex-1 min-w-0 rounded-xl bg-white/10 px-3 py-2 text-base outline-none focus:bg-white/20 uppercase tracking-[0.25em] font-mono"
+                     placeholder="8-CHAR" />
+              <button class="btn-primary shrink-0 px-4 py-2 text-sm">link</button>
+            </form>
+            <div data-link-status class="mt-2 text-[12px] min-h-[1em] opacity-70"></div>
           </div>
         </div>
 
@@ -112,34 +124,50 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void, onVie
       </div>
     `;
     bindCloseButtons(wrap, onClose);
-    wrap.querySelector("[data-google]")?.addEventListener("click", (e) => {
+    // Generate a device link code for this account.
+    wrap.querySelector("[data-make-link]")?.addEventListener("click", async (e) => {
       e.stopPropagation();
-      signInWithGoogle();
+      const out = wrap.querySelector("[data-link-out]") as HTMLDivElement | null;
+      const codeEl = wrap.querySelector("[data-link-code]") as HTMLDivElement | null;
+      const noteEl = wrap.querySelector("[data-link-note]") as HTMLDivElement | null;
+      const btn = e.currentTarget as HTMLButtonElement;
+      btn.disabled = true;
+      const prev = btn.textContent;
+      btn.textContent = "generating…";
+      const res = await createLinkCode();
+      btn.disabled = false;
+      btn.textContent = prev;
+      if (!res.ok) {
+        if (out) out.classList.remove("hidden");
+        if (codeEl) codeEl.textContent = "—";
+        if (noteEl) {
+          noteEl.className = "text-[11px] text-red-300 mt-1";
+          noteEl.textContent = res.reason;
+        }
+        return;
+      }
+      if (out) out.classList.remove("hidden");
+      if (codeEl) codeEl.textContent = res.code;
+      if (noteEl) {
+        noteEl.className = "text-[11px] opacity-60 mt-1";
+        noteEl.textContent = "enter on your other device within 10 minutes · single use";
+      }
     });
-    wrap.querySelector("[data-discord]")?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      signInWithDiscord();
-    });
-    // "Continue with email" reveals the address input rather than going
-    // straight to a form, so the default sign-in row stays a clean 3 buttons.
-    wrap.querySelector("[data-mail]")?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const form = wrap.querySelector("[data-email-form]") as HTMLElement | null;
-      if (!form) return;
-      form.className = "flex gap-2 items-stretch";
-      (form.querySelector("[data-email]") as HTMLInputElement | null)?.focus();
-    });
-    wrap.querySelector("[data-email-form]")?.addEventListener("submit", async (e) => {
+    // Redeem a link code: adopt the other device's account here.
+    wrap.querySelector("[data-link-form]")?.addEventListener("submit", async (e) => {
       e.preventDefault();
       e.stopPropagation();
-      const input = wrap.querySelector("[data-email]") as HTMLInputElement;
-      const status = wrap.querySelector("[data-auth-status]") as HTMLDivElement;
+      const input = wrap.querySelector("[data-link-input]") as HTMLInputElement;
+      const status = wrap.querySelector("[data-link-status]") as HTMLDivElement;
+      const code = input.value.trim();
+      if (!code) return;
       status.className = "mt-2 text-[12px] min-h-[1em] opacity-70";
-      status.textContent = "sending…";
-      const res = await signInWithEmail(input.value);
+      status.textContent = "linking…";
+      const res = await redeemLinkCode(code);
       if (res.ok) {
         status.className = "mt-2 text-[12px] min-h-[1em] text-emerald-300";
-        status.textContent = "check your email for a sign-in link.";
+        status.textContent = "linked! your profile is now on this device.";
+        input.value = "";
       } else {
         status.className = "mt-2 text-[12px] min-h-[1em] text-red-300";
         status.textContent = res.reason;
@@ -184,15 +212,23 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void, onVie
           label?: string;
           error?: string;
           granted_shape?: string | null;
+          granted_badge?: string | null;
         };
         if (!res.ok || !body.ok) {
           status.className = "mt-2 text-[12px] min-h-[1em] text-red-300";
           status.textContent = redeemErrorMessage(body.error ?? `http_${res.status}`);
           return;
         }
+        // Mirror any granted badge into the local grant set so it renders in the
+        // gallery immediately (the redemption row is the server-side record).
+        if (body.granted_badge) grantBadge(body.granted_badge);
         status.className = "mt-2 text-[12px] min-h-[1em] text-emerald-300";
-        status.textContent = body.granted_shape
-          ? `unlocked: ${body.label} (+ ${body.granted_shape} shape). open Gallery to equip.`
+        const extras = [
+          body.granted_shape ? `${body.granted_shape} shape` : null,
+          body.granted_badge ? `${body.granted_badge} badge` : null,
+        ].filter(Boolean);
+        status.textContent = extras.length
+          ? `unlocked: ${body.label} (+ ${extras.join(" + ")}). open Gallery to equip.`
           : `unlocked: ${body.label}. open Gallery to equip.`;
         input.value = "";
         void refreshGrantedShapes();

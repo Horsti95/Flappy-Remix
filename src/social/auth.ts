@@ -180,6 +180,79 @@ export async function signInWithEmail(
   return error ? { ok: false, reason: error.message } : { ok: true };
 }
 
+/**
+ * Generate an emailless cross-device link code for the current account.
+ * Requires a claimed username (server-enforced). The code is single-use and
+ * short-lived; another device redeems it via {@link redeemLinkCode} to adopt
+ * this same account. See api/link-code.ts.
+ */
+export async function createLinkCode(): Promise<
+  { ok: true; code: string; expiresAt: string } | { ok: false; reason: string }
+> {
+  const session = state.session;
+  if (!session) return { ok: false, reason: "not signed in" };
+  if (!state.profile?.username) return { ok: false, reason: "claim a username first" };
+  try {
+    const res = await fetch("/api/link-code", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ action: "create", refresh_token: session.refresh_token }),
+    });
+    const body = (await res.json().catch(() => ({}))) as { ok?: boolean; code?: string; expires_at?: string; error?: string };
+    if (!res.ok || !body.ok || !body.code) {
+      return { ok: false, reason: linkErr(body.error ?? `http_${res.status}`) };
+    }
+    return { ok: true, code: body.code, expiresAt: body.expires_at ?? "" };
+  } catch {
+    return { ok: false, reason: "network error" };
+  }
+}
+
+/**
+ * Redeem a link code on this device: fetch the originating device's refresh
+ * token and swap our session for theirs, so this device becomes the same
+ * account (progress/skins/streak follow). The old device may need to re-link.
+ */
+export async function redeemLinkCode(
+  raw: string,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const sb = getSupabase();
+  if (!sb) return { ok: false, reason: "offline" };
+  const code = raw.trim().toUpperCase();
+  if (code.length !== 8) return { ok: false, reason: "codes are 8 characters" };
+  try {
+    const res = await fetch("/api/link-code", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "redeem", code }),
+    });
+    const body = (await res.json().catch(() => ({}))) as { ok?: boolean; refresh_token?: string; error?: string };
+    if (!res.ok || !body.ok || !body.refresh_token) {
+      return { ok: false, reason: linkErr(body.error ?? `http_${res.status}`) };
+    }
+    const { data, error } = await sb.auth.refreshSession({ refresh_token: body.refresh_token });
+    if (error || !data.session) return { ok: false, reason: "could not link (code may be stale)" };
+    state.session = data.session;
+    state.user = data.session.user;
+    await refreshProfile();
+    emit();
+    return { ok: true };
+  } catch {
+    return { ok: false, reason: "network error" };
+  }
+}
+
+function linkErr(code: string): string {
+  switch (code) {
+    case "no_username": return "claim a username first";
+    case "not_found": return "code not found";
+    case "expired": return "this code expired — generate a new one";
+    case "already_used": return "this code was already used";
+    case "invalid_format": return "codes are 8 characters";
+    default: return "couldn't link — try again";
+  }
+}
+
 export async function signOut(): Promise<void> {
   const sb = getSupabase();
   if (!sb) return;

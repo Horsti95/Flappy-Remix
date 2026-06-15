@@ -28,7 +28,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   const codeRow = await admin
     .from("skin_codes")
-    .select("code, body_r, body_g, body_b, accent_r, accent_g, accent_b, rarity, label, max_uses, uses, expires_at, unlocks_shape")
+    .select("code, body_r, body_g, body_b, accent_r, accent_g, accent_b, rarity, label, max_uses, uses, expires_at, unlocks_shape, unlocks_badge")
     .eq("code", raw)
     .maybeSingle();
   if (codeRow.error || !codeRow.data) {
@@ -114,11 +114,17 @@ export default async function handler(req: Request): Promise<Response> {
       );
   }
 
+  // A code may also grant a profile badge (e.g. "supporter"). The redemption
+  // row above is the server-side record; we return the id so the client mirrors
+  // it into its local badge-grant set for instant, offline-first rendering.
+  const grantedBadge = (c.unlocks_badge as string | null) ?? null;
+
   return json({
     ok: true,
     label: c.label,
     skin: skinInsert.data,
     granted_shape: grantedShape,
+    granted_badge: grantedBadge,
   });
 }
 

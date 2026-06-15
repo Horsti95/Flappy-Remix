@@ -607,11 +607,12 @@ export function renderGallery(
     const isUnlocked = (sh: ShapeMeta): boolean => granted.has(sh.id) || sh.unlock(stats).unlocked;
     // Paper fleet first (the game's identity), then the clearly-labelled
     // novelty section so off-vibe shapes read as a joke, not a grab bag.
+    const pickable = SHAPES.filter((sh) => !sh.hidden);
     const groups: Array<{ label: string; shapes: ShapeMeta[] }> = [
-      { label: "paper fleet", shapes: SHAPES.filter((sh) => sh.category === "paper") },
+      { label: "paper fleet", shapes: pickable.filter((sh) => sh.category === "paper") },
       {
         label: "contraband — things that have no business flying",
-        shapes: SHAPES.filter((sh) => sh.category === "contraband"),
+        shapes: pickable.filter((sh) => sh.category === "contraband"),
       },
     ];
     for (const group of groups) {
@@ -1038,7 +1039,7 @@ function shapeSvgWithColors(
     case "swan2":
       return spriteSwatch("swan2", body, accent, true);
     case "envelope":
-      return spriteSwatch("envelope", body); // single-layer (no accent fold)
+      return spriteSwatch("envelope", body, accent, true); // flap = accent, body = body
     case "rocket-origami":
       return spriteSwatch("rocket", body, accent, true);
     case "butterfly-origami":
@@ -1076,6 +1077,15 @@ function swatchTintMatrix(c: [number, number, number]): string {
   return `${(c[0] / 255).toFixed(3)} 0 0 0 0  ${(c[1] / 255).toFixed(3)} 0 0 0 0  ${(c[2] / 255).toFixed(3)} 0 0 0 0  0 0 0 1 0`;
 }
 
+// Every spriteSwatch needs its OWN filter element IDs. SVG IDs are
+// document-global, so a fixed `sw-<id>-b` would collide across every card that
+// shows the same sprite (hero, loadout, each colour card) — and browsers
+// resolve a duplicate `url(#id)` to the FIRST definition in the DOM. That made
+// every sprite colour-card render with whatever colour the hero/loadout painted
+// first (the equipped colour) instead of its own. A per-call counter keeps them
+// unique so each card previews the colour it actually represents.
+let swatchUid = 0;
+
 // Sprite-backed gallery swatch. Two-colour sprites render the accent PNG
 // (multiplied by `accent`) BENEATH the base PNG (multiplied by `body`); sprites
 // without an accent layer (e.g. the crane) render just the base.
@@ -1085,8 +1095,9 @@ function spriteSwatch(
   accent?: [number, number, number],
   hasAccent = false,
 ): string {
-  const baseFid = `sw-${id}-b`;
-  const accFid = `sw-${id}-a`;
+  const uid = swatchUid++;
+  const baseFid = `sw-${id}-b-${uid}`;
+  const accFid = `sw-${id}-a-${uid}`;
   let defs = `<filter id="${baseFid}"><feColorMatrix type="matrix" values="${swatchTintMatrix(body)}"/></filter>`;
   let layers = "";
   if (hasAccent && accent) {

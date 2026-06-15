@@ -208,9 +208,27 @@ a:focus-visible {
     @apply btn bg-transparent border border-accent-danger/50 text-accent-danger hover:bg-accent-danger/10;
   }
 
-  /* Grouped settings/section block: a label + a card of rows. */
+  /* Grouped settings/section block: a label + a card of rows.
+     The label is styled like the Hangar's masking-tape section headers so the
+     Settings and Account panels share the gallery's flight-journal identity. */
   .panel-group-label {
-    @apply text-[10px] uppercase tracking-wider opacity-50 font-bold px-1 mb-1.5 mt-4;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 1rem 0 0.5rem 0.25rem;
+    padding: 0.2rem 0.7rem;
+    color: #2a2118;
+    background: #efe3c6;
+    border-radius: 3px;
+    transform: rotate(-1.2deg);
+    box-shadow: 1px 2px 0 rgba(0, 0, 0, 0.25);
+    font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", "Chalkboard SE", cursive;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: normal;
+    text-transform: none;
+    opacity: 1;
   }
   .panel-group {
     @apply rounded-2xl bg-white/5 divide-y divide-white/5;

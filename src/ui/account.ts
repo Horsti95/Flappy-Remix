@@ -6,7 +6,7 @@ import { levelFromTotalXp, loadTotalXp } from "../game/xp";
 export function renderAccountPanel(host: HTMLElement, onClose: () => void, onViewProfile?: (username: string) => void): () => void {
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
-  wrap.className = "pointer-events-auto absolute inset-0 z-30 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center px-6 font-display text-paper";
+  wrap.className = "pointer-events-auto absolute inset-0 z-30 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center px-4 font-display text-paper";
   host.appendChild(wrap);
 
   const unsub = subscribeAuth((s) => {
@@ -30,9 +30,9 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void, onVie
           ? "email"
           : "your account";
     wrap.innerHTML = `
-      <div class="w-full max-w-sm max-h-[88vh] overflow-y-auto">
+      <div class="hangar-surface w-full max-w-sm max-h-[88vh] overflow-y-auto rounded-3xl border border-paper/20 px-5 py-5 shadow-2xl">
         <div class="flex items-center justify-between">
-          <h2 class="text-xl font-bold">account</h2>
+          <h2 class="font-hand text-2xl font-bold">account</h2>
           <button data-close class="btn-quiet text-sm px-2 py-1">close</button>
         </div>
 
@@ -319,8 +319,8 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void, onVie
 
 function offlineView(): string {
   return `
-    <div class="text-center max-w-sm">
-      <h2 class="text-xl font-bold">offline mode</h2>
+    <div class="hangar-surface text-center max-w-sm rounded-3xl border border-paper/20 px-6 py-7 shadow-2xl">
+      <h2 class="font-hand text-2xl font-bold">offline mode</h2>
       <p class="mt-2 text-sm opacity-70">
         No Supabase keys configured. Solo play works, but leaderboards,
         friends, and ranked are disabled.

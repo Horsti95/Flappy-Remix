@@ -150,8 +150,8 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
     </div>
     <div data-settings-panel class="hidden absolute inset-0 z-20 flex flex-col justify-end pointer-events-auto">
       <div class="bg-black/40 absolute inset-0" data-settings-backdrop></div>
-      <div class="relative bg-gradient-to-t from-black/95 to-black/80 rounded-t-3xl px-5 py-6 pb-10 max-h-[85vh] overflow-y-auto">
-        <div class="text-sm font-bold mb-2">Settings</div>
+      <div class="hangar-surface relative rounded-t-3xl px-5 py-6 pb-10 max-h-[85vh] overflow-y-auto border-t-2 border-paper/25">
+        <h2 class="font-hand text-2xl font-bold mb-3">Settings</h2>
 
         <div class="panel-group-label">Audio &amp; feel</div>
         <div class="grid grid-cols-2 gap-2 text-[11px]">

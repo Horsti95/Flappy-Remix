@@ -74,6 +74,13 @@ export interface ShapeMeta {
   /** Gallery grouping — see {@link ShapeCategory}. Purely presentational. */
   category: ShapeCategory;
   /**
+   * Hide this shape from the gallery picker. The shape still exists (so a
+   * player who already equipped it keeps rendering correctly) but it no longer
+   * appears as a selectable card — used to retire near-duplicate variants we
+   * decided not to ship.
+   */
+  hidden?: boolean;
+  /**
    * Returns the unlock state given the player's lifetime counters.
    * Pure function — no network. Extra optional counters give variety
    * to unlock conditions (challenge wins, late-night plays, etc.).
@@ -991,6 +998,7 @@ export const SHAPES: ShapeMeta[] = [
     name: "origami swan (gliding)",
     category: "paper",
     sprite: "swan2",
+    hidden: true, // retired — the raised-wing swan reads better; keep only that one
     blurb: "a second swan, mid-glide.",
     unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
     draw: drawToucanFallback,
@@ -1072,6 +1080,7 @@ export const SHAPES: ShapeMeta[] = [
     name: "origami dove (gliding)",
     category: "paper",
     sprite: "dove2",
+    hidden: true, // retired — the flight dove reads better; keep only that one
     blurb: "a second dove, beak forward.",
     unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
     draw: drawToucanFallback,

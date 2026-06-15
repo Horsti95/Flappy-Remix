@@ -37,7 +37,7 @@ const SPRITE_DEFS: Record<string, { accent: boolean }> = {
   crane: { accent: false },
   swan: { accent: true },
   swan2: { accent: true },
-  envelope: { accent: false },
+  envelope: { accent: true },
   rocket: { accent: true },
   butterfly: { accent: true },
   songbird: { accent: true },

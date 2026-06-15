@@ -5,10 +5,13 @@ import { DEFAULT_SHAPE_ID, getShape, type ShapeId } from "../game/shapes";
 import { DEFAULT_THEME_ID, getTheme, type ThemeId } from "../game/themes";
 import { hasBackgroundImage, getBackgroundImage } from "../game/backgrounds";
 import { hasSprite, getTintedSprite, getSpriteContentBox } from "../game/sprites";
+import { auraColor, type AuraId } from "../game/aura";
 
 export interface ShareCardData {
   shape?: ShapeId;
   themeId?: ThemeId;
+  /** Equipped aura, so the card's bird glows like it does in-game. */
+  auraId?: AuraId;
   score: number;
   username: string | null;
   skin: SkinColors;
@@ -66,8 +69,9 @@ export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData): v
       ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
     }
   }
-  // Dark overlay so text stays legible against any sky/art.
-  ctx.fillStyle = "rgba(10,10,20,0.45)";
+  // Uniform — but lighter — dark wash so text stays legible against any
+  // sky/art while the equipped theme/world still reads in colour.
+  ctx.fillStyle = "rgba(10,10,20,0.30)";
   ctx.fillRect(0, 0, W, H);
 
   // Soft horizon arc
@@ -116,8 +120,8 @@ export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData): v
     drawChip(ctx, W - 96 - 280, chipY, 280, 88, `streak ${data.streakDays}`);
   }
 
-  // Skin preview
-  drawShareShape(ctx, W / 2, H * 0.42, 260, data.skin, data.shape ?? DEFAULT_SHAPE_ID);
+  // Skin preview — now with the equipped aura glow behind it.
+  drawShareShape(ctx, W / 2, H * 0.42, 260, data.skin, data.shape ?? DEFAULT_SHAPE_ID, data.auraId);
 
   // Score
   ctx.fillStyle = "#f4ead5";
@@ -218,9 +222,25 @@ function drawShareShape(
   size: number,
   skin: SkinColors,
   shapeId: ShapeId,
+  auraId?: AuraId,
 ): void {
   ctx.save();
   ctx.translate(cx, cy);
+  // Earned aura: a soft halo in the aura's colour behind the bird — mirrors the
+  // in-game render (radius ≈ 0.55r, blur ≈ 1.5r; size ≈ 2r here).
+  const aura = auraId ? auraColor(auraId) : null;
+  if (aura) {
+    ctx.save();
+    ctx.shadowColor = `rgb(${aura.join(",")})`;
+    ctx.shadowBlur = size * 0.75;
+    ctx.fillStyle = `rgb(${aura.join(",")})`;
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    ctx.arc(0, 0, size * 0.28, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fill();
+    ctx.restore();
+  }
   ctx.rotate(-0.18);
   // Sprite-backed shapes (origami swan/dove/butterfly/…) must paint their PNG
   // sprite — the same path the in-game renderer uses. Their `.draw` is only a

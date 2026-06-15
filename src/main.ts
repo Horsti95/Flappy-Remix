@@ -38,6 +38,7 @@ import { getEquippedThemeLocal, setEquippedThemeLocal, setThemesLabMode, type Th
 import { getEquippedPresetLocal, setEquippedPresetLocal, getPreset, setPresetLabMode } from "./game/preset-skins";
 import { getEquippedPillarLocal, getPillarStyle } from "./game/pillars";
 import { getEquippedPillarColorLocal } from "./game/pillar-colors";
+import { getEquippedAura } from "./game/aura";
 import { getEquippedAchievementColorLocal, setEquippedAchievementColorLocal } from "./game/achievement-equip";
 import { ACHIEVEMENTS } from "./game/achievements";
 import { CHAMELEON_ID, rollChameleonColors } from "./game/chameleon";
@@ -1201,6 +1202,7 @@ async function openShare(score: number, result: SubmitResult | null): Promise<vo
     skin: renderer.options.skin,
     shape: equippedShapeId,
     themeId: equippedThemeId,
+    auraId: getEquippedAura(),
     rarity: currentRarity(),
     streakDays: result?.streak_days ?? s.profile?.streak_days ?? 0,
     mode: challengeShortId ? "challenge" : currentRunMode === "ranked" ? "ranked" : currentRunMode === "daily" ? "daily" : currentRunMode === "challenge" ? "challenge" : "casual",
@@ -1224,6 +1226,7 @@ function shareChallenge(score: number, shortId: string, addressedTo: string | nu
     skin: renderer.options.skin,
     shape: equippedShapeId,
     themeId: equippedThemeId,
+    auraId: getEquippedAura(),
     rarity: currentRarity(),
     streakDays: s.profile?.streak_days ?? 0,
     mode: "challenge",

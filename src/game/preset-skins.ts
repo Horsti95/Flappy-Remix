@@ -1,6 +1,6 @@
 import type { AchievementStats } from "./achievements";
 import { isEventGranted } from "./events";
-import { CHOICE_PRESETS, isChoicePicked } from "./color-choices";
+import { CHOICE_PRESETS, isChoicePicked, pickedRandomChoicePresets, randomChoicePreset } from "./color-choices";
 
 type RGB = [number, number, number];
 
@@ -67,6 +67,10 @@ export const PRESET_SKINS: PresetSkin[] = [
     unlock: (s) => ({ unlocked: s.totalGames >= 1234, hint: "play 1234 games" }) },
   // "Pick 1 of 3" milestone colours — equippable once chosen (see color-choices.ts).
   ...CHOICE_PRESETS,
+  // Procedural wildcard colours (level > 40) the player has already picked, so
+  // they show up in the gallery. Fixed at load; getPreset() reconstructs any
+  // just-picked one this session.
+  ...pickedRandomChoicePresets(),
 ];
 
 const PRESET_KEY = "pflug.equippedPreset.v1";
@@ -90,7 +94,9 @@ export function setEquippedPresetLocal(id: string | null): void {
 
 export function getPreset(id: string | null | undefined): PresetSkin | null {
   if (!id) return null;
-  return PRESET_SKINS.find((p) => p.id === id) ?? null;
+  // Fall back to reconstructing a procedural wildcard colour — it may have been
+  // picked this session, after PRESET_SKINS was built.
+  return PRESET_SKINS.find((p) => p.id === id) ?? randomChoicePreset(id);
 }
 
 let labMode = false;

@@ -143,6 +143,96 @@ export const CHOICE_SETS: ChoiceSet[] = [
   },
 ];
 
+// ---- Procedural choices beyond the hand-made milestones -------------------
+// After the final fixed milestone, EVERY level offers a fresh "pick 1 of 3"
+// with completely random colour combinations. They're generated
+// *deterministically from the level number*, so a given level always yields the
+// same three options — which means a picked id can be reconstructed back into a
+// palette without ever persisting the RGB.
+
+export const RANDOM_CHOICE_START_LEVEL = 41;
+
+/** Tiny deterministic PRNG (mulberry32). */
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function hslToRgb(h: number, s: number, l: number): RGB {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const hp = h / 60;
+  const x = c * (1 - Math.abs((hp % 2) - 1));
+  let r = 0, g = 0, b = 0;
+  if (hp < 1) [r, g, b] = [c, x, 0];
+  else if (hp < 2) [r, g, b] = [x, c, 0];
+  else if (hp < 3) [r, g, b] = [0, c, x];
+  else if (hp < 4) [r, g, b] = [0, x, c];
+  else if (hp < 5) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+  const m = l - c / 2;
+  return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
+}
+
+const HUE_NAMES: ReadonlyArray<readonly [number, string]> = [
+  [15, "crimson"], [40, "amber"], [65, "gold"], [95, "lime"], [150, "emerald"],
+  [185, "teal"], [205, "azure"], [240, "cobalt"], [275, "violet"], [305, "magenta"],
+  [340, "rose"], [360, "crimson"],
+];
+function hueName(h: number): string {
+  for (const [max, name] of HUE_NAMES) if (h <= max) return name;
+  return "crimson";
+}
+
+/** One deterministic random colour for (level, slot). Body is always a vivid,
+ *  visible mid-tone; the accent is either a deep shade of the same hue (tasteful
+ *  tonal) or a fully independent hue (bold contrast) — so combos range from
+ *  classy to genuinely wild. */
+function genRandomColor(level: number, i: number): ChoiceColor {
+  const rng = mulberry32(level * 2654435761 + i * 40503 + 1);
+  const bodyHue = Math.floor(rng() * 360);
+  const bodyS = 0.6 + rng() * 0.35;
+  const bodyL = 0.5 + rng() * 0.14;
+  const body = hslToRgb(bodyHue, bodyS, bodyL);
+  const contrast = rng() < 0.5;
+  const accHue = contrast ? Math.floor(rng() * 360) : bodyHue;
+  const accS = 0.55 + rng() * 0.4;
+  const accL = 0.16 + rng() * 0.15;
+  const accent = hslToRgb(accHue, accS, accL);
+  return { id: `choice-rng-${level}-${i}`, name: hueName(bodyHue), body, accent };
+}
+
+/** The procedurally-generated "pick 1 of 3" for a given level (>= 41). */
+export function randomChoiceSet(level: number): ChoiceSet {
+  return {
+    id: `rng-lvl-${level}`,
+    prompt: `Level ${level} — wildcard colours`,
+    trigger: { kind: "level", level },
+    options: [genRandomColor(level, 0), genRandomColor(level, 1), genRandomColor(level, 2)],
+  };
+}
+
+const RNG_COLOR_RE = /^choice-rng-(\d+)-(\d+)$/;
+const RNG_SET_RE = /^rng-lvl-(\d+)$/;
+
+/** Reconstruct a procedural choice colour straight from its id. */
+export function randomChoiceColor(id: string): ChoiceColor | null {
+  const m = RNG_COLOR_RE.exec(id);
+  return m ? genRandomColor(Number(m[1]), Number(m[2])) : null;
+}
+
+/** Resolve any choice set id — fixed milestone or procedural level. */
+function getChoiceSet(setId: string): ChoiceSet | null {
+  const fixed = CHOICE_SETS.find((s) => s.id === setId);
+  if (fixed) return fixed;
+  const m = RNG_SET_RE.exec(setId);
+  return m ? randomChoiceSet(Number(m[1])) : null;
+}
+
 // ---- Persisted state ------------------------------------------------------
 
 interface ChoiceState {
@@ -190,7 +280,7 @@ export function isChoiceSetResolved(setId: string): boolean {
 
 /** Commit a choice: own the picked colour, lock the other two FOREVER. */
 export function resolveChoice(setId: string, pickedColorId: string): void {
-  const set = CHOICE_SETS.find((s) => s.id === setId);
+  const set = getChoiceSet(setId);
   if (!set) return;
   const s = load();
   if (s.resolved.includes(setId)) return; // idempotent
@@ -212,9 +302,12 @@ export interface ChoiceContext {
   eventFinalDay(eventId: string): boolean;
 }
 
-/** Unresolved sets whose trigger condition is now met. */
+/** Unresolved sets whose trigger condition is now met. The fixed milestones can
+ *  surface several at once (they're shown one at a time by the caller); beyond
+ *  level 40 we append only the *next* unresolved procedural level, so the wild
+ *  choices are worked through in order, one per level. */
 export function pendingChoiceSets(ctx: ChoiceContext): ChoiceSet[] {
-  return CHOICE_SETS.filter((set) => {
+  const out = CHOICE_SETS.filter((set) => {
     if (isChoiceSetResolved(set.id)) return false;
     const t = set.trigger;
     if (t.kind === "level") return ctx.level >= t.level;
@@ -222,6 +315,12 @@ export function pendingChoiceSets(ctx: ChoiceContext): ChoiceSet[] {
     if (t.kind === "event") return t.finalDay ? ctx.eventFinalDay(t.eventId) : true;
     return false;
   });
+  for (let lvl = RANDOM_CHOICE_START_LEVEL; lvl <= ctx.level; lvl++) {
+    if (isChoiceSetResolved(`rng-lvl-${lvl}`)) continue;
+    out.push(randomChoiceSet(lvl));
+    break; // one wildcard at a time; the next surfaces once this is resolved
+  }
+  return out;
 }
 
 // ---- Preset integration ---------------------------------------------------
@@ -242,3 +341,33 @@ export const CHOICE_PRESETS: PresetSkin[] = CHOICE_SETS.flatMap((set) =>
         : { unlocked: false, hint: "a milestone choice" },
   })),
 );
+
+/** Reconstruct a procedural (level > 40) choice colour as an equippable preset.
+ *  Used by getPreset so a picked wildcard always resolves, even though it isn't
+ *  baked into PRESET_SKINS. */
+export function randomChoicePreset(id: string): PresetSkin | null {
+  const c = randomChoiceColor(id);
+  if (!c) return null;
+  return {
+    id: c.id,
+    name: c.name,
+    body: c.body,
+    accent: c.accent,
+    choice: true,
+    unlock: () =>
+      isChoiceRejected(c.id)
+        ? { unlocked: false, hint: "a road not taken — locked" }
+        : { unlocked: false, hint: "a wildcard choice" },
+  };
+}
+
+/** Picked procedural colours as presets, so they appear in the gallery (the
+ *  rejected ones stay out — there'd be endlessly many). */
+export function pickedRandomChoicePresets(): PresetSkin[] {
+  const out: PresetSkin[] = [];
+  for (const id of load().picked) {
+    const p = randomChoicePreset(id);
+    if (p) out.push(p);
+  }
+  return out;
+}

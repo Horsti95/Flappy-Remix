@@ -34,7 +34,7 @@ import {
 import { THEMES, isThemesLabMode, type Theme, type ThemeId } from "../game/themes";
 import { hasZones } from "../game/depth-zones";
 import { getGrantedShapesLocal } from "../social/grants";
-import { PRESET_SKINS, presetUnlock, type PresetSkin } from "../game/preset-skins";
+import { PRESET_SKINS, getPreset, presetUnlock, type PresetSkin } from "../game/preset-skins";
 import { PILLAR_STYLES, getEquippedPillarLocal, setEquippedPillarLocal, type PillarStyle } from "../game/pillars";
 import { PILLAR_COLORS, getPillarColor, getEquippedPillarColorLocal, setEquippedPillarColorLocal, pillarColorUnlocked } from "../game/pillar-colors";
 import { setEquippedAchievementColorLocal } from "../game/achievement-equip";
@@ -138,7 +138,7 @@ export function renderGallery(
 
   function resolveEquippedColors(): { body: [number,number,number]; accent: [number,number,number] } {
     if (currentEquipped.presetId) {
-      const preset = PRESET_SKINS.find(p => p.id === currentEquipped.presetId);
+      const preset = getPreset(currentEquipped.presetId);
       if (preset) return { body: preset.body, accent: preset.accent };
     }
     if (currentEquipped.achColorId) {
@@ -164,7 +164,7 @@ export function renderGallery(
     // Name the equipped colour source for the tag subtitle.
     let paletteLabel = "cream + ink";
     if (currentEquipped.presetId) {
-      paletteLabel = PRESET_SKINS.find((p) => p.id === currentEquipped.presetId)?.name ?? paletteLabel;
+      paletteLabel = getPreset(currentEquipped.presetId)?.name ?? paletteLabel;
     } else if (currentEquipped.achColorId) {
       paletteLabel = ACHIEVEMENTS.find((a) => a.id === currentEquipped.achColorId)?.name ?? paletteLabel;
     } else if (currentEquipped.skinId) {

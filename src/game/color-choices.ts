@@ -37,24 +37,88 @@ export interface ChoiceSet {
 }
 
 export const CHOICE_SETS: ChoiceSet[] = [
+  // Level milestones fire every 5 levels. The palette deliberately *escalates*:
+  // early choices are harmonious tonals (a hue + its deeper shade) so a new
+  // player can't go wrong, and later choices are bold, high-contrast "specials"
+  // (black + yellow, white + black, neon) that read as a flex you earned.
   {
     id: "lvl5",
-    prompt: "Level 5 — choose your colours",
+    prompt: "Level 5 — cool tones",
     trigger: { kind: "level", level: 5 },
     options: [
-      { id: "choice-lvl5-ember", name: "ember", body: [239, 108, 60], accent: [70, 20, 10] },
-      { id: "choice-lvl5-tide", name: "tide", body: [56, 178, 172], accent: [10, 60, 60] },
-      { id: "choice-lvl5-orchid", name: "orchid", body: [192, 110, 224], accent: [55, 20, 75] },
+      { id: "choice-lvl5-sky", name: "sky", body: [125, 185, 235], accent: [38, 92, 150] },
+      { id: "choice-lvl5-seafoam", name: "seafoam", body: [120, 210, 185], accent: [25, 105, 90] },
+      { id: "choice-lvl5-lavender", name: "lavender", body: [180, 165, 225], accent: [85, 65, 145] },
     ],
   },
   {
     id: "lvl10",
-    prompt: "Level 10 — pick a livery",
+    prompt: "Level 10 — warm tones",
     trigger: { kind: "level", level: 10 },
     options: [
-      { id: "choice-lvl10-ash", name: "ash", body: [120, 130, 140], accent: [25, 30, 35] },
-      { id: "choice-lvl10-marigold", name: "marigold", body: [245, 180, 40], accent: [90, 55, 5] },
-      { id: "choice-lvl10-cobalt", name: "cobalt", body: [40, 90, 220], accent: [10, 25, 80] },
+      { id: "choice-lvl10-apricot", name: "apricot", body: [245, 180, 120], accent: [165, 85, 40] },
+      { id: "choice-lvl10-honey", name: "honey", body: [240, 205, 110], accent: [150, 110, 30] },
+      { id: "choice-lvl10-blush", name: "blush", body: [240, 160, 175], accent: [150, 60, 85] },
+    ],
+  },
+  {
+    id: "lvl15",
+    prompt: "Level 15 — jewel tones",
+    trigger: { kind: "level", level: 15 },
+    options: [
+      { id: "choice-lvl15-teal", name: "teal", body: [55, 165, 170], accent: [12, 78, 82] },
+      { id: "choice-lvl15-fern", name: "fern", body: [110, 165, 80], accent: [40, 80, 30] },
+      { id: "choice-lvl15-plum", name: "plum", body: [150, 95, 160], accent: [70, 35, 80] },
+    ],
+  },
+  {
+    id: "lvl20",
+    prompt: "Level 20 — vivid duos",
+    trigger: { kind: "level", level: 20 },
+    options: [
+      { id: "choice-lvl20-sunset", name: "sunset", body: [250, 140, 55], accent: [55, 45, 120] },
+      { id: "choice-lvl20-aquapop", name: "aqua pop", body: [70, 200, 230], accent: [225, 70, 150] },
+      { id: "choice-lvl20-limelight", name: "limelight", body: [185, 215, 70], accent: [110, 45, 150] },
+    ],
+  },
+  {
+    id: "lvl25",
+    prompt: "Level 25 — high voltage",
+    trigger: { kind: "level", level: 25 },
+    options: [
+      { id: "choice-lvl25-magenta", name: "hot magenta", body: [230, 55, 150], accent: [25, 200, 195] },
+      { id: "choice-lvl25-volt", name: "volt", body: [200, 250, 60], accent: [35, 35, 55] },
+      { id: "choice-lvl25-flame", name: "flame", body: [255, 95, 45], accent: [25, 20, 30] },
+    ],
+  },
+  {
+    id: "lvl30",
+    prompt: "Level 30 — blackout specials",
+    trigger: { kind: "level", level: 30 },
+    options: [
+      { id: "choice-lvl30-bumblebee", name: "bumblebee", body: [22, 22, 22], accent: [245, 205, 40] },
+      { id: "choice-lvl30-inferno", name: "inferno", body: [22, 22, 22], accent: [225, 55, 45] },
+      { id: "choice-lvl30-venom", name: "venom", body: [22, 22, 22], accent: [120, 235, 95] },
+    ],
+  },
+  {
+    id: "lvl35",
+    prompt: "Level 35 — couture",
+    trigger: { kind: "level", level: 35 },
+    options: [
+      { id: "choice-lvl35-ghost", name: "ghost", body: [238, 240, 245], accent: [24, 24, 30] },
+      { id: "choice-lvl35-royale", name: "royale", body: [26, 22, 58], accent: [243, 196, 72] },
+      { id: "choice-lvl35-crimson", name: "crimson court", body: [88, 12, 22], accent: [240, 224, 200] },
+    ],
+  },
+  {
+    id: "lvl40",
+    prompt: "Level 40 — legendary",
+    trigger: { kind: "level", level: 40 },
+    options: [
+      { id: "choice-lvl40-vaporwave", name: "vaporwave", body: [255, 110, 200], accent: [110, 230, 255] },
+      { id: "choice-lvl40-noir", name: "neon noir", body: [12, 12, 18], accent: [255, 60, 140] },
+      { id: "choice-lvl40-toxic", name: "toxic", body: [205, 255, 20], accent: [10, 10, 12] },
     ],
   },
   {

@@ -14,3 +14,10 @@ coverage
 
 # Database backups (scripts/backup.mjs) — may contain user data, never commit.
 backups
+
+# Raw source / scratch art — 58 MB of generator output; keep local, don't track.
+design/uploads/
+
+# One-off operational SQL (score restores, account merges, diagnostics).
+# These name real handles and document manual DB edits — keep local, never publish.
+scripts/sql/

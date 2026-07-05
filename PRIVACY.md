@@ -1,6 +1,6 @@
 # Privacy
 
-Plain-English summary of what Pflug stores, what it doesn't, and how to
+Plain-English summary of what Glide stores, what it doesn't, and how to
 get either back.
 
 ## What we store
@@ -86,7 +86,7 @@ database/auth, Vercel for the static deploy and edge functions).
 
 ## Children
 
-Pflug is rated for general audiences. We do not knowingly collect
+Glide is rated for general audiences. We do not knowingly collect
 data from children under 13 / 16 (depending on your jurisdiction).
 If you're a parent and want a child's account removed, use the
 delete flow above or email the contact in the README.

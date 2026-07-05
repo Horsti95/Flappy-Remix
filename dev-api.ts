@@ -10,7 +10,7 @@ import path from "node:path";
  */
 export function devApi(): Plugin {
   return {
-    name: "pflug-dev-api",
+    name: "glide-dev-api",
     configureServer(server: ViteDevServer) {
       server.middlewares.use(async (req, res, next) => {
         if (!req.url) return next();

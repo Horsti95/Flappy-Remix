@@ -1,4 +1,4 @@
-# Pflug
+# Glide
 
 A daily flap-through-gaps arcade game. Mobile-first, browser-only, no
 install required (PWA-installable). Vanilla TypeScript on HTML5 canvas
@@ -6,9 +6,12 @@ with a hand-rolled deterministic sim, Supabase auth + postgres, and
 Vercel edge functions for replay validation, OG image rendering, and
 matchmaking.
 
-> **Working title**: "Pflug". See [brand options](#brand-options).
-> The character is a paper plane, not a bird. Both choices were made
-> deliberately to be distinct from Flappy Bird in name and visual.
+> **Name**: Glide (domain `glide.uno`). The character is a paper plane,
+> not a bird. Both choices were made deliberately to be distinct from
+> Flappy Bird in name and visual. (Earlier drafts used the codename
+> "Pflug"; a few internal identifiers like the `pflug.*` localStorage
+> keys still carry it — an invisible namespace token, intentionally
+> left as-is so existing players keep their saved data.)
 
 ## Trying it out
 
@@ -219,19 +222,15 @@ vercel --prod
 `vercel.json` sets the build command, output directory, and rewrites
 `/run/:id` to the OG-meta function so link previews unfurl correctly.
 
-## Brand options
+## Name
 
-The placeholder is **Pflug** ("plough" in German — short, two
-syllables, no English collision). Three alternatives I've sketched:
-
-1. **Pflug** — current placeholder. Pros: short, memorable, unique
-   trademark-wise. Cons: most English speakers will mispronounce it.
-2. **Skim** — evokes flight just over an obstacle. Three letters,
-   one syllable.
-3. **Drift** — neutral, calm; pairs well with the paper-plane visual.
-
-Pick one before any external launch; the working title only affects
-the manifest, OG meta, and headings.
+The name is **Glide** (domain `glide.uno`), settled after the earlier
+"Pflug" codename. Everything player-facing — the PWA manifest, OG meta,
+in-game headings, and share cards — already reads "Glide". The only
+remaining "pflug" references are internal: the `pflug.*` localStorage
+namespace (left as-is so existing players keep their saved data) and the
+GitHub repo slug. Renaming the storage keys would orphan player data for
+no user-visible gain, so it's intentionally not done.
 
 ## Character design
 

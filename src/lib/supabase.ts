@@ -8,7 +8,7 @@ export function getSupabase(): SupabaseClient | null {
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
   if (!url || !key) {
     if (import.meta.env.DEV) {
-      console.warn("[pflug] VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY missing — running offline.");
+      console.warn("[glide] VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY missing — running offline.");
     }
     return null;
   }

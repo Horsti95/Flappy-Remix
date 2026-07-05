@@ -36,11 +36,17 @@ export default async function handler(req: Request): Promise<Response> {
   }
   const userId = userRes.data.user.id;
 
-  // Order matters: queue → snapshots → ratings → matches (cascade
-  // would handle a lot of this, but explicit deletes keep behavior
-  // boring and visible). The auth.users delete cascades to profiles
-  // (ON DELETE CASCADE on the FK), which cascades to runs, skins,
-  // friendships, challenges via their own FKs.
+  // Deleting the auth user cascades to `profiles` (ON DELETE CASCADE), which
+  // cascades to skins / friendships / ratings / matches. But NOT everything is
+  // a cascade: `runs.user_id` and the `challenges` FKs are ON DELETE SET NULL
+  // (see 0001/0003), so those rows survive, un-linked, as anonymous history.
+  // That keeps leaderboard aggregates intact but would otherwise leave the
+  // deleted user's full per-tick input trace behind — which is re-identifiable.
+  // So before the cascade we strip the inputs from their runs: the anonymous
+  // score row stays, the behavioral trace does not.
+  await admin.from("runs").update({ inputs: [] }).eq("user_id", userId);
+  // Explicit pre-deletes (the FKs below are already CASCADE, so these are
+  // belt-and-braces — kept boring and visible).
   await admin.from("matchmaking_queue").delete().eq("user_id", userId);
   await admin.from("elo_season_snapshots").delete().eq("user_id", userId);
   await admin.from("elo_ratings").delete().eq("user_id", userId);

@@ -46,3 +46,26 @@ describe("color choices — sets & triggers", () => {
     expect(ids(on)).toContain("wc-finale");
   });
 });
+
+describe("color choices — procedural wildcards (every 5 levels past 40)", () => {
+  const wilds = (level: number): string[] =>
+    ids(pendingChoiceSets({ level, stats: stats(), eventFinalDay: () => false })).filter((id) =>
+      id.startsWith("rng-lvl-"),
+    );
+
+  it("offers no wildcard before level 45 (curated lvl-40 set stays last)", () => {
+    expect(wilds(40)).toEqual([]);
+    expect(wilds(44)).toEqual([]);
+  });
+
+  it("offers the level-45 wildcard at 45, and only on multiples of 5", () => {
+    expect(wilds(45)).toEqual(["rng-lvl-45"]);
+    // 46–49 add nothing new; the next wildcard is 50, not 46.
+    expect(wilds(49)).toEqual(["rng-lvl-45"]);
+  });
+
+  it("surfaces one wildcard at a time — the lowest unresolved level", () => {
+    // At level 60, 45/50/55/60 are all eligible but only the first is shown.
+    expect(wilds(60)).toEqual(["rng-lvl-45"]);
+  });
+});

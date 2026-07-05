@@ -980,17 +980,17 @@ export const SHAPES: ShapeMeta[] = [
     draw: drawPretzel,
   },
   // --- Two-colour origami sprites ---------------------------------------
-  // Real layered sprites (body colour + a distinct accent colour). On THIS
-  // inspection branch every one is force-unlocked so the owner can equip and
-  // preview each; real unlock conditions land before merge. Fallback polygon
-  // is the toucan body so they still read as a flyer pre-load / high-contrast.
+  // Real layered sprites (body colour + a distinct accent colour). Unlocks are
+  // spread across score / games-played / streak so the paper set is a genuine
+  // mid-game ladder rather than free-at-minute-one. Fallback polygon is the
+  // toucan body so they still read as a flyer pre-load / high-contrast.
   {
     id: "swan",
     name: "origami swan",
     category: "paper",
     sprite: "swan",
     blurb: "folded-paper swan, wings raised.",
-    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    unlock: ({ bestScore }) => ({ unlocked: bestScore >= 25, hint: "score 25 in a single run" }),
     draw: drawToucanFallback,
   },
   {
@@ -1000,7 +1000,7 @@ export const SHAPES: ShapeMeta[] = [
     sprite: "swan2",
     hidden: true, // retired — the raised-wing swan reads better; keep only that one
     blurb: "a second swan, mid-glide.",
-    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    unlock: ({ bestScore }) => ({ unlocked: bestScore >= 25, hint: "score 25 in a single run" }),
     draw: drawToucanFallback,
   },
   {
@@ -1009,7 +1009,7 @@ export const SHAPES: ShapeMeta[] = [
     category: "paper",
     sprite: "envelope",
     blurb: "a sealed paper envelope.",
-    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    unlock: ({ totalGames }) => ({ unlocked: totalGames >= 40, hint: "play 40 games" }),
     draw: drawToucanFallback,
   },
   {
@@ -1018,7 +1018,7 @@ export const SHAPES: ShapeMeta[] = [
     category: "contraband",
     sprite: "rocket",
     blurb: "folded rocket — contraband fuel.",
-    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    unlock: ({ bestScore }) => ({ unlocked: bestScore >= 55, hint: "score 55 in a single run" }),
     draw: drawToucanFallback,
   },
   {
@@ -1027,7 +1027,7 @@ export const SHAPES: ShapeMeta[] = [
     category: "paper",
     sprite: "butterfly",
     blurb: "a folded butterfly, wings spread.",
-    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    unlock: ({ bestScore }) => ({ unlocked: bestScore >= 45, hint: "score 45 in a single run" }),
     draw: drawToucanFallback,
   },
   {
@@ -1036,7 +1036,7 @@ export const SHAPES: ShapeMeta[] = [
     category: "paper",
     sprite: "songbird",
     blurb: "a perched paper songbird.",
-    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    unlock: ({ totalGames }) => ({ unlocked: totalGames >= 60, hint: "play 60 games" }),
     draw: drawToucanFallback,
   },
   {
@@ -1045,7 +1045,7 @@ export const SHAPES: ShapeMeta[] = [
     category: "paper",
     sprite: "sparrow",
     blurb: "a plump folded sparrow.",
-    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    unlock: ({ bestScore }) => ({ unlocked: bestScore >= 35, hint: "score 35 in a single run" }),
     draw: drawToucanFallback,
   },
   {
@@ -1054,7 +1054,7 @@ export const SHAPES: ShapeMeta[] = [
     category: "paper",
     sprite: "heart",
     blurb: "a folded-paper heart.",
-    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    unlock: ({ streakDays }) => ({ unlocked: streakDays >= 5, hint: "reach a 5-day streak" }),
     draw: drawToucanFallback,
   },
   {
@@ -1063,7 +1063,7 @@ export const SHAPES: ShapeMeta[] = [
     category: "paper",
     sprite: "dove",
     blurb: "a folded dove in flight.",
-    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    unlock: ({ bestScore }) => ({ unlocked: bestScore >= 60, hint: "score 60 in a single run" }),
     draw: drawToucanFallback,
   },
   {
@@ -1072,7 +1072,7 @@ export const SHAPES: ShapeMeta[] = [
     category: "paper",
     sprite: "eagle",
     blurb: "a sharp paper eagle, wing raised.",
-    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    unlock: ({ bestScore }) => ({ unlocked: bestScore >= 80, hint: "score 80 in a single run" }),
     draw: drawToucanFallback,
   },
   {
@@ -1082,7 +1082,7 @@ export const SHAPES: ShapeMeta[] = [
     sprite: "dove2",
     hidden: true, // retired — the flight dove reads better; keep only that one
     blurb: "a second dove, beak forward.",
-    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    unlock: ({ bestScore }) => ({ unlocked: bestScore >= 60, hint: "score 60 in a single run" }),
     draw: drawToucanFallback,
   },
   {
@@ -1091,7 +1091,7 @@ export const SHAPES: ShapeMeta[] = [
     category: "contraband",
     sprite: "submarine",
     blurb: "a folded submarine — periscope up.",
-    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    unlock: ({ totalGames }) => ({ unlocked: totalGames >= 120, hint: "play 120 games" }),
     draw: drawToucanFallback,
   },
   {
@@ -1100,7 +1100,7 @@ export const SHAPES: ShapeMeta[] = [
     category: "paper",
     sprite: "leaf",
     blurb: "a folded maple leaf.",
-    unlock: () => ({ unlocked: true, hint: null }), // TODO real unlock pre-merge
+    unlock: ({ totalGames }) => ({ unlocked: totalGames >= 25, hint: "play 25 games" }),
     draw: drawToucanFallback,
   },
 ];

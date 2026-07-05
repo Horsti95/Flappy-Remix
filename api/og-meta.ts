@@ -17,7 +17,7 @@ export default async function handler(req: Request): Promise<Response> {
     (url.pathname.match(/\/run\/([^/?#]+)/)?.[1] ?? null);
   if (!runId) return new Response("not found", { status: 404 });
 
-  let title = "Pflug — can you beat this?";
+  let title = "Glide — can you beat this?";
   let description = "Daily flap-through-gaps. Same seed for the world, every day.";
   let dailyDate: string | null = null;
   try {
@@ -30,7 +30,7 @@ export default async function handler(req: Request): Promise<Response> {
     if (data) {
       const username = (data as { profiles: { username?: string | null } | null }).profiles?.username ?? "anon";
       const verb = (data.score as number) === 0 ? "bombed" : `scored ${data.score}`;
-      const mode = data.mode === "daily" ? "the daily" : "Pflug";
+      const mode = data.mode === "daily" ? "the daily" : "Glide";
       title = `@${username} ${verb} on ${mode}`;
       description = "tap to play the same seed.";
       dailyDate = (data.daily_date as string | null) ?? null;
@@ -65,7 +65,7 @@ export default async function handler(req: Request): Promise<Response> {
   <style>body{font-family:system-ui,sans-serif;background:#1a1a1a;color:#f4ead5;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}</style>
 </head>
 <body>
-  <a href="${escape(appUrl)}">open Pflug →</a>
+  <a href="${escape(appUrl)}">open Glide →</a>
 </body>
 </html>`;
   return new Response(html, {

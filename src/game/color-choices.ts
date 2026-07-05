@@ -144,13 +144,16 @@ export const CHOICE_SETS: ChoiceSet[] = [
 ];
 
 // ---- Procedural choices beyond the hand-made milestones -------------------
-// After the final fixed milestone, EVERY level offers a fresh "pick 1 of 3"
-// with completely random colour combinations. They're generated
+// The level-40 set is the last *curated* "legendary" choice. After it, a fresh
+// "pick 1 of 3" of completely random colours arrives every 5 levels (45, 50,
+// 55…) — a periodic treat rather than one-per-level, so the curated level-40
+// moment isn't devalued by an every-level faucet. They're generated
 // *deterministically from the level number*, so a given level always yields the
 // same three options — which means a picked id can be reconstructed back into a
 // palette without ever persisting the RGB.
 
-export const RANDOM_CHOICE_START_LEVEL = 41;
+export const RANDOM_CHOICE_START_LEVEL = 45;
+export const RANDOM_CHOICE_INTERVAL = 5;
 
 /** Tiny deterministic PRNG (mulberry32). */
 function mulberry32(seed: number): () => number {
@@ -304,8 +307,8 @@ export interface ChoiceContext {
 
 /** Unresolved sets whose trigger condition is now met. The fixed milestones can
  *  surface several at once (they're shown one at a time by the caller); beyond
- *  level 40 we append only the *next* unresolved procedural level, so the wild
- *  choices are worked through in order, one per level. */
+ *  level 40 we append only the *next* unresolved procedural level (every 5th
+ *  level), so the wild choices are worked through in order, one at a time. */
 export function pendingChoiceSets(ctx: ChoiceContext): ChoiceSet[] {
   const out = CHOICE_SETS.filter((set) => {
     if (isChoiceSetResolved(set.id)) return false;
@@ -315,7 +318,7 @@ export function pendingChoiceSets(ctx: ChoiceContext): ChoiceSet[] {
     if (t.kind === "event") return t.finalDay ? ctx.eventFinalDay(t.eventId) : true;
     return false;
   });
-  for (let lvl = RANDOM_CHOICE_START_LEVEL; lvl <= ctx.level; lvl++) {
+  for (let lvl = RANDOM_CHOICE_START_LEVEL; lvl <= ctx.level; lvl += RANDOM_CHOICE_INTERVAL) {
     if (isChoiceSetResolved(`rng-lvl-${lvl}`)) continue;
     out.push(randomChoiceSet(lvl));
     break; // one wildcard at a time; the next surfaces once this is resolved

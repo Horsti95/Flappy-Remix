@@ -4,9 +4,16 @@ import { authState, subscribeAuth } from "./auth";
 
 const KEY = "pflug.queue.v1";
 const MAX_QUEUE = 32;
+// A run that keeps getting HTTP-rejected (a permanent 400/403 — malformed,
+// forbidden) is poison: retrying it forever would block every run behind it.
+// Pure network failures (fetch throws / no result) are NOT counted here, so a
+// genuinely-offline device never burns attempts on a good run.
+const MAX_ATTEMPTS = 6;
 
 interface Queued extends SubmitPayload {
   ts: number;
+  /** HTTP-reject attempts so far (see MAX_ATTEMPTS). Absent = 0. */
+  attempts?: number;
 }
 
 function read(): Queued[] {
@@ -49,26 +56,63 @@ export async function flushQueued(): Promise<{ flushed: number; remaining: numbe
   flushing = true;
   let flushed = 0;
   try {
-    let q = read();
-    while (q.length > 0) {
-      const next = q[0];
+    // Bound the loop so a pathological queue can't spin; MAX_QUEUE+ is plenty
+    // since every iteration either removes the head or stops.
+    for (let guard = 0; guard < MAX_QUEUE + 8; guard++) {
+      const head = read()[0];
+      if (!head) break;
+
       let result: SubmitResult | null = null;
+      let threw = false;
       try {
-        result = await submitRun(next);
+        result = await submitRun(head);
       } catch (err) {
         console.warn("[queue] submit threw", err);
+        threw = true;
+      }
+
+      // Re-read AFTER the await: a run may have been enqueued while we waited
+      // (e.g. the player died mid-flush). Operate on the current queue and
+      // locate our item by identity so a concurrent enqueue is never clobbered.
+      const cur = read();
+      const idx = cur.findIndex((x) => x.ts === head.ts && x.seed === head.seed && x.score === head.score);
+
+      const networkFail = threw || !result;
+      const httpReject = !!result?.reason && result.reason.startsWith("http_");
+
+      if (networkFail) {
+        // Server unreachable — stop; retry on the next online/visibility tick.
+        // Don't count an attempt: a good run must survive a long offline spell.
         break;
       }
-      if (!result) break;
-      // Treat HTTP errors (network) as retriable. Validator rejects
-      // (accepted=false but result returned) drop the run silently —
-      // they would never be accepted.
-      if (result.reason && result.reason.startsWith("http_")) break;
-      q.shift();
-      write(q);
-      flushed++;
+
+      if (httpReject) {
+        // Server answered with an error. Could be transient (429/500) or
+        // permanent (400/403). Count it; drop as poison past the cap so it
+        // stops blocking everything behind it, then keep draining.
+        if (idx >= 0) {
+          const attempts = (cur[idx].attempts ?? 0) + 1;
+          if (attempts >= MAX_ATTEMPTS) {
+            console.warn("[queue] dropping run after", attempts, "HTTP rejects:", result?.reason);
+            cur.splice(idx, 1);
+            write(cur);
+            continue;
+          }
+          cur[idx] = { ...cur[idx], attempts };
+          write(cur);
+        }
+        break;
+      }
+
+      // Accepted, or a permanent validator reject (result returned, no http_
+      // reason) that would never succeed: remove it and continue draining.
+      if (idx >= 0) {
+        cur.splice(idx, 1);
+        write(cur);
+      }
+      if (result?.accepted) flushed++;
     }
-    return { flushed, remaining: q.length };
+    return { flushed, remaining: pendingCount() };
   } finally {
     flushing = false;
   }

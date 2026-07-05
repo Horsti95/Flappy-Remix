@@ -18,23 +18,23 @@ describe("shape registry", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  // NOTE: this branch (claude/sprites-two-color) force-unlocks the new
-  // two-colour origami sprites for inspection — see the `// TODO real unlock
-  // pre-merge` markers in shapes.ts. So a fresh player sees the default shape
-  // PLUS exactly those always-unlocked inspection sprites, and nothing else.
-  // TODO: revert to `toEqual([DEFAULT_SHAPE_ID])` once real unlocks land.
-  const INSPECTION_SPRITES = [
-    "swan", "swan2", "envelope", "rocket-origami", "butterfly-origami",
-    "songbird", "sparrow", "heart-origami", "dove", "eagle", "dove2",
-    "submarine-origami", "leaf-origami",
-  ];
-  it("a fresh player sees the default shape + the force-unlocked inspection sprites", () => {
-    const unlocked = listUnlockedShapeIds({
-      totalGames: 0,
-      bestScore: 0,
-      streakDays: 0,
-    });
-    expect(new Set(unlocked)).toEqual(new Set([DEFAULT_SHAPE_ID, ...INSPECTION_SPRITES]));
+  it("a fresh player sees only the default shape", () => {
+    const unlocked = listUnlockedShapeIds({ totalGames: 0, bestScore: 0, streakDays: 0 });
+    expect(new Set(unlocked)).toEqual(new Set([DEFAULT_SHAPE_ID]));
+  });
+
+  it("origami sprites have real unlocks (not free at minute one)", () => {
+    const fresh = { totalGames: 0, bestScore: 0, streakDays: 0 };
+    // None are available to a fresh player…
+    for (const id of ["swan", "envelope", "leaf-origami", "heart-origami", "eagle"]) {
+      expect(listUnlockedShapeIds(fresh)).not.toContain(id);
+    }
+    // …and each is gated on its own axis (score / games / streak).
+    expect(listUnlockedShapeIds({ ...fresh, bestScore: 25 })).toContain("swan");
+    expect(listUnlockedShapeIds({ ...fresh, totalGames: 25 })).toContain("leaf-origami");
+    expect(listUnlockedShapeIds({ ...fresh, streakDays: 5 })).toContain("heart-origami");
+    expect(listUnlockedShapeIds({ ...fresh, bestScore: 79 })).not.toContain("eagle");
+    expect(listUnlockedShapeIds({ ...fresh, bestScore: 80 })).toContain("eagle");
   });
 
   it("paper-plane-v2 unlocks at 10 games", () => {

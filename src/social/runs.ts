@@ -56,32 +56,46 @@ export interface SubmitPayload {
   accent?: [number, number, number] | null;
 }
 
+// Bound how long a submit can hang: on a stalled mobile connection the death
+// screen waits on this call, so an unbounded fetch means an unbounded freeze.
+// A network failure or timeout returns null (retriable) rather than throwing,
+// so callers — including the offline queue — get one uniform "try later" signal.
+const SUBMIT_TIMEOUT_MS = 12000;
+
 export async function submitRun(payload: SubmitPayload): Promise<SubmitResult | null> {
   const sb = getSupabase();
   const s = authState();
   if (!sb || !s.session) return null;
-  const res = await fetch("/api/submit-run", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${s.session.access_token}`,
-    },
-    body: JSON.stringify({
-      seed: payload.seed,
-      score: payload.score,
-      ticks: payload.ticks,
-      inputs: payload.inputs,
-      mode: payload.mode,
-      daily_date: payload.dailyDate ?? null,
-      challenge_short_id: payload.challengeShortId ?? null,
-      ranked_match_id: payload.rankedMatchId ?? null,
-      ranked_round: payload.rankedRound ?? null,
-      equipped_skin_id: payload.equippedSkinId ?? null,
-      shape: payload.shape ?? null,
-      body: payload.body ?? null,
-      accent: payload.accent ?? null,
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetch("/api/submit-run", {
+      method: "POST",
+      signal: AbortSignal.timeout(SUBMIT_TIMEOUT_MS),
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${s.session.access_token}`,
+      },
+      body: JSON.stringify({
+        seed: payload.seed,
+        score: payload.score,
+        ticks: payload.ticks,
+        inputs: payload.inputs,
+        mode: payload.mode,
+        daily_date: payload.dailyDate ?? null,
+        challenge_short_id: payload.challengeShortId ?? null,
+        ranked_match_id: payload.rankedMatchId ?? null,
+        ranked_round: payload.rankedRound ?? null,
+        equipped_skin_id: payload.equippedSkinId ?? null,
+        shape: payload.shape ?? null,
+        body: payload.body ?? null,
+        accent: payload.accent ?? null,
+      }),
+    });
+  } catch (err) {
+    // Timeout (AbortError) or network failure — treat as retriable, not fatal.
+    console.warn("[submit-run] request failed", err);
+    return null;
+  }
   if (!res.ok) {
     const txt = await res.text();
     console.warn("[submit-run] non-200", res.status, txt);

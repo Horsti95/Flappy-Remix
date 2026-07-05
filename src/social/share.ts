@@ -20,7 +20,7 @@ export function buildShareText(data: ShareCardData): ShareLinkContext {
   // be the challenge short id so the recipient lands in the ghost run;
   // otherwise the link 404s.
   if (data.challengeShortId) params.set("c", data.challengeShortId);
-  const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://pflug.app";
+  const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://glide.uno";
   const url = `${baseUrl}/${params.toString() ? `?${params}` : ""}`;
   return { url, text };
 }

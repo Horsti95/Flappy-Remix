@@ -29,6 +29,20 @@ describe("pilot xp", () => {
     expect(xpToClearLevel(10)).toBeGreaterThan(xpToClearLevel(9));
   });
 
+  it("per-level cost caps flat so high tiers stay reachable", () => {
+    // Ramp reaches the cap by ~level 17 and stays there forever.
+    expect(xpToClearLevel(20)).toBe(600);
+    expect(xpToClearLevel(40)).toBe(600);
+    expect(xpToClearLevel(40)).toBe(xpToClearLevel(80));
+    // Each flat level ≈ 20–30 casual games (~25 XP/game).
+    expect(xpToClearLevel(40) / 25).toBeGreaterThanOrEqual(20);
+    expect(xpToClearLevel(40) / 25).toBeLessThanOrEqual(30);
+    // Cumulative XP to level 40 is now a few hundred games, not thousands.
+    let total = 0;
+    for (let l = 1; l < 40; l++) total += xpToClearLevel(l);
+    expect(total).toBeLessThan(20000); // was ~68,000 before the cap
+  });
+
   it("level 2 is reachable inside a first session", () => {
     // Three modest runs (~score 15 each + dailies) clear 100 XP.
     const s = levelFromTotalXp(105);
@@ -42,7 +56,8 @@ describe("pilot xp", () => {
     for (const xp of [50, 100, 500, 2000, 10000, 100000]) {
       const cur = levelFromTotalXp(xp);
       expect(cur.level).toBeGreaterThanOrEqual(prev.level);
-      expect(cur.intoLevel).toBeLessThan(cur.toNext);
+      // Below the soft cap the bar is partial (<), at the cap it reads full (==).
+      expect(cur.intoLevel).toBeLessThanOrEqual(cur.toNext);
       prev = cur;
     }
   });

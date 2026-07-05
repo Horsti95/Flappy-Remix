@@ -66,6 +66,14 @@ export interface AchievementStats {
    *  verify an external form was sent) — fine for a cosmetic reward. Optional
    *  so existing stored stats / test fixtures stay valid without a migration. */
   feedbackGiven?: boolean;
+  /** Longest run of ticks without a flap in a scored run — the "featherweight"
+   *  no-flap-glide skill signal. Optional (no migration). */
+  bestGlideTicks?: number;
+  /** New personal bests set so far in the current local day (resets each day).
+   *  Drives the "triple crown" goal. */
+  pbsToday?: number;
+  /** Latched once 3 PBs land in a single day. */
+  tripleCrownDone?: boolean;
 
   // --- Death-cause goals (gated to level 5+, latched once earned). Each is set
   // in updateStatsAfterRun when a run ends that way at/after level 5.
@@ -181,7 +189,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "back for more",
     blurb: "play your 3rd game",
     category: "score",
-    reward: { type: "color", body: [255, 209, 102], accent: [90, 60, 10] },
+    reward: { type: "color", body: [255, 209, 102], accent: [210, 180, 140] },
     check: (s) => s.totalGames >= 3,
   },
   {
@@ -189,7 +197,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "hooked",
     blurb: "play 6 games — you've got the hang of it!",
     category: "score",
-    reward: { type: "color", body: [6, 214, 160], accent: [10, 60, 50] },
+    reward: { type: "color", body: [255, 190, 120], accent: [220, 160, 110] },
     check: (s) => s.totalGames >= 6,
   },
   {
@@ -205,7 +213,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "silver ace",
     blurb: "score 75+ in a single run",
     category: "score",
-    reward: { type: "color", body: [192, 192, 192], accent: [140, 140, 140] },
+    reward: { type: "color", body: [180, 205, 235], accent: [40, 50, 130] },
     check: (s) => s.bestScore >= 75,
   },
   {
@@ -221,7 +229,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "diamond",
     blurb: "score 200+ in a single run",
     category: "score",
-    reward: { type: "color", body: [185, 242, 255], accent: [255, 255, 255] },
+    reward: { type: "color", body: [95, 210, 255], accent: [255, 150, 40] },
     secret: true,
     check: (s) => s.bestScore >= 200,
   },
@@ -230,7 +238,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "obsidian",
     blurb: "score 500+ in a single run",
     category: "score",
-    reward: { type: "color", body: [20, 20, 20], accent: [139, 0, 0] },
+    reward: { type: "color", body: [45, 15, 60], accent: [235, 120, 30] },
     secret: true,
     check: (s) => s.bestScore >= 500,
   },
@@ -243,6 +251,14 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     category: "efficiency",
     reward: { type: "sound", soundId: "paper_whoosh" },
     check: (s) => s.minimalistDone === true,
+  },
+  {
+    id: "featherweight",
+    name: "featherweight",
+    blurb: "coast ~0.75s without a single flap (in a run of 8+)",
+    category: "efficiency",
+    reward: { type: "color", body: [205, 235, 255], accent: [70, 110, 200] },
+    check: (s) => (s.bestGlideTicks ?? 0) >= 45,
   },
 
   // --- Streak-based ---
@@ -328,7 +344,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "challenger",
     blurb: "win 5 challenges — beat a friend's ghost on their seed",
     category: "social",
-    reward: { type: "color", body: [255, 80, 0], accent: [255, 140, 0] },
+    reward: { type: "color", body: [255, 95, 0], accent: [20, 40, 120] },
     check: (s) => s.challengeWins >= 5,
   },
   {
@@ -362,7 +378,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "legend",
     blurb: "play 1000 games",
     category: "milestone",
-    reward: { type: "color", body: [200, 200, 255], accent: [255, 200, 200] },
+    reward: { type: "color", body: [170, 110, 255], accent: [255, 215, 60] },
     secret: true,
     check: (s) => s.totalGames >= 1000,
   },
@@ -414,7 +430,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "cosmic mileage",
     blurb: "score 100,000 points total — a true legend of the skies",
     category: "milestone",
-    reward: { type: "color", body: [230, 240, 255], accent: [140, 60, 200] },
+    reward: { type: "color", body: [120, 210, 255], accent: [255, 120, 40] },
     secret: true,
     check: (s) => s.totalScore >= 100000,
   },
@@ -588,7 +604,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "century club",
     blurb: "post a 150 — triple digits is for tourists",
     category: "score",
-    reward: { type: "color", body: [230, 230, 235], accent: [120, 120, 135] },
+    reward: { type: "color", body: [140, 210, 255], accent: [30, 70, 150] },
     check: (s) => s.bestScore >= 150,
   },
   {
@@ -845,7 +861,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "perpetual motion",
     blurb: "2,000 games in. do you ever land?",
     category: "milestone",
-    reward: { type: "color", body: [60, 70, 90], accent: [170, 220, 255] },
+    reward: { type: "color", body: [60, 20, 110], accent: [255, 205, 60] },
     secret: true,
     check: (s) => s.totalGames >= 2000,
   },
@@ -854,7 +870,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "ace of aces",
     blurb: "a 750 run. nobody will believe you.",
     category: "score",
-    reward: { type: "color", body: [20, 20, 24], accent: [255, 200, 60] },
+    reward: { type: "color", body: [60, 20, 110], accent: [255, 205, 60] },
     secret: true,
     check: (s) => s.bestScore >= 750,
   },
@@ -1046,6 +1062,14 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     check: (s) => s.hotStreakDone === true,
   },
   {
+    id: "triple_crown",
+    name: "triple crown",
+    blurb: "set 3 new personal bests in a single day",
+    category: "score",
+    reward: { type: "color", body: [255, 150, 40], accent: [150, 40, 180] },
+    check: (s) => s.tripleCrownDone === true,
+  },
+  {
     id: "collector",
     name: "collector",
     blurb: "earn 25 other goals — the shelf is filling up",
@@ -1079,7 +1103,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "challenger",
     blurb: "score 300+ total across a ranked match",
     category: "ranked",
-    reward: { type: "color", body: [165, 95, 230], accent: [55, 20, 95] },
+    reward: { type: "color", body: [255, 120, 30], accent: [40, 60, 160] },
     check: (s) => s.bestRankedTotal >= 300,
   },
   {
@@ -1114,7 +1138,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "dominant",
     blurb: "score over 100 in every round of a ranked match",
     category: "ranked",
-    reward: { type: "color", body: [255, 140, 60], accent: [120, 40, 10] },
+    reward: { type: "color", body: [60, 200, 255], accent: [200, 40, 90] },
     secret: true,
     check: (s) => s.bestRankedFloor >= 100,
   },
@@ -1123,7 +1147,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "untouchable",
     blurb: "score over 250 in every round of a ranked match",
     category: "ranked",
-    reward: { type: "color", body: [225, 245, 255], accent: [120, 90, 200] },
+    reward: { type: "color", body: [110, 200, 255], accent: [255, 150, 30] },
     secret: true,
     check: (s) => s.bestRankedFloor >= 250,
   },
@@ -1167,6 +1191,8 @@ export function loadAchievementStats(): AchievementStats {
     hardDailyBest: 0,
     superHardDailyBest: 0,
     extremeDailyBest: 0,
+    bestGlideTicks: 0,
+    pbsToday: 0,
     nightGames: 0,
     morningGames: 0,
     challengeWins: 0,
@@ -1207,6 +1233,8 @@ export function updateStatsAfterRun(
     ticks?: number;
     deathCause?: "ceiling" | "floor" | "pillar" | null;
     level?: number;
+    /** Longest gap (in ticks) between flaps this run — the no-flap glide. */
+    maxGlideTicks?: number;
   },
 ): AchievementStats {
   const s = { ...stats };
@@ -1276,6 +1304,15 @@ export function updateStatsAfterRun(
   }
   s.runsToday = s.lastRunDay === dayKey ? (s.runsToday ?? 0) + 1 : 1;
   s.lastRunDay = dayKey;
+  // Triple crown: three new personal bests within the same local day. A new day
+  // (before this run) resets the count; stats.bestScore is the PRE-run best.
+  if (stats.lastRunDay !== dayKey) s.pbsToday = 0;
+  if (run.score > stats.bestScore) s.pbsToday = (s.pbsToday ?? 0) + 1;
+  if ((s.pbsToday ?? 0) >= 3) s.tripleCrownDone = true;
+  // Featherweight: longest no-flap glide in a run that actually scored.
+  if (run.score >= 8 && (run.maxGlideTicks ?? 0) > (s.bestGlideTicks ?? 0)) {
+    s.bestGlideTicks = run.maxGlideTicks;
+  }
   // Hot streak: three new personal bests back to back. stats.bestScore is
   // the PRE-run best, so a strict beat counts; anything else resets.
   s.consecutivePbs = run.score > stats.bestScore ? (s.consecutivePbs ?? 0) + 1 : 0;

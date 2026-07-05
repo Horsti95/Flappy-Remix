@@ -9,6 +9,7 @@ import {
 } from "../src/game/achievements";
 import { FLAP_FX_OPTIONS } from "../src/game/flap-fx";
 import { FLAP_SOUND_OPTIONS } from "../src/game/sfx";
+import { classifyRarity, rarityRank } from "../src/game/rarity";
 
 const EMPTY: AchievementStats = {
   totalGames: 0,
@@ -344,6 +345,61 @@ describe("secret achievements", () => {
     );
     expect(ids(updateStatsAfterRun(EMPTY, { score: 0, mode: "casual", inputCount: 0 }))).toContain(
       "zero_flap",
+    );
+  });
+});
+
+describe("new mechanics", () => {
+  const ids = (s: AchievementStats): string[] => getUnlockedAchievements(s).map((a) => a.id);
+
+  it("featherweight tracks the longest no-flap glide (score-gated)", () => {
+    // A long glide in a low-scoring run doesn't count.
+    const trivial = updateStatsAfterRun(EMPTY, { score: 4, mode: "casual", maxGlideTicks: 90 });
+    expect(trivial.bestGlideTicks ?? 0).toBe(0);
+    // A shorter glide below the bar in a real run: tracked but not unlocked.
+    const near = updateStatsAfterRun(EMPTY, { score: 12, mode: "casual", maxGlideTicks: 44 });
+    expect(near.bestGlideTicks).toBe(44);
+    expect(ids(near)).not.toContain("featherweight");
+    // At/over the 45-tick bar in a run of 8+: unlocked.
+    const got = updateStatsAfterRun(EMPTY, { score: 20, mode: "casual", maxGlideTicks: 45 });
+    expect(ids(got)).toContain("featherweight");
+  });
+
+  it("triple crown fires on 3 PBs in one day and resets across days", () => {
+    // Three ascending scores same day = three PBs.
+    let s = updateStatsAfterRun(EMPTY, { score: 5, mode: "casual" });
+    expect(ids(s)).not.toContain("triple_crown");
+    s = updateStatsAfterRun(s, { score: 8, mode: "casual" });
+    s = updateStatsAfterRun(s, { score: 12, mode: "casual" });
+    expect(s.tripleCrownDone).toBe(true);
+    expect(ids(s)).toContain("triple_crown");
+
+    // A non-PB doesn't advance the count.
+    let s2 = updateStatsAfterRun(EMPTY, { score: 10, mode: "casual" });
+    s2 = updateStatsAfterRun(s2, { score: 4, mode: "casual" }); // not a PB
+    expect(s2.pbsToday).toBe(1);
+
+    // A fresh day (simulated by clearing lastRunDay) resets the daily count.
+    const stale = { ...updateStatsAfterRun(EMPTY, { score: 5, mode: "casual" }), lastRunDay: "2000-1-1" };
+    const nextDay = updateStatsAfterRun(stale, { score: 3, mode: "casual" }); // new day, not a PB
+    expect(nextDay.pbsToday).toBe(0);
+  });
+
+  it("recolored achievements classify at the intended difficulty→rarity tier", () => {
+    const rarityOf = (id: string): string => {
+      const a = ACHIEVEMENTS.find((x) => x.id === id)!;
+      if (a.reward.type !== "color") throw new Error(`${id} not a colour`);
+      return classifyRarity({ body: a.reward.body, accent: a.reward.accent }).rarity;
+    };
+    // The hardest single-run / lifetime / ranked feats are now top-tier…
+    expect(rarityOf("diamond")).toBe("legendary"); // score 200
+    expect(rarityOf("points_100000")).toBe("legendary");
+    expect(rarityOf("ranked_floor_250")).toBe("legendary");
+    expect(rarityOf("obsidian")).toBe("epic"); // score 500
+    expect(rarityOf("challenger")).toBe("epic"); // was common
+    // …and the trivial early-games rewards no longer out-rank them.
+    expect(rarityRank(rarityOf("back_for_more") as never)).toBeLessThan(
+      rarityRank(rarityOf("legend") as never),
     );
   });
 });

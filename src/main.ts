@@ -943,6 +943,16 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
         let runProgress: NonNullable<GameOverResult["progress"]> | null = null;
         {
           const currentStats = loadAchievementStats();
+          // Longest no-flap glide this run (max ticks between flaps, incl. the
+          // final flap → death) — the "featherweight" skill signal.
+          const recordedFlaps = loop?.getRecordedInputs() ?? [];
+          let maxGlideTicks = 0;
+          for (let i = 1; i < recordedFlaps.length; i++) {
+            maxGlideTicks = Math.max(maxGlideTicks, recordedFlaps[i].tick - recordedFlaps[i - 1].tick);
+          }
+          if (recordedFlaps.length > 0) {
+            maxGlideTicks = Math.max(maxGlideTicks, ticks - recordedFlaps[recordedFlaps.length - 1].tick);
+          }
           let updatedStats = updateStatsAfterRun(currentStats, {
             score,
             mode: currentRunMode,
@@ -950,11 +960,12 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
             // achievements (storm_survivor, iron_will). Previously omitted, so
             // those could never unlock.
             tier: currentRunMode === "daily" ? dailyInfo?.pick.tier : undefined,
-            inputCount: loop?.getRecordedInputs().length,
+            inputCount: recordedFlaps.length,
             ticks,
             // Death-cause goals (level 5+): how the run ended + current level.
             deathCause: sim.deathCause,
             level: levelFromTotalXp(loadTotalXp()).level,
+            maxGlideTicks,
           });
           // A finished ranked match folds in its match-level unlocks (total
           // across rounds / per-round floor) once the server marks it complete.

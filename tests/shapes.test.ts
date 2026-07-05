@@ -32,7 +32,8 @@ describe("shape registry", () => {
     // …and each is gated on its own axis (score / games / streak).
     expect(listUnlockedShapeIds({ ...fresh, bestScore: 25 })).toContain("swan");
     expect(listUnlockedShapeIds({ ...fresh, totalGames: 25 })).toContain("leaf-origami");
-    expect(listUnlockedShapeIds({ ...fresh, streakDays: 5 })).toContain("heart-origami");
+    expect(listUnlockedShapeIds({ ...fresh, streakDays: 9 })).not.toContain("heart-origami");
+    expect(listUnlockedShapeIds({ ...fresh, streakDays: 10 })).toContain("heart-origami");
     expect(listUnlockedShapeIds({ ...fresh, bestScore: 79 })).not.toContain("eagle");
     expect(listUnlockedShapeIds({ ...fresh, bestScore: 80 })).toContain("eagle");
   });

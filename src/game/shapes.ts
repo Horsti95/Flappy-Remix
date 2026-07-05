@@ -1054,7 +1054,7 @@ export const SHAPES: ShapeMeta[] = [
     category: "paper",
     sprite: "heart",
     blurb: "a folded-paper heart.",
-    unlock: ({ streakDays }) => ({ unlocked: streakDays >= 5, hint: "reach a 5-day streak" }),
+    unlock: ({ streakDays }) => ({ unlocked: streakDays >= 10, hint: "reach a 10-day streak" }),
     draw: drawToucanFallback,
   },
   {

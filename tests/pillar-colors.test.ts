@@ -26,11 +26,13 @@ const ZERO: AchievementStats = {
 };
 
 describe("pillar colour unlocks", () => {
-  it("default colours (theme/forest) are unlocked at zero stats", () => {
+  it("only the theme-follow colour is free at zero stats; forest is now earned", () => {
     const theme = PILLAR_COLORS.find((c) => c.id === "theme")!;
     const forest = PILLAR_COLORS.find((c) => c.id === "forest")!;
     expect(pillarColorUnlocked(theme, ZERO).unlocked).toBe(true);
-    expect(pillarColorUnlocked(forest, ZERO).unlocked).toBe(true);
+    // forest was a second always-free palette; now a trivial 5-game earn.
+    expect(pillarColorUnlocked(forest, ZERO).unlocked).toBe(false);
+    expect(pillarColorUnlocked(forest, { ...ZERO, totalGames: 5 }).unlocked).toBe(true);
   });
 
   it("at least one colour is locked at zero stats", () => {

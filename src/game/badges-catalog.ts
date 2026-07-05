@@ -90,6 +90,17 @@ export const BADGES: BadgeDef[] = [
     secret: true,
     check: (s) => s.friendCount >= 10 && s.challengeWins >= 10,
   },
+  {
+    // The rarest tier — the ~3.4% three-modifier "extreme" daily — had zero
+    // reward coverage before this. Scoring on it at all is a real flex.
+    id: "storm_chaser",
+    name: "storm chaser",
+    emoji: "⛈️",
+    color: "#818cf8",
+    hint: "score 25+ on an extreme daily",
+    secret: true,
+    check: (s) => (s.extremeDailyBest ?? 0) >= 25,
+  },
 
   // --- Death-cause goals (paired with a colour reward; unlock from level 5) ---
   {

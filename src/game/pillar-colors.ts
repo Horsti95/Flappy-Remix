@@ -24,7 +24,7 @@ export const PILLAR_COLORS: PillarColor[] = [
   { id: "theme",   name: "theme",   body: "",        cap: "",
     unlock: () => ({ unlocked: true }) },
   { id: "forest",  name: "forest",  body: "#3d8b58", cap: "#1f4f37",
-    unlock: () => ({ unlocked: true }) },
+    unlock: (s) => ({ unlocked: s.totalGames >= 5, hint: "play 5 games" }) },
   { id: "candy",   name: "candy",   body: "#e23b3b", cap: "#ffffff",
     unlock: (s) => ({ unlocked: s.totalGames >= 12, hint: "play 12 games" }) },
   { id: "sky",     name: "sky",     body: "#38bdf8", cap: "#0c4a6e",
@@ -42,7 +42,7 @@ export const PILLAR_COLORS: PillarColor[] = [
   // --- Variety pass: each gated on a *different* axis so unlocks don't all
   //     read as "reach a bigger number" (see docs / unlock-criteria ideas). ---
   { id: "marble",     name: "marble",     body: "#e8e8ea", cap: "#9a9aa0",
-    unlock: (s) => ({ unlocked: s.bestScore >= 150, hint: "score 150 in a single run" }) },
+    unlock: (s) => ({ unlocked: s.bestScore >= 90, hint: "score 90 in a single run" }) },
   { id: "sunrise",    name: "sunrise",    body: "#ff9e5e", cap: "#c63b6e",
     unlock: (s) => ({ unlocked: s.dailyStreakDays >= 10, hint: "score 20+ on the daily 10 days running" }) },
   { id: "thunderhead", name: "thunderhead", body: "#4b5563", cap: "#1f2937",

@@ -368,7 +368,10 @@ export const PILLAR_STYLES: PillarStyle[] = [
     name: "ice",
     blurb: "frozen + see-through — adds a difficulty level on the daily.",
     hardensDaily: true,
-    unlock: (s) => ({ unlocked: s.bestScore >= 80, hint: "score 80 in a single run" }),
+    unlock: (s) => ({
+      unlocked: s.hardDailyBest >= 40 || s.bestScore >= 80,
+      hint: "score 40+ on a hard daily (or 80 in any run)",
+    }),
     draw: drawIce,
   },
   {

@@ -209,8 +209,8 @@ export const THEMES: Theme[] = [
       highContrast: HC_DEFAULT,
     },
     unlock: (s) => ({
-      unlocked: (s.lateNightGames ?? 0) >= 1,
-      hint: "play a run between 23:00 and 04:00",
+      unlocked: (s.lateNightGames ?? 0) >= 5,
+      hint: "play 5 runs between 23:00 and 04:00",
     }),
   },
   {
@@ -225,7 +225,7 @@ export const THEMES: Theme[] = [
       fogIntensity: 0.85,
       highContrast: HC_DEFAULT,
     },
-    unlock: (s) => ({ unlocked: s.bestScore >= 200, hint: "score 200 in a single run" }),
+    unlock: (s) => ({ unlocked: s.bestScore >= 120, hint: "score 120 in a single run" }),
   },
   {
     id: "beach",

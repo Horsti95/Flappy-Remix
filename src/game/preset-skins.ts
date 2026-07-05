@@ -47,7 +47,7 @@ export const PRESET_SKINS: PresetSkin[] = [
   { id: "preset-aurora", name: "aurora", body: [110, 231, 183], accent: [99, 102, 241],
     unlock: (s) => ({ unlocked: s.totalGames >= 300, hint: "play 300 games" }) },
   { id: "preset-germany", name: "Germany", body: [221, 0, 0], accent: [255, 206, 0],
-    unlock: (s) => ({ unlocked: s.totalGames >= 20, hint: "play 20 games" }) },
+    unlock: (s) => ({ unlocked: s.totalGames >= 100, hint: "play 100 games" }) },
   // --- Variety pass: harder, character-driven unlocks across mixed axes,
   //     so the higher tiers feel earned rather than "another number". ---
   { id: "preset-brass", name: "burnished brass", body: [181, 140, 60], accent: [70, 50, 15],

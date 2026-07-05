@@ -38,6 +38,10 @@ export interface AchievementStats {
   bestScoreDaily: number;
   hardDailyBest: number;
   superHardDailyBest: number;
+  /** Best score on an EXTREME daily (the ~3.4% three-modifier day). Optional so
+   *  existing stored stats stay valid without a migration; the ~3.4% tier had
+   *  no coverage at all before this. */
+  extremeDailyBest?: number;
   nightGames: number;
   morningGames: number;
   challengeWins: number;
@@ -274,7 +278,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "storm survivor",
     blurb: "score 25+ on a hard daily",
     category: "daily",
-    reward: { type: "color", body: [30, 60, 120], accent: [255, 230, 0] },
+    reward: { type: "color", body: [85, 95, 115], accent: [180, 200, 220] },
     check: (s) => s.hardDailyBest >= 25,
   },
   {
@@ -298,7 +302,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "early bird",
     blurb: "play 10 games between 05:00 and 07:00",
     category: "daily",
-    reward: { type: "color", body: [255, 180, 200], accent: [255, 215, 0] },
+    reward: { type: "color", body: [235, 170, 80], accent: [255, 235, 180] },
     check: (s) => s.morningGames >= 10,
   },
 
@@ -316,7 +320,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "big flock",
     blurb: "add 25 friends — paper plane swarm unlocked",
     category: "social",
-    reward: { type: "color", body: [255, 200, 80], accent: [180, 40, 120] },
+    reward: { type: "color", body: [90, 140, 200], accent: [245, 245, 240] },
     check: (s) => s.friendCount >= 25,
   },
   {
@@ -608,7 +612,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "weathered",
     blurb: "score 50+ on a hard daily — let the storm come",
     category: "daily",
-    reward: { type: "color", body: [85, 95, 115], accent: [180, 200, 220] },
+    reward: { type: "color", body: [30, 60, 120], accent: [255, 230, 0] },
     check: (s) => s.hardDailyBest >= 50,
   },
   {
@@ -624,7 +628,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "dawn patrol",
     blurb: "30 sunrise games (05:00\u201307:00) \u2014 first into the air",
     category: "special",
-    reward: { type: "color", body: [235, 170, 80], accent: [255, 235, 180] },
+    reward: { type: "color", body: [255, 180, 200], accent: [255, 215, 0] },
     check: (s) => s.morningGames >= 30,
   },
   {
@@ -910,7 +914,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "flock leader",
     blurb: "gather 50 friends into the flock",
     category: "social",
-    reward: { type: "color", body: [90, 140, 200], accent: [245, 245, 240] },
+    reward: { type: "color", body: [255, 200, 80], accent: [180, 40, 120] },
     check: (s) => s.friendCount >= 50,
   },
   {
@@ -1162,6 +1166,7 @@ export function loadAchievementStats(): AchievementStats {
     bestScoreDaily: 0,
     hardDailyBest: 0,
     superHardDailyBest: 0,
+    extremeDailyBest: 0,
     nightGames: 0,
     morningGames: 0,
     challengeWins: 0,
@@ -1321,6 +1326,7 @@ export function updateStatsAfterRun(
     if (run.score > s.bestScoreDaily) s.bestScoreDaily = run.score;
     if (run.tier === "hard" && run.score > s.hardDailyBest) s.hardDailyBest = run.score;
     if (run.tier === "super_hard" && run.score > s.superHardDailyBest) s.superHardDailyBest = run.score;
+    if (run.tier === "extreme" && run.score > (s.extremeDailyBest ?? 0)) s.extremeDailyBest = run.score;
     if (run.score >= 20) {
       s.dailyStreakDays++;
     } else {

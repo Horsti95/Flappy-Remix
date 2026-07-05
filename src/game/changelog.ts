@@ -8,7 +8,7 @@
  * Bump APP_VERSION + prepend an entry when shipping notable changes.
  */
 
-export const APP_VERSION = "0.20.0";
+export const APP_VERSION = "0.21.0";
 
 export interface ChangeEntry {
   version: string;
@@ -19,6 +19,21 @@ export interface ChangeEntry {
 
 // Newest first.
 export const CHANGELOG: ChangeEntry[] = [
+  {
+    version: "0.21.0",
+    date: "2026-07-05",
+    title: "Fair climb: reachable levels & rewards that match the effort",
+    notes: [
+      "⚡ Leveling no longer walls out — past about level 17 each level is a steady ~20–30 games, so the top tiers (and the wildcard colours past level 40) are actually reachable now. Your level probably just jumped up.",
+      "🎨 Rewards finally match effort: the hardest feats now give the rarest, best-looking colours. Fixed a pile of backwards unlocks — a 3-day-streak colour used to out-rank a 60-day one, and winning 5 challenges gave a plain grey. Score 200/500, the ranked ladder and the big milestones all got a glow-up.",
+      "🪶 New goal — Featherweight: coast without a single flap and earn it.",
+      "🏆 New goal — Triple Crown: set 3 new personal bests in one day.",
+      "⛈️ New Storm Chaser badge for scoring on the rare “extreme” daily — the hardest day of the week finally pays out.",
+      "🗂️ The origami fleet (swan, dove, eagle, butterfly…) now has real unlock goals instead of being free from the start.",
+      "🎨 Wildcard milestone colours now arrive every 5 levels past 40, keeping the level-40 pick special.",
+      "🔧 Under the hood: tighter security, no more hung death screens on a bad connection, safer offline runs, and a big repo + naming cleanup.",
+    ],
+  },
   {
     version: "0.20.0",
     date: "2026-06-15",

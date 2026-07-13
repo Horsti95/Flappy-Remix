@@ -1,4 +1,6 @@
 import { getAdminClient } from "./_lib/supabaseAdmin";
+import { json } from "./_lib/http";
+import { bearerJwt, resolveUserId } from "./_lib/auth";
 import { encodeSkin } from "../src/game/skin";
 
 export const config = { runtime: "edge" };
@@ -6,14 +8,12 @@ export const config = { runtime: "edge" };
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
-  const auth = req.headers.get("authorization");
-  if (!auth?.startsWith("Bearer ")) return json({ error: "unauthorized" }, 401);
-  const token = auth.slice("Bearer ".length);
+  const jwt = bearerJwt(req);
+  if (!jwt) return json({ error: "unauthenticated" }, 401);
 
   const admin = getAdminClient();
-  const userRes = await admin.auth.getUser(token);
-  if (userRes.error || !userRes.data.user) return json({ error: "unauthorized" }, 401);
-  const userId = userRes.data.user.id;
+  const userId = await resolveUserId(admin, jwt);
+  if (!userId) return json({ error: "invalid token" }, 401);
 
   let body: { code?: string };
   try {
@@ -128,9 +128,3 @@ export default async function handler(req: Request): Promise<Response> {
   });
 }
 
-function json(b: unknown, status = 200): Response {
-  return new Response(JSON.stringify(b), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
-}

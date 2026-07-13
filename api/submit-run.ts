@@ -3,6 +3,8 @@ import { applyModifiers, pickDaily } from "../src/game/daily-twist";
 import { DEFAULT_CONFIG } from "../src/game/config";
 import { levelFromTotalXp, levelsCrossedEvery5, xpForRun } from "../src/game/xp";
 import { getAdminClient } from "./_lib/supabaseAdmin";
+import { json } from "./_lib/http";
+import { bearerJwt, resolveUserId } from "./_lib/auth";
 import { grantYesterdaysChampions } from "./_lib/champions";
 import { computeStreak } from "./_lib/streak";
 import {
@@ -22,18 +24,10 @@ import {
 
 export const config = { runtime: "edge" };
 
-function json(body: unknown, status: number): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
-}
-
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
-  const auth = req.headers.get("authorization");
-  if (!auth?.startsWith("Bearer ")) return json({ error: "unauthenticated" }, 401);
-  const jwt = auth.slice("Bearer ".length);
+  const jwt = bearerJwt(req);
+  if (!jwt) return json({ error: "unauthenticated" }, 401);
 
   let raw: unknown;
   try {
@@ -48,9 +42,8 @@ export default async function handler(req: Request): Promise<Response> {
   // Auth before the replay: validateRun simulates up to the whole run,
   // so don't burn that CPU for unauthenticated callers.
   const admin = getAdminClient();
-  const userRes = await admin.auth.getUser(jwt);
-  if (userRes.error || !userRes.data.user) return json({ error: "invalid token" }, 401);
-  const userId = userRes.data.user.id;
+  const userId = await resolveUserId(admin, jwt);
+  if (!userId) return json({ error: "invalid token" }, 401);
 
   // Derive the twist config server-side so the replay validator uses the
   // same physics the client would have. Daily: today's pick. Challenge:

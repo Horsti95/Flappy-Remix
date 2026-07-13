@@ -1,4 +1,6 @@
 import { getAdminClient } from "./_lib/supabaseAdmin";
+import { json } from "./_lib/http";
+import { bearerJwt, resolveUserId } from "./_lib/auth";
 
 export const config = { runtime: "edge" };
 
@@ -8,33 +10,24 @@ interface Body {
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "method not allowed" }), { status: 405 });
+    return json({ error: "method not allowed" }, 405);
   }
-  const auth = req.headers.get("authorization");
-  if (!auth?.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "unauthenticated" }), { status: 401 });
-  }
-  const jwt = auth.slice("Bearer ".length);
+  const jwt = bearerJwt(req);
+  if (!jwt) return json({ error: "unauthenticated" }, 401);
 
   let body: Body;
   try {
     body = (await req.json()) as Body;
   } catch {
-    return new Response(JSON.stringify({ error: "bad json" }), { status: 400 });
+    return json({ error: "bad json" }, 400);
   }
   if (body.confirm !== "delete me forever") {
-    return new Response(
-      JSON.stringify({ error: "missing confirmation phrase" }),
-      { status: 400 },
-    );
+    return json({ error: "missing confirmation phrase" }, 400);
   }
 
   const admin = getAdminClient();
-  const userRes = await admin.auth.getUser(jwt);
-  if (userRes.error || !userRes.data.user) {
-    return new Response(JSON.stringify({ error: "invalid token" }), { status: 401 });
-  }
-  const userId = userRes.data.user.id;
+  const userId = await resolveUserId(admin, jwt);
+  if (!userId) return json({ error: "invalid token" }, 401);
 
   // Deleting the auth user cascades to `profiles` (ON DELETE CASCADE), which
   // cascades to skins / friendships / ratings / matches. But NOT everything is
@@ -56,10 +49,7 @@ export default async function handler(req: Request): Promise<Response> {
   // one — it's our policy that match history goes with the account.
   const del = await admin.auth.admin.deleteUser(userId);
   if (del.error) {
-    return new Response(JSON.stringify({ error: del.error.message }), { status: 500 });
+    return json({ error: del.error.message }, 500);
   }
-  return new Response(JSON.stringify({ ok: true }), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
+  return json({ ok: true });
 }

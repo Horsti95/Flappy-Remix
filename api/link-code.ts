@@ -1,4 +1,6 @@
 import { getAdminClient } from "./_lib/supabaseAdmin";
+import { json } from "./_lib/http";
+import { bearerJwt, resolveUserId } from "./_lib/auth";
 
 export const config = { runtime: "edge" };
 
@@ -28,12 +30,10 @@ export default async function handler(req: Request): Promise<Response> {
   const admin = getAdminClient();
 
   if (body.action === "create") {
-    const auth = req.headers.get("authorization");
-    if (!auth?.startsWith("Bearer ")) return json({ error: "unauthorized" }, 401);
-    const token = auth.slice("Bearer ".length);
-    const userRes = await admin.auth.getUser(token);
-    if (userRes.error || !userRes.data.user) return json({ error: "unauthorized" }, 401);
-    const userId = userRes.data.user.id;
+    const jwt = bearerJwt(req);
+    if (!jwt) return json({ error: "unauthenticated" }, 401);
+    const userId = await resolveUserId(admin, jwt);
+    if (!userId) return json({ error: "invalid token" }, 401);
 
     const refresh = (body.refresh_token ?? "").trim();
     if (!refresh) return json({ error: "missing_refresh" }, 400);
@@ -100,9 +100,3 @@ function randomCode(): string {
   return out;
 }
 
-function json(b: unknown, status = 200): Response {
-  return new Response(JSON.stringify(b), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
-}

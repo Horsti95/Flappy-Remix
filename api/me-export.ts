@@ -1,22 +1,21 @@
 import { getAdminClient } from "./_lib/supabaseAdmin";
+import { json } from "./_lib/http";
+import { bearerJwt } from "./_lib/auth";
 
 export const config = { runtime: "edge" };
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== "GET") {
-    return new Response(JSON.stringify({ error: "method not allowed" }), { status: 405 });
+    return json({ error: "method not allowed" }, 405);
   }
-  const auth = req.headers.get("authorization");
-  if (!auth?.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "unauthenticated" }), { status: 401 });
-  }
-  const jwt = auth.slice("Bearer ".length);
+  const jwt = bearerJwt(req);
+  if (!jwt) return json({ error: "unauthenticated" }, 401);
 
   const admin = getAdminClient();
+  // Not resolveUserId(): the export payload includes the account email, so
+  // this handler needs the full auth user, not just the id.
   const userRes = await admin.auth.getUser(jwt);
-  if (userRes.error || !userRes.data.user) {
-    return new Response(JSON.stringify({ error: "invalid token" }), { status: 401 });
-  }
+  if (userRes.error || !userRes.data.user) return json({ error: "invalid token" }, 401);
   const userId = userRes.data.user.id;
 
   const [profile, skins, runs, friends, challenges, ranked, badges, elo] = await Promise.all([

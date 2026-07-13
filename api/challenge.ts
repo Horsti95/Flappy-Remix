@@ -1,4 +1,5 @@
 import { getAdminClient } from "./_lib/supabaseAdmin";
+import { json } from "./_lib/http";
 
 export const config = { runtime: "edge" };
 
@@ -58,11 +59,6 @@ export default async function handler(req: Request): Promise<Response> {
     daily_date: (ch.data.daily_date as string | null | undefined) ?? null,
     depth: ch.data.depth,
     can_respond_again: (ch.data.depth as number) < 2,
-  }, 200, 30);
+  }, 200, { sMaxAge: 30 });
 }
 
-function json(body: unknown, status: number, sMaxAge = 0): Response {
-  const headers: Record<string, string> = { "content-type": "application/json" };
-  if (sMaxAge > 0) headers["cache-control"] = `public, max-age=${sMaxAge}, s-maxage=${sMaxAge}`;
-  return new Response(JSON.stringify(body), { status, headers });
-}

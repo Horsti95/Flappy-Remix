@@ -1,13 +1,8 @@
 import { getAdminClient } from "./_lib/supabaseAdmin";
+import { json } from "./_lib/http";
+import { bearerJwt, resolveUserId } from "./_lib/auth";
 
 export const config = { runtime: "edge" };
-
-function json(body: unknown, status: number): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
-}
 
 function randomSeed(): number {
   return Math.floor(Math.random() * 0xffffffff) >>> 0;
@@ -37,16 +32,14 @@ async function ratingFor(
 }
 
 export default async function handler(req: Request): Promise<Response> {
-  const auth = req.headers.get("authorization");
-  if (!auth?.startsWith("Bearer ")) return json({ error: "unauthenticated" }, 401);
-  const jwt = auth.slice("Bearer ".length);
+  const jwt = bearerJwt(req);
+  if (!jwt) return json({ error: "unauthenticated" }, 401);
 
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
   const admin = getAdminClient();
-  const userRes = await admin.auth.getUser(jwt);
-  if (userRes.error || !userRes.data.user) return json({ error: "invalid token" }, 401);
-  const userId = userRes.data.user.id;
+  const userId = await resolveUserId(admin, jwt);
+  if (!userId) return json({ error: "invalid token" }, 401);
 
   const body = (await req.json().catch(() => ({}))) as { friend_username?: string };
   const friendUsername = body.friend_username?.trim();

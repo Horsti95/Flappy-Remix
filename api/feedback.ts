@@ -1,4 +1,6 @@
 import { getAdminClient } from "./_lib/supabaseAdmin";
+import { json } from "./_lib/http";
+import { bearerJwt, resolveUserId } from "./_lib/auth";
 
 export const config = { runtime: "edge" };
 
@@ -26,14 +28,12 @@ export default async function handler(req: Request): Promise<Response> {
     return json({ error: "not_configured" }, 503);
   }
 
-  const auth = req.headers.get("authorization");
-  if (!auth?.startsWith("Bearer ")) return json({ error: "unauthorized" }, 401);
-  const token = auth.slice("Bearer ".length);
+  const jwt = bearerJwt(req);
+  if (!jwt) return json({ error: "unauthenticated" }, 401);
 
   const admin = getAdminClient();
-  const userRes = await admin.auth.getUser(token);
-  if (userRes.error || !userRes.data.user) return json({ error: "unauthorized" }, 401);
-  const userId = userRes.data.user.id;
+  const userId = await resolveUserId(admin, jwt);
+  if (!userId) return json({ error: "invalid token" }, 401);
 
   const last = lastSentByUser.get(userId);
   if (last != null && Date.now() - last < COOLDOWN_MS) {
@@ -96,9 +96,3 @@ export default async function handler(req: Request): Promise<Response> {
   return json({ ok: true });
 }
 
-function json(b: unknown, status = 200): Response {
-  return new Response(JSON.stringify(b), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
-}

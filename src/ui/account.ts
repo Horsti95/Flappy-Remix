@@ -382,7 +382,11 @@ function redeemErrorMessage(code: string): string {
     case "expired":        return "this code has expired.";
     case "depleted":       return "this code has been fully claimed.";
     case "already_redeemed": return "you've already used this code.";
-    case "unauthorized":   return "sign in first to redeem.";
+    // "unauthorized" is the pre-cleanup server label; kept so an old client
+    // cached by the SW still maps a new server's reply (and vice versa).
+    case "unauthorized":
+    case "unauthenticated":
+    case "invalid token":  return "sign in first to redeem.";
     default:               return `couldn't redeem (${code}).`;
   }
 }

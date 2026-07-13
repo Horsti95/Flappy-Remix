@@ -12,6 +12,9 @@
  * into without another render.ts refactor.
  */
 
+import type { AchievementStats } from "./achievements";
+import type { UnlockResult } from "./unlockables";
+
 export type ThemeId =
   | "sunny"
   | "cloudy"
@@ -95,7 +98,7 @@ export interface Theme {
    *  run climbs. Must be sorted ascending by `fromScore` (first entry is the
    *  starting backdrop, ideally fromScore 0). Cosmetic — never read by the sim. */
   backgroundStages?: { fromScore: number; image: string }[];
-  unlock(stats: { totalGames: number; bestScore: number; streakDays: number; lateNightGames?: number; morningGames?: number; dailyStreakDays?: number; challengeWins?: number }): { unlocked: boolean; hint?: string };
+  unlock(stats: AchievementStats): UnlockResult;
 }
 
 const HC_DEFAULT = {

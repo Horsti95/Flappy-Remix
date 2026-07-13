@@ -1,4 +1,5 @@
 import type { AchievementStats } from "./achievements";
+import type { UnlockResult } from "./unlockables";
 
 /**
  * Auras — prestige glow effects drawn behind the player's plane. The point
@@ -15,7 +16,7 @@ export interface AuraOption {
   blurb: string;
   /** Halo color while flying (CSS-able rgb triple). */
   color: [number, number, number];
-  unlock(stats: AchievementStats): { unlocked: boolean; hint?: string };
+  unlock(stats: AchievementStats): UnlockResult;
 }
 
 export const AURA_OPTIONS: AuraOption[] = [

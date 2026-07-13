@@ -1,6 +1,7 @@
 import type { Rarity } from "./rarity";
 import type { AchievementStats } from "./achievements";
 import { getEquippedGateSound } from "./gate-sounds";
+import type { UnlockResult } from "./unlockables";
 
 let ctx: AudioContext | null = null;
 
@@ -258,10 +259,7 @@ function gatePopChoir(ac: AudioContext, master: GainNode, t: number, norm: numbe
 
 export type DeathSoundId = "classic" | "crumple" | "whistle_down";
 
-export interface DeathSoundUnlock {
-  unlocked: boolean;
-  hint?: string;
-}
+export type DeathSoundUnlock = UnlockResult;
 
 export const DEATH_SOUND_OPTIONS: {
   id: DeathSoundId;
@@ -419,10 +417,7 @@ export type FlapSoundId =
   | "shimmer"
   | "feather";
 
-export interface FlapSoundUnlock {
-  unlocked: boolean;
-  hint?: string;
-}
+export type FlapSoundUnlock = UnlockResult;
 
 export const FLAP_SOUND_OPTIONS: { id: FlapSoundId; label: string; blurb: string; unlock(stats: AchievementStats): FlapSoundUnlock }[] = [
   { id: "soft_pop",     label: "Soft pop",     blurb: "low-pitched bubble — default",

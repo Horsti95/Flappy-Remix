@@ -78,21 +78,12 @@ export interface GalleryEquipped {
   achColorId: string | null;
 }
 
-export interface GalleryStats {
-  totalGames: number;
-  bestScore: number;
-  streakDays: number;
-  totalScore?: number;
-  lateNightGames: number;
-  morningGames: number;
-  dailyStreakDays: number;
-  challengeWins: number;
-}
-
 export function renderGallery(
   host: HTMLElement,
   equipped: GalleryEquipped,
-  stats: GalleryStats,
+  /** Full stats — local counters with the server-authoritative totals
+   *  (total games / best score / streak) already folded in by the caller. */
+  stats: AchievementStats,
   cbs: GalleryCallbacks,
 ): () => void {
   const wrap = document.createElement("div");
@@ -823,7 +814,7 @@ function byTier<T>(items: T[], unlockedOf: (t: T) => boolean, tierOf: (t: T) => 
 function shapeCard(
   shape: ShapeMeta,
   equipped: boolean,
-  stats: GalleryStats,
+  stats: AchievementStats,
   onTap: () => void,
   unlockedOverride?: boolean,
   tier?: Tier,
@@ -1200,7 +1191,7 @@ function headerLabel(text: string): HTMLElement {
   return wrap;
 }
 
-function themeCard(theme: Theme, equipped: boolean, stats: GalleryStats, onTap: () => void, tier?: Tier): HTMLElement {
+function themeCard(theme: Theme, equipped: boolean, stats: AchievementStats, onTap: () => void, tier?: Tier): HTMLElement {
   const realState = theme.unlock(stats);
   const state = isThemesLabMode() ? { unlocked: true, hint: realState.hint } : realState;
   const el = document.createElement("button");

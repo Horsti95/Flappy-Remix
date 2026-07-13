@@ -1,6 +1,7 @@
 import type { AchievementStats } from "./achievements";
 import { isEventGranted } from "./events";
 import { CHOICE_PRESETS, isChoicePicked, pickedRandomChoicePresets, randomChoicePreset } from "./color-choices";
+import type { UnlockResult } from "./unlockables";
 
 type RGB = [number, number, number];
 
@@ -22,7 +23,7 @@ export interface PresetSkin {
   /** True for "pick 1 of 3" milestone colours (see game/color-choices.ts). The
    *  gallery only surfaces these once resolved (picked or locked-forever). */
   choice?: boolean;
-  unlock(stats: AchievementStats): { unlocked: boolean; hint?: string };
+  unlock(stats: AchievementStats): UnlockResult;
 }
 
 export const PRESET_SKINS: PresetSkin[] = [
@@ -101,7 +102,7 @@ export function getPreset(id: string | null | undefined): PresetSkin | null {
 
 let labMode = false;
 export function setPresetLabMode(on: boolean): void { labMode = on; }
-export function presetUnlock(p: PresetSkin, stats: AchievementStats): { unlocked: boolean; hint?: string } {
+export function presetUnlock(p: PresetSkin, stats: AchievementStats): UnlockResult {
   if (labMode) return { unlocked: true };
   if (isChoicePicked(p.id)) return { unlocked: true };
   if (isEventGranted("preset", p.id)) return { unlocked: true };

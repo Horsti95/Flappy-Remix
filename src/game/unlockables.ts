@@ -7,16 +7,23 @@ import {
 import { PRESET_SKINS, type PresetSkin } from "./preset-skins";
 import { SHAPES, type ShapeMeta } from "./shapes";
 import { THEMES, type Theme } from "./themes";
+import { AURA_OPTIONS } from "./aura";
+import { FLAP_FX_OPTIONS } from "./flap-fx";
+import { PILLAR_STYLES } from "./pillars";
+import { PILLAR_COLORS } from "./pillar-colors";
+import { GATE_SOUNDS } from "./gate-sounds";
+import { DEATH_SOUND_OPTIONS, FLAP_SOUND_OPTIONS } from "./sfx";
 
 /**
  * Unified unlock registry.
  *
- * The game grew four parallel unlock systems — achievements (color
- * rewards), preset palettes, shapes, and themes — each with its own
- * array and its own `unlock(stats) → {unlocked, hint}` (achievements use
- * `check(stats)` + a reward). They already speak almost the same dialect,
- * so this module normalizes all of them into ONE `Unlockable` shape with a
- * single evaluator + progress API.
+ * The game grew ~11 parallel unlock axes — achievements (color rewards),
+ * preset palettes, shapes, themes, auras, flap FX, pillar styles, pillar
+ * colours, gate/death/flap sounds — each with its own array and its own
+ * `unlock(stats) → {unlocked, hint}` (achievements use `check(stats)` + a
+ * reward). They all speak the same dialect ({@link UnlockResult}), so this
+ * module normalizes all of them into ONE `Unlockable` shape with a single
+ * evaluator + progress API.
  *
  * This is intentionally an ADDITIVE layer: the existing equip/render
  * plumbing (gallery cards, renderer, localStorage keys) keeps reading the
@@ -26,7 +33,27 @@ import { THEMES, type Theme } from "./themes";
  * the unification without risking the unlock economy.
  */
 
-export type UnlockKind = "shape" | "theme" | "palette" | "achievement-color";
+export type UnlockKind =
+  | "shape"
+  | "theme"
+  | "palette"
+  | "achievement-color"
+  | "aura"
+  | "flap-fx"
+  | "pillar"
+  | "pillar-color"
+  | "gate-sound"
+  | "death-sound"
+  | "flap-sound";
+
+/**
+ * The one unlock-evaluation result every cosmetic axis returns. Replaces ~10
+ * structurally-identical inline copies across the axis modules.
+ */
+export interface UnlockResult {
+  unlocked: boolean;
+  hint?: string;
+}
 
 export interface Unlockable {
   /** Stable id, namespaced by kind to avoid collisions across sources. */
@@ -84,6 +111,24 @@ function presetUnlockable(p: PresetSkin, stats: UnlockStats): Unlockable {
   };
 }
 
+/** Generic adapter for the option-list axes (auras, FX, pillars, sounds). */
+function optionUnlockable(
+  kind: UnlockKind,
+  sourceId: string,
+  name: string,
+  u: UnlockResult,
+): Unlockable {
+  return {
+    uid: `${kind}:${sourceId}`,
+    kind,
+    sourceId,
+    name,
+    hint: u.hint ?? (u.unlocked ? "unlocked" : "locked"),
+    unlocked: u.unlocked,
+    secret: false,
+  };
+}
+
 function achievementUnlockable(a: AchievementDef, stats: UnlockStats): Unlockable {
   const unlocked = a.check(stats);
   return {
@@ -107,6 +152,15 @@ export function getUnlockables(stats: UnlockStats = loadAchievementStats()): Unl
     ...THEMES.map((t) => themeUnlockable(t, stats)),
     ...PRESET_SKINS.filter((p) => !p.choice).map((p) => presetUnlockable(p, stats)),
     ...ACHIEVEMENTS.map((a) => achievementUnlockable(a, stats)),
+    // Option-list axes (same raw-predicate convention as above — lab-mode and
+    // event-grant overlays stay a gallery concern, not a collection concern).
+    ...AURA_OPTIONS.map((o) => optionUnlockable("aura", o.id, o.label, o.unlock(stats))),
+    ...FLAP_FX_OPTIONS.map((o) => optionUnlockable("flap-fx", o.id, o.label, o.unlock(stats))),
+    ...PILLAR_STYLES.map((o) => optionUnlockable("pillar", o.id, o.name, o.unlock(stats))),
+    ...PILLAR_COLORS.map((o) => optionUnlockable("pillar-color", o.id, o.name, o.unlock(stats))),
+    ...GATE_SOUNDS.map((o) => optionUnlockable("gate-sound", o.id, o.name, o.unlock(stats))),
+    ...DEATH_SOUND_OPTIONS.map((o) => optionUnlockable("death-sound", o.id, o.label, o.unlock(stats))),
+    ...FLAP_SOUND_OPTIONS.map((o) => optionUnlockable("flap-sound", o.id, o.label, o.unlock(stats))),
   ];
 }
 

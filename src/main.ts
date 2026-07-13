@@ -509,14 +509,12 @@ function showMenu(): void {
           overlays,
           { skinId: equippedSkin?.id ?? null, shapeId: equippedShapeId, themeId: equippedThemeId, presetId: getEquippedPresetLocal(), achColorId: getEquippedAchievementColorLocal() },
           {
+            // Local counters, with the three server-authoritative fields
+            // (profile totals + session best) overriding the local values.
+            ...loadAchievementStats(),
             totalGames: authState().profile?.total_games ?? 0,
             bestScore: bestScoreSeen,
             streakDays: authState().profile?.streak_days ?? 0,
-            totalScore: loadAchievementStats().totalScore,
-            lateNightGames: loadAchievementStats().lateNightGames,
-            morningGames: loadAchievementStats().morningGames,
-            dailyStreakDays: loadAchievementStats().dailyStreakDays,
-            challengeWins: loadAchievementStats().challengeWins,
           },
           {
             onEquipSkin: async (id) => {

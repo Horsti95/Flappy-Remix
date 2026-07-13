@@ -9,6 +9,7 @@
 
 import type { AchievementStats } from "./achievements";
 import { isEventGranted } from "./events";
+import type { UnlockResult } from "./unlockables";
 
 export interface PillarColor {
   id: string;
@@ -17,7 +18,7 @@ export interface PillarColor {
   body: string;
   cap: string;
   /** Light unlock gate, mirroring pillar STYLES. "theme" is always free. */
-  unlock(stats: AchievementStats): { unlocked: boolean; hint?: string };
+  unlock(stats: AchievementStats): UnlockResult;
 }
 
 export const PILLAR_COLORS: PillarColor[] = [
@@ -87,7 +88,7 @@ export function isPillarColorLabMode(): boolean { return labMode; }
 export function pillarColorUnlocked(
   color: PillarColor,
   stats: AchievementStats,
-): { unlocked: boolean; hint?: string } {
+): UnlockResult {
   if (labMode) return { unlocked: true };
   if (isEventGranted("pillar", color.id)) return { unlocked: true };
   return color.unlock(stats);

@@ -9,7 +9,7 @@ import {
 } from "../src/game/achievements";
 import { FLAP_FX_OPTIONS } from "../src/game/flap-fx";
 import { FLAP_SOUND_OPTIONS } from "../src/game/sfx";
-import { classifyRarity, rarityRank } from "../src/game/rarity";
+import { classifyRarity, rarityRank, type Rarity } from "../src/game/rarity";
 
 const EMPTY: AchievementStats = {
   totalGames: 0,
@@ -386,7 +386,7 @@ describe("new mechanics", () => {
   });
 
   it("recolored achievements classify at the intended difficulty→rarity tier", () => {
-    const rarityOf = (id: string): string => {
+    const rarityOf = (id: string): Rarity => {
       const a = ACHIEVEMENTS.find((x) => x.id === id)!;
       if (a.reward.type !== "color") throw new Error(`${id} not a colour`);
       return classifyRarity({ body: a.reward.body, accent: a.reward.accent }).rarity;
@@ -398,8 +398,8 @@ describe("new mechanics", () => {
     expect(rarityOf("obsidian")).toBe("epic"); // score 500
     expect(rarityOf("challenger")).toBe("epic"); // was common
     // …and the trivial early-games rewards no longer out-rank them.
-    expect(rarityRank(rarityOf("back_for_more") as never)).toBeLessThan(
-      rarityRank(rarityOf("legend") as never),
+    expect(rarityRank(rarityOf("back_for_more"))).toBeLessThan(
+      rarityRank(rarityOf("legend")),
     );
   });
 });

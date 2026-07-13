@@ -1,4 +1,6 @@
 import { rgbCss, type SkinColors } from "./skin";
+import type { AchievementStats } from "./achievements";
+import type { UnlockResult } from "./unlockables";
 
 /**
  * Shape registry.
@@ -59,12 +61,8 @@ export type ShapeId =
  */
 export type ShapeCategory = "paper" | "contraband";
 
-export interface ShapeUnlock {
-  // Computed unlock state for the current player.
-  // `null` means "no condition; always available."
-  hint: string | null;
-  unlocked: boolean;
-}
+/** Computed unlock state for the current player (shared across axes). */
+export type ShapeUnlock = UnlockResult;
 
 export interface ShapeMeta {
   id: ShapeId;
@@ -85,17 +83,7 @@ export interface ShapeMeta {
    * Pure function — no network. Extra optional counters give variety
    * to unlock conditions (challenge wins, late-night plays, etc.).
    */
-  unlock(input: {
-    totalGames: number;
-    bestScore: number;
-    streakDays: number;
-    challengeWins?: number;
-    totalScore?: number;
-    lateNightGames?: number;
-    morningGames?: number;
-    dailyStreakDays?: number;
-    friendCount?: number;
-  }): ShapeUnlock;
+  unlock(input: AchievementStats): ShapeUnlock;
   /**
    * Draw the shape at origin, given the bird radius and the skin
    * colors. Expected to be called inside an existing ctx.translate +
@@ -775,7 +763,7 @@ export const SHAPES: ShapeMeta[] = [
     name: "paper plane",
     category: "paper",
     blurb: "the classic. starts unlocked.",
-    unlock: () => ({ unlocked: true, hint: null }),
+    unlock: () => ({ unlocked: true }),
     draw: drawPaperPlaneClassic,
   },
   {
@@ -1114,15 +1102,6 @@ export function getShape(id: ShapeId | string | null | undefined): ShapeMeta {
   return BY_ID.get(id as ShapeId) ?? BY_ID.get(DEFAULT_SHAPE_ID)!;
 }
 
-export function listUnlockedShapeIds(stats: {
-  totalGames: number;
-  bestScore: number;
-  streakDays: number;
-  challengeWins?: number;
-  lateNightGames?: number;
-  morningGames?: number;
-  dailyStreakDays?: number;
-  friendCount?: number;
-}): ShapeId[] {
+export function listUnlockedShapeIds(stats: AchievementStats): ShapeId[] {
   return SHAPES.filter((s) => s.unlock(stats).unlocked).map((s) => s.id);
 }

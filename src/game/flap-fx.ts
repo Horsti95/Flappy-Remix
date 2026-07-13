@@ -1,5 +1,6 @@
 import type { AchievementStats } from "./achievements";
 import { isEventGranted } from "./events";
+import type { UnlockResult } from "./unlockables";
 
 export type FlapFxId = "off" | "wind_puff" | "speed_lines" | "sparkle" | "ring_pulse";
 
@@ -7,7 +8,7 @@ export interface FlapFxOption {
   id: FlapFxId;
   label: string;
   blurb: string;
-  unlock(stats: AchievementStats): { unlocked: boolean; hint?: string };
+  unlock(stats: AchievementStats): UnlockResult;
 }
 
 export const FLAP_FX_OPTIONS: FlapFxOption[] = [
@@ -23,7 +24,7 @@ export const FLAP_FX_OPTIONS: FlapFxOption[] = [
     unlock: (s) => ({ unlocked: s.challengeWins >= 3, hint: "win 3 challenges" }) },
 ];
 
-export function flapFxUnlock(id: FlapFxId, stats: AchievementStats): { unlocked: boolean; hint?: string } {
+export function flapFxUnlock(id: FlapFxId, stats: AchievementStats): UnlockResult {
   if (isEventGranted("fx", id)) return { unlocked: true };
   return FLAP_FX_OPTIONS.find((o) => o.id === id)?.unlock(stats) ?? { unlocked: false };
 }
@@ -60,7 +61,7 @@ export interface FxColor {
   name: string;
   rgb: [number, number, number];
   /** Light unlock gate. default/white are always free. */
-  unlock(stats: AchievementStats): { unlocked: boolean; hint?: string };
+  unlock(stats: AchievementStats): UnlockResult;
 }
 const free = () => ({ unlocked: true });
 export const FX_COLORS: FxColor[] = [
@@ -90,7 +91,7 @@ export function isFxColorLabMode(): boolean { return fxColorLabMode; }
 export function fxColorUnlocked(
   color: FxColor,
   stats: AchievementStats,
-): { unlocked: boolean; hint?: string } {
+): UnlockResult {
   if (fxColorLabMode) return { unlocked: true };
   return color.unlock(stats);
 }

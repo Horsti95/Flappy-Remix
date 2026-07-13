@@ -8,7 +8,7 @@
  * Bump APP_VERSION + prepend an entry when shipping notable changes.
  */
 
-export const APP_VERSION = "0.21.0";
+export const APP_VERSION = "0.21.1";
 
 export interface ChangeEntry {
   version: string;
@@ -19,6 +19,16 @@ export interface ChangeEntry {
 
 // Newest first.
 export const CHANGELOG: ChangeEntry[] = [
+  {
+    version: "0.21.1",
+    date: "2026-07-13",
+    title: "The Hangar counts everything now",
+    notes: [
+      "🛖 The Hangar's collection counter now includes ALL the cosmetics — auras, flap effects, pillar styles & colours, and every sound — not just shapes, skies and colours. Your total grew, so your percentage may look lower: nothing was taken away, there's just more to earn.",
+      "🧭 The death-screen “next unlock” tip can now point at those too.",
+      "🧹 Under the hood: a big spring-clean — dead code removed, docs corrected, and a pile of copy-pasted internals unified. Nothing about the game itself changed.",
+    ],
+  },
   {
     version: "0.21.0",
     date: "2026-07-05",

@@ -1,4 +1,5 @@
 import type { AchievementStats } from "./achievements";
+import type { UnlockResult } from "./unlockables";
 
 /**
  * Pillar (pipe) styles — a player-pickable cosmetic axis, like shapes/themes.
@@ -33,7 +34,7 @@ export interface PillarStyle {
   blurb: string;
   /** See-through styles add a difficulty level when used on the daily. */
   hardensDaily: boolean;
-  unlock(stats: AchievementStats): { unlocked: boolean; hint?: string };
+  unlock(stats: AchievementStats): UnlockResult;
   draw(p: PillarDrawCtx): void;
 }
 

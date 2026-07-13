@@ -5,12 +5,21 @@ import {
   getShape,
   listUnlockedShapeIds,
 } from "../src/game/shapes";
+import type { AchievementStats } from "../src/game/achievements";
+
+const ZERO: AchievementStats = {
+  totalGames: 0, bestScore: 0, totalScore: 0, streakDays: 0, bestScoreDaily: 0,
+  hardDailyBest: 0, superHardDailyBest: 0, nightGames: 0, morningGames: 0,
+  challengeWins: 0, dailyStreakDays: 0, friendCount: 0, lateNightGames: 0,
+  minimalistDone: false, runsOver100: 0, consecutiveUnder100: 0,
+  consecutiveOver50: 0, bestRankedTotal: 0, bestRankedFloor: 0,
+};
 
 describe("shape registry", () => {
   it("includes the default shape and starts it unlocked", () => {
     const def = SHAPES.find((s) => s.id === DEFAULT_SHAPE_ID);
     expect(def).toBeDefined();
-    expect(def!.unlock({ totalGames: 0, bestScore: 0, streakDays: 0 }).unlocked).toBe(true);
+    expect(def!.unlock(ZERO).unlocked).toBe(true);
   });
 
   it("all shape ids are unique", () => {
@@ -19,12 +28,12 @@ describe("shape registry", () => {
   });
 
   it("a fresh player sees only the default shape", () => {
-    const unlocked = listUnlockedShapeIds({ totalGames: 0, bestScore: 0, streakDays: 0 });
+    const unlocked = listUnlockedShapeIds(ZERO);
     expect(new Set(unlocked)).toEqual(new Set([DEFAULT_SHAPE_ID]));
   });
 
   it("origami sprites have real unlocks (not free at minute one)", () => {
-    const fresh = { totalGames: 0, bestScore: 0, streakDays: 0 };
+    const fresh = ZERO;
     // None are available to a fresh player…
     for (const id of ["swan", "envelope", "leaf-origami", "heart-origami", "eagle"]) {
       expect(listUnlockedShapeIds(fresh)).not.toContain(id);
@@ -39,46 +48,46 @@ describe("shape registry", () => {
   });
 
   it("paper-plane-v2 unlocks at 10 games", () => {
-    expect(listUnlockedShapeIds({ totalGames: 9, bestScore: 0, streakDays: 0 })).not.toContain(
+    expect(listUnlockedShapeIds({ ...ZERO, totalGames: 9 })).not.toContain(
       "paper-plane-v2",
     );
-    expect(listUnlockedShapeIds({ totalGames: 10, bestScore: 0, streakDays: 0 })).toContain(
+    expect(listUnlockedShapeIds({ ...ZERO, totalGames: 10 })).toContain(
       "paper-plane-v2",
     );
   });
 
   it("pixel-bird unlocks at a single-run score of 30", () => {
-    expect(listUnlockedShapeIds({ totalGames: 9999, bestScore: 29, streakDays: 0 })).not.toContain(
+    expect(listUnlockedShapeIds({ ...ZERO, totalGames: 9999, bestScore: 29, streakDays: 0 })).not.toContain(
       "pixel-bird",
     );
-    expect(listUnlockedShapeIds({ totalGames: 0, bestScore: 30, streakDays: 0 })).toContain("pixel-bird");
+    expect(listUnlockedShapeIds({ ...ZERO, bestScore: 30 })).toContain("pixel-bird");
   });
 
   it("kite unlocks at a 3-day streak", () => {
-    expect(listUnlockedShapeIds({ totalGames: 0, bestScore: 999, streakDays: 2 })).not.toContain(
+    expect(listUnlockedShapeIds({ ...ZERO, totalGames: 0, bestScore: 999, streakDays: 2 })).not.toContain(
       "kite",
     );
-    expect(listUnlockedShapeIds({ totalGames: 0, bestScore: 0, streakDays: 3 })).toContain("kite");
+    expect(listUnlockedShapeIds({ ...ZERO, streakDays: 3 })).toContain("kite");
   });
 
   it("cyber-plane unlocks at 200 games", () => {
-    expect(listUnlockedShapeIds({ totalGames: 199, bestScore: 999, streakDays: 0 })).not.toContain(
+    expect(listUnlockedShapeIds({ ...ZERO, totalGames: 199, bestScore: 999, streakDays: 0 })).not.toContain(
       "cyber-plane",
     );
-    expect(listUnlockedShapeIds({ totalGames: 200, bestScore: 0, streakDays: 0 })).toContain(
+    expect(listUnlockedShapeIds({ ...ZERO, totalGames: 200 })).toContain(
       "cyber-plane",
     );
   });
 
   it("butterfly unlocks at 500 games OR a 14-day streak", () => {
     expect(
-      listUnlockedShapeIds({ totalGames: 499, bestScore: 0, streakDays: 13 }),
+      listUnlockedShapeIds({ ...ZERO, totalGames: 499, bestScore: 0, streakDays: 13 }),
     ).not.toContain("butterfly");
     expect(
-      listUnlockedShapeIds({ totalGames: 500, bestScore: 0, streakDays: 0 }),
+      listUnlockedShapeIds({ ...ZERO, totalGames: 500 }),
     ).toContain("butterfly");
     expect(
-      listUnlockedShapeIds({ totalGames: 0, bestScore: 0, streakDays: 14 }),
+      listUnlockedShapeIds({ ...ZERO, streakDays: 14 }),
     ).toContain("butterfly");
   });
 
@@ -90,7 +99,7 @@ describe("shape registry", () => {
 
   it("every shape's unlock hint is non-empty or explicitly null", () => {
     for (const shape of SHAPES) {
-      const state = shape.unlock({ totalGames: 0, bestScore: 0, streakDays: 0 });
+      const state = shape.unlock(ZERO);
       if (!state.unlocked) {
         expect(state.hint).toBeTruthy();
         expect(state.hint!.length).toBeGreaterThan(3);

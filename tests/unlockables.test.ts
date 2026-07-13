@@ -9,6 +9,12 @@ import { ACHIEVEMENTS } from "../src/game/achievements";
 import { PRESET_SKINS } from "../src/game/preset-skins";
 import { SHAPES } from "../src/game/shapes";
 import { THEMES } from "../src/game/themes";
+import { AURA_OPTIONS } from "../src/game/aura";
+import { FLAP_FX_OPTIONS } from "../src/game/flap-fx";
+import { PILLAR_STYLES } from "../src/game/pillars";
+import { PILLAR_COLORS } from "../src/game/pillar-colors";
+import { GATE_SOUNDS } from "../src/game/gate-sounds";
+import { DEATH_SOUND_OPTIONS, FLAP_SOUND_OPTIONS } from "../src/game/sfx";
 
 const FRESH: UnlockStats = {
   totalGames: 0,
@@ -109,8 +115,12 @@ describe("unlockables registry", () => {
     // from the play-to-unlock collection.
     const pickableShapes = SHAPES.filter((s) => !s.hidden).length;
     const collectiblePresets = PRESET_SKINS.filter((p) => !p.choice).length;
+    const optionAxes =
+      AURA_OPTIONS.length + FLAP_FX_OPTIONS.length + PILLAR_STYLES.length +
+      PILLAR_COLORS.length + GATE_SOUNDS.length + DEATH_SOUND_OPTIONS.length +
+      FLAP_SOUND_OPTIONS.length;
     expect(all).toHaveLength(
-      pickableShapes + THEMES.length + collectiblePresets + ACHIEVEMENTS.length,
+      pickableShapes + THEMES.length + collectiblePresets + ACHIEVEMENTS.length + optionAxes,
     );
     expect(new Set(all.map((u) => u.uid)).size).toBe(all.length);
   });

@@ -1,10 +1,11 @@
-# Ideas
+# Ideas — idea inventory (superseded by ROADMAP.md for status)
 
 Sizes: `xs` < 1h, `s` < half day, `m` < day, `l` < week, `xl` more.
 
-> **This top section (MASTER BACKLOG) is the authoritative, current list.**
-> Everything below the `--- HISTORY ---` divider is kept for context but is
-> superseded by what's here.
+> **`ROADMAP.md` is the canonical backlog** — phases, status snapshot, and the
+> event calendar live there. This file is the raw idea inventory that feeds it;
+> statuses here (last updated 2026-06-01) may lag what actually shipped.
+> Everything below the `--- HISTORY ---` divider is kept for context only.
 
 ## MASTER BACKLOG (updated 2026-06-01)
 
@@ -249,12 +250,12 @@ Status as of 2026-06-01 — most of the queue has shipped to `main`.
   owned forever once earned; free + respectful (no grind, no paywall on
   a cause skin). A "purple badge" doubles as a flyable **shape** AND a
   **profile badge** (profile already renders shape + season badges).
-  Placeholder criteria already coded in `src/game/unlock-criteria.ts`
-  (`new_year_flight`, `pride_wings`, `red_ribbon` + `isEventActive`).
-- **Richer unlock criteria catalog — STARTED.** 26 placeholder criteria
-  with `TBA ·` rewards live in `unlock-criteria.ts` (#56). Attach real
-  skins/shapes/backgrounds/pillars/sounds/fx as they're designed. A
-  follow-up branch surfaces them in the gallery.
+  (The old `unlock-criteria.ts` placeholder criteria were retired in the
+  debt cleanup — surviving drafts live in ROADMAP.md "Reward drafts".)
+- **Richer unlock criteria catalog — superseded.** The placeholder-criteria
+  scratchpad (#56) was retired in the debt cleanup; the still-unshipped
+  drafts are preserved in ROADMAP.md "Reward drafts". Attach real
+  skins/shapes/backgrounds/pillars/sounds/fx as they're designed.
 - **Adjustable screen ratios — done the safe way (#57); the rest is a
   no.** Keep the fixed 360×640 world (it's what makes runs deterministic
   + replay-verifiable + port-safe). Only the *presentation* fills the
@@ -270,7 +271,7 @@ ones marked SHIPPED are done and kept here for context.
 | # | Item | Effort | Status / notes |
 |---|------|--------|----------------|
 | — | 8-bit bird preview ≠ playable skin | `xs` | **SHIPPED** (#61) — SVG regenerated from canvas bitmap |
-| 1 | Surface the 26 placeholder criteria in the gallery | `s` | registry + criteria exist (`unlock-criteria.ts`); just render them as locked cards with `TBA` rewards |
+| 1 | Surface planned-reward drafts in the gallery | `s` | superseded — the criteria scratchpad was retired; drafts live in ROADMAP.md "Reward drafts" |
 | 2 | Feedback button | `s` | needs delivery decision: `mailto:` (exposes address) vs serverless email API (Resend/SendGrid, private) |
 | 3 | Sprite glow FX | `s` | unlockable FX option; auto-apply to legendary skins; hang on flap-FX system; respect reduced-motion |
 | 4 | **Player-pickable pillar style** | `m` | NEW equip axis `{pillarStyle}`: solid / glass / neon / stone. Player picks favorite (like shape/theme). Unlockable via the registry (`pillar` reward kind already reserved). |

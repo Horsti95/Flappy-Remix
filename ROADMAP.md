@@ -263,6 +263,25 @@ origami shape + livery colors + flag/event badge (+ optional gate sound).
 | Apr 1 (yearly) | April Fools — contraband-only day (everyone flies the pretzel) | joke event |
 | Spring (yearly) | Sakura — petal trail, blossom livery, falling-petal overlay | |
 
+## Reward drafts (from the retired `unlock-criteria.ts` scratchpad)
+
+The design-scratchpad module was deleted in the debt cleanup (it was never wired
+into the game); these are its still-unshipped draft criteria, preserved here.
+Each needs BOTH its reward authored and the noted stat plumbing before shipping.
+(`storm_chaser` from the same scratchpad shipped for real in v0.21.0.)
+
+| id | criterion | planned reward | missing plumbing |
+|---|---|---|---|
+| giant_slayer | win a ranked match against someone rated 100+ above you | gate FX | per-match Elo delta vs. opponent rating in the ranked settle path |
+| upset_victim (secret) | lose a ranked match to someone rated 100+ below you | consolation colors | same plumbing as giant_slayer, losing side |
+| threading_needles | pass 10 gates dead-center in a single run | ink-stroke trail FX | per-gate pass offset from gap center in run results (sim already exposes gap centers) |
+| perfect_week | play every daily for a full week | "seven-skies sunrise" background | rolling 7-day window of distinct daily dates (streak counter can't express it) |
+| ghost_doubler | beat your PB ghost with double its score | echo gate chime | PB-ghost race results (needs the PB ghost feature first) |
+
+Also parked from that file: seasonal date-window entries (new-year / pride /
+red-ribbon participation) — the date-window helper died with the scratchpad;
+re-derive from the event-package calendar above when wiring real seasonal packs.
+
 ## Standing decisions
 - **Name: Glide** (domain glide.uno). Art direction: **Paper Sky**.
 - One branch per item, preview deploy per branch; `fix-pack` batching

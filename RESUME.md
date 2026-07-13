@@ -1,8 +1,14 @@
-# RESUME — where we left off (2026-06-13, before a ~5-day break)
+# RESUME — historical snapshot (2026-06-13) — SUPERSEDED
 
-Single source of truth for picking the project back up. Pairs with
-`ROADMAP.md` (phase plan + event calendar) and `devlog/0005-studio-review.md`
-(every locked decision + idea inventory).
+> ⚠️ **This file is a point-in-time handoff note and is now stale.** It
+> predates the v0.20/v0.21 releases: the Pflug→Glide rename it lists as open
+> has shipped, trails/gate-FX/auras exist, and migrations now run past 0030.
+> For current status see `ROADMAP.md` (canonical backlog + status snapshot).
+> Kept for context only — do not work from this list.
+
+Original intro: single source of truth for picking the project back up. Pairs
+with `ROADMAP.md` (phase plan + event calendar) and
+`devlog/0005-studio-review.md` (every locked decision + idea inventory).
 
 ---
 

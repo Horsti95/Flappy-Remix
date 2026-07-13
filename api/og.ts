@@ -3,6 +3,10 @@ import { getAdminClient } from "./_lib/supabaseAdmin";
 
 export const config = { runtime: "edge" };
 
+// NOT called by app code — referenced only as the <meta og:image> URL that
+// og-meta.ts emits, so link-preview crawlers fetch it. Don't mistake it for
+// a dead endpoint.
+
 interface OgPayload {
   username: string;
   score: number;

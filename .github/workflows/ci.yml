@@ -1,13 +1,18 @@
 name: CI
 
 # Typecheck, tests and a production build on every push to main and every PR.
-# 223 fast unit tests + a strict tsc build already exist — this just makes them
+# The fast unit suite + a strict tsc build already exist — this just makes them
 # gate merges instead of relying on the author remembering to run them.
 
 on:
   push:
     branches: [main]
   pull_request:
+
+# A newer push to the same PR/branch cancels the outdated in-flight run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   verify:

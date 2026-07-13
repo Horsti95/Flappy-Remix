@@ -2,6 +2,10 @@ import { getAdminClient } from "./_lib/supabaseAdmin";
 
 export const config = { runtime: "edge" };
 
+// NOT called by app code — reached only via the vercel.json rewrite of
+// /run/:id (link-preview crawlers + shared-link visitors). Don't mistake
+// it for a dead endpoint.
+//
 // Serves a thin HTML shell with run-specific OG / Twitter meta tags
 // for /run/<id> URLs. Crawlers (WhatsApp, Discord, Twitter, Slack,
 // Telegram, iMessage) parse this; humans get redirected to the SPA

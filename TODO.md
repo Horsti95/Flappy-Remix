@@ -1,7 +1,8 @@
 # TODO
 
-> See `ROADMAP.md` "Status snapshot — 2026-06-15" for phase-level status.
-> This file is the granular backlog.
+> **`ROADMAP.md` is the canonical backlog** (phase status + reward drafts +
+> event calendar). This file holds only granular parked items; check shipped
+> code before picking one up — several entries here have gone stale before.
 
 ## ✅ Resolved (2026-06-15)
 
@@ -17,13 +18,15 @@
 ## Parked — decided/started, picked up later
 
 - **Seasonal-event rewards — finish the wiring.** Date-latched participation now
-  exists (`game/events.ts`) and the World Cup package ships, but the
-  `unlock-criteria.ts` seasonal entries (new-year / pride / red-ribbon) still
-  aren't wired to grant real rewards off those flags. Fold them into the event
-  framework.
+  exists (`game/events.ts`) and the World Cup package ships, but the seasonal
+  participation rewards (new-year / pride / red-ribbon) still aren't wired to
+  grant real rewards off those flags. Fold them into the event framework.
+  (The old `unlock-criteria.ts` scratchpad is deleted; see ROADMAP.md
+  "Reward drafts".)
 - **Art-dependent TBA rewards.** The fx-trail / background / shape planned
-  rewards in `unlock-criteria.ts` need real particle/art work (the expensive
-  tier) — deferred from the cosmetics variety pass. Overlaps `feat/trails`.
+  rewards (ROADMAP.md "Reward drafts") need real particle/art work (the
+  expensive tier) — deferred from the cosmetics variety pass. Overlaps
+  `feat/trails`.
 - **Shape-variety goals (proposed).** Optional "fly shape X for N games → a
   globally-usable reward" goals, to reward sprite variety without per-sprite
   colour gating (owner reasoning 2026-06-15: keep colours global).

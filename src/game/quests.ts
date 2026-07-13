@@ -139,10 +139,6 @@ function save(p: QuestProgress): void {
   }
 }
 
-export function currentStepIndex(chainId: string): number {
-  return load().stepIndex[chainId] ?? 0;
-}
-
 export interface ChainView {
   chain: QuestChain;
   /** Index of the active step (== steps.length when complete). */
@@ -217,8 +213,4 @@ export function evaluateRun(ctx: RunContext): QuestCompletion[] {
 
   if (dirty) save(p);
   return completed;
-}
-
-export function resetQuests(): void {
-  save({ stepIndex: {}, counters: {}, granted: [] });
 }

@@ -394,8 +394,3 @@ export const TIER_COLOR: Record<Tier, string> = {
   super_hard: "#ef4444", // red
   extreme: "#a855f7",   // purple
 };
-
-export function tierWarning(pick: DailyPick): string {
-  const mods = pick.modifiers.map((m) => m.blurb).join(" + ");
-  return `${TIER_LABEL[pick.tier].toUpperCase()} — ${mods}`;
-}

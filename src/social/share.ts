@@ -76,13 +76,6 @@ export function twitterUrl({ text, url }: ShareLinkContext): string {
   return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
 }
 
-export function tiktokFallbackUrl({ url }: ShareLinkContext): string {
-  // TikTok has no public web intent for arbitrary share text. Best
-  // effort: route to a copy-paste flow inside the app modal. Keeping
-  // the helper here so the UI surface is symmetric.
-  return url;
-}
-
 export function downloadFile(file: File): void {
   const a = document.createElement("a");
   a.href = URL.createObjectURL(file);

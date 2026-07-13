@@ -70,9 +70,9 @@ See [`IDEAS.md`](./IDEAS.md) for the running list of what to build next.
   mode, daily seeds, ranked, and anti-cheat.
 - Mobile-first canvas renderer with DPR-aware letterboxing, render-
   interpolated between sim ticks (skipped under prefers-reduced-motion).
-- 281T-skin RGB system with rarity tiers driven by ΔE2000 color
-  contrast and complementary-hue detection. Unlocks at 1, 10, 50, 100,
-  200, 500, 1000, 2000, 5000 lifetime games.
+- 24-bit body+accent RGB skin system with rarity tiers driven by
+  ΔE2000 color contrast and complementary-hue detection. Skins mint at
+  1, 10, 50, 100, 200, 500, 1000, 2000, 5000 lifetime games.
 - Anonymous Supabase auth on first load; optional upgrade to Google,
   Discord, or email (magic link) with anonymous→account linking so
   progress carries over; 3–8 char alphanumeric usernames with a curated
@@ -122,7 +122,7 @@ only — runs aren't persisted and there is no leaderboard, friends, or
 ranked. The game itself plays the same.
 
 ```sh
-npm test                   # vitest — 186 unit + integration tests
+npm test                   # vitest — fast unit + integration suite
 npm run typecheck          # tsc --noEmit
 npm run build              # production build to dist/
 npm run icons              # regenerate PWA / OG icons from the SVG
@@ -137,7 +137,8 @@ Both are free tier for the scale you're likely to start at.
 2. Install the Supabase CLI: `brew install supabase/tap/supabase`.
 3. Link this repo: `supabase link --project-ref YOUR-REF`.
 4. Apply migrations: `supabase db push`. Migrations live in
-   `supabase/migrations/000{1,2,3,4}_*.sql`.
+   `supabase/migrations/` numbered sequentially (`0001_init.sql` onward —
+   30 and counting); apply them in order.
 5. In the Supabase dashboard: enable **Anonymous Sign-Ins**
    (Authentication → Providers). To offer account sign-in, enable the
    **Email**, **Google**, and **Discord** providers, turn on **Manual
@@ -165,7 +166,7 @@ Tables (RLS enabled on all):
 
 | table                   | rows                                                            |
 |-------------------------|-----------------------------------------------------------------|
-| `profiles`              | username, friend code, total games, streak, equipped skin       |
+| `profiles`              | username, total games, streak, xp, equipped skin                |
 | `skins`                 | per-user 6-byte RGB skin records + rarity                       |
 | `runs`                  | every accepted run with full input trace                        |
 | `daily_seeds`           | one per UTC date with plays_count                               |
@@ -176,6 +177,8 @@ Tables (RLS enabled on all):
 | `seasons`               | monthly buckets, one active                                      |
 | `elo_ratings`           | per-season live rating                                          |
 | `elo_season_snapshots`  | end-of-season rank for permanent top-100 badges                 |
+| `skin_codes`            | redeemable promo codes → skin/badge grants (service-role only)  |
+| `link_codes`            | short-lived device-link codes for cross-device profile carry    |
 
 Views: `leaderboard_all_time`, `leaderboard_weekly`, `leaderboard_daily`.
 RPCs: `add_friend_by_username`, `friends_leaderboard`, `current_season`,
@@ -194,6 +197,10 @@ Vercel edge functions in `api/`:
 - `GET  /api/og` — 1200×630 OG image via @vercel/og
 - `GET  /api/og-meta` — `/run/<id>` HTML shell with OG/Twitter meta
 - `GET  /api/me-export`, `POST /api/me-delete` — GDPR endpoints
+- `POST /api/feedback` — files in-app feedback as a GitHub issue
+- `POST /api/redeem-code` — promo-code redemption (skins / badges)
+- `POST /api/link-code` — device-link codes (profile on a second device)
+- `POST /api/ranked-challenge` — direct ranked challenge to a friend
 
 In dev, the same handlers are mounted by `dev-api.ts` as a Vite
 middleware so `npm run dev` exercises them without needing
@@ -262,7 +269,7 @@ fake notifications.
 
 ## Tests
 
-186 vitest tests cover: PRNG stability, sim determinism, ΔE2000 + rarity
+The vitest suite covers: PRNG stability, sim determinism, ΔE2000 + rarity
 classification, replay validator (cadence, score mismatch, tampering),
 daily seed determinism + UTC boundary + leap-year math, all 8 streak
 rules, ELO math (16 cases), BO3 settlement, season soft-reset chain,

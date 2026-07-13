@@ -1,4 +1,3 @@
-import { DEFAULT_SKIN, type SkinColors } from "./skin";
 import type { FlapFxId } from "./flap-fx";
 import type { FlapSoundId } from "./sfx";
 
@@ -1420,10 +1419,4 @@ export function markFeedbackGiven(): { newlyUnlocked: AchievementDef | null } {
 
 export function getNewlyUnlocked(before: AchievementStats, after: AchievementStats): AchievementDef[] {
   return ACHIEVEMENTS.filter((a) => !a.check(before) && a.check(after));
-}
-
-/** Color skin for a color-reward achievement; DEFAULT_SKIN for fx/sound rewards. */
-export function achievementToSkin(a: AchievementDef): SkinColors {
-  if (a.reward.type !== "color") return DEFAULT_SKIN;
-  return { body: a.reward.body, accent: a.reward.accent };
 }

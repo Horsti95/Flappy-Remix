@@ -40,7 +40,7 @@ export const PILLAR_COLORS: PillarColor[] = [
   { id: "mono",    name: "mono",    body: "#e6e6e6", cap: "#1a1a1a",
     unlock: (s) => ({ unlocked: s.streakDays >= 5, hint: "5-day streak" }) },
   // --- Variety pass: each gated on a *different* axis so unlocks don't all
-  //     read as "reach a bigger number" (see docs / unlock-criteria ideas). ---
+  //     read as "reach a bigger number" (see ROADMAP.md "Reward drafts"). ---
   { id: "marble",     name: "marble",     body: "#e8e8ea", cap: "#9a9aa0",
     unlock: (s) => ({ unlocked: s.bestScore >= 90, hint: "score 90 in a single run" }) },
   { id: "sunrise",    name: "sunrise",    body: "#ff9e5e", cap: "#c63b6e",

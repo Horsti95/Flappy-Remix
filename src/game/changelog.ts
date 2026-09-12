@@ -8,7 +8,7 @@
  * Bump APP_VERSION + prepend an entry when shipping notable changes.
  */
 
-export const APP_VERSION = "0.25.0";
+export const APP_VERSION = "0.25.1";
 
 export interface ChangeEntry {
   version: string;
@@ -19,6 +19,15 @@ export interface ChangeEntry {
 
 // Newest first.
 export const CHANGELOG: ChangeEntry[] = [
+  {
+    version: "0.25.1",
+    date: "2026-09-12",
+    title: "Saving works again",
+    notes: [
+      "💾 Fixed: since the last update the game couldn't save runs at all — the menu showed “N queued” and scores stopped appearing on the leaderboards. Nothing was lost. Queued runs send themselves as soon as you open the game on this build, and the scores land with their original result.",
+      "🙏 Sorry about that one. It came from moving the save server closer to the database, which is a real speed win everywhere else — the move was just wired up wrongly.",
+    ],
+  },
   {
     version: "0.25.0",
     date: "2026-09-12",

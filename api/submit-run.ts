@@ -27,9 +27,10 @@ import {
 // continent, so the sequential calls below cost ~200-300ms EACH for a distant
 // player. Pinned to the Supabase region via `regions` in vercel.json, the same
 // calls are intra-datacentre. The Web `Request`/`Response` signature below is
-// supported by Vercel's Node runtime as-is, so no handler rewrite is needed.
+// reached through the `default.fetch` export at the bottom of this file, which
+// is how Vercel's Node runtime recognises a Web handler.
 
-export default async function handler(req: Request): Promise<Response> {
+async function handler(req: Request): Promise<Response> {
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
   const jwt = bearerJwt(req);
   if (!jwt) return json({ error: "unauthenticated" }, 401);
@@ -581,3 +582,13 @@ async function fetchAndCheckMatch(
   if (mine?.[round] != null) return { reason: "round_already_played" };
   return { m: m.data as Record<string, unknown>, youAreA };
 }
+
+// Vercel's Node runtime reaches a Web handler through `default.fetch`, NOT
+// through a default-exported function. A bare `export default function
+// handler(req: Request)` is taken for the LEGACY Node signature and invoked as
+// handler(req, res) with an IncomingMessage — so the first line that touches
+// req.headers.get() throws, every request 500s, and the returned Response is
+// discarded. That is exactly what happened when these routes moved off the
+// edge runtime. The edge runtime does accept a bare default function, which is
+// why nothing complained before the move.
+export default { fetch: handler };

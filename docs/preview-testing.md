@@ -59,11 +59,19 @@ branch is deployed — see
 Highest risk first. The first three are things I changed but could not verify
 from here.
 
-### 1. The runtime change (highest risk)
+### 1. The runtime change (highest risk — it DID break, v0.25.1 fixes it)
 
-Twelve API routes moved from the edge runtime to regional Node. They use the Web
-`Request`/`Response` signature, which Vercel's Node runtime supports — but this
-is the change most likely to surprise on a real deploy.
+Twelve API routes moved from the edge runtime to regional Node. The first
+attempt kept `export default async function handler(req: Request)`, which the
+edge runtime accepts and the **Node runtime does not**: a default-exported
+function is taken for the legacy `(req, res)` signature and handed an
+`IncomingMessage`, so `req.headers.get()` threw and every one of the twelve
+routes answered 500. Symptom in the game: runs wouldn't save and the menu showed
+"N queued". Node reaches a Web handler through `export default { fetch: handler }`,
+which is what these files export now.
+
+Nothing here type-checks or builds differently, so re-test the list below on any
+future runtime change:
 
 - Finish a run → score saves, appears on the leaderboard (`/api/submit-run`)
 - Open the daily → seed loads (`/api/daily`)

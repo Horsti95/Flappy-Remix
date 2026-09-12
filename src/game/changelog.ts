@@ -8,7 +8,7 @@
  * Bump APP_VERSION + prepend an entry when shipping notable changes.
  */
 
-export const APP_VERSION = "0.25.1";
+export const APP_VERSION = "0.25.2";
 
 export interface ChangeEntry {
   version: string;
@@ -19,6 +19,14 @@ export interface ChangeEntry {
 
 // Newest first.
 export const CHANGELOG: ChangeEntry[] = [
+  {
+    version: "0.25.2",
+    date: "2026-09-12",
+    title: "No more false alarms",
+    notes: [
+      "🧩 Fixed: the error screen was appearing for errors thrown by browser extensions — wallets, ad blockers, password managers — even though the game itself was running fine. Extensions inject code into every page, and the game was taking the blame for theirs. It now only interrupts you when the problem is actually Glide's.",
+    ],
+  },
   {
     version: "0.25.1",
     date: "2026-09-12",

@@ -14,6 +14,10 @@
  * Design rules, learned from crash screens that make things worse:
  *  - Never block a recoverable situation. A failed image fetch is not a crash;
  *    only genuine uncaught errors and rejections open this.
+ *  - Never block for someone else's bug. Browser extensions inject scripts into
+ *    every page and reject promises the page never made; a crash screen for a
+ *    wallet extension's onboarding state teaches testers to ignore the screen.
+ *    See isForeignError().
  *  - Show it ONCE. A render loop that throws every frame would otherwise
  *    rebuild this 60 times a second and take the tab down with it.
  *  - Offer "keep playing". The sim is deterministic and most throws come from
@@ -155,6 +159,53 @@ export function reportCrash(info: CrashInfo): void {
   }
 }
 
+/**
+ * Schemes a browser extension's injected script runs under. An error thrown in
+ * one of these is not the game's.
+ */
+const EXTENSION_SCHEMES = [
+  "chrome-extension://",
+  "moz-extension://",
+  "safari-web-extension://",
+  "safari-extension://",
+  "ms-browser-extension://",
+  "webkit-masked-url://",
+];
+
+/**
+ * True when the error demonstrably came from outside our own code.
+ *
+ * WHY THIS EXISTS. A tester got the crash screen for this:
+ *
+ *   Talisman extension has not been configured yet. Please continue with
+ *   onboarding.
+ *     at chrome-extension://fijngjgcjhjmmpcmkeiomlglpeiijkld/page.js:1:4498
+ *
+ * A wallet extension's own onboarding state, on a page that was working
+ * perfectly. Extensions inject scripts into every page and reject promises the
+ * page never made, so a global `unhandledrejection` listener hears all of it.
+ * Blocking the game for that is worse than useless: it teaches testers that the
+ * crash screen means nothing, and then they stop reporting the real ones.
+ *
+ * The test is attribution, not a message blocklist: an extension frame in the
+ * stack AND no frame from our own origin. If our code appears anywhere in the
+ * stack we still report it — our code calling into something an extension broke
+ * is genuinely our problem.
+ */
+export function isForeignError(info: { stack?: string; source?: string; message?: string }): boolean {
+  // "Script error." with no stack is what a cross-origin script's throw looks
+  // like from here. It carries no origin, no line, no stack — by construction
+  // there is nothing in it to act on.
+  if ((info.message ?? "").trim() === "Script error." && !info.stack) return true;
+
+  const hay = `${info.source ?? ""}\n${info.stack ?? ""}`;
+  if (!hay.trim()) return false; // nothing to attribute — assume it is ours
+  if (!EXTENSION_SCHEMES.some((scheme) => hay.includes(scheme))) return false;
+
+  const own = typeof location !== "undefined" ? location.origin : "";
+  return !(own && hay.includes(own));
+}
+
 /** Install the global listeners. Idempotent. */
 export function installCrashHandler(): void {
   if (installed) return;
@@ -166,23 +217,35 @@ export function installCrashHandler(): void {
     // without a background. Ignore them.
     if (!e.error && !e.message) return;
     if (e.target && e.target !== window) return;
-    reportCrash({
+    const info: CrashInfo = {
       kind: "error",
       message: e.error?.message ?? e.message ?? "unknown error",
       stack: e.error?.stack,
-      source: e.filename ? `${shortenUrl(e.filename)}:${e.lineno ?? 0}` : undefined,
-    });
+      // Keep the FULL url for attribution; shortenUrl() would strip the
+      // chrome-extension:// scheme that identifies it as not ours.
+      source: e.filename ? `${e.filename}:${e.lineno ?? 0}` : undefined,
+    };
+    if (isForeignError(info)) {
+      console.warn("[crash] ignoring error from outside the app:", info.message);
+      return;
+    }
+    reportCrash({ ...info, source: info.source ? shortenUrl(info.source) : undefined });
   });
 
   window.addEventListener("unhandledrejection", (e: PromiseRejectionEvent) => {
     const r: unknown = e.reason;
     const message =
       r instanceof Error ? r.message : typeof r === "string" ? r : safeStringify(r);
-    reportCrash({
+    const info: CrashInfo = {
       kind: "unhandledrejection",
       message: message || "unknown rejection",
       stack: r instanceof Error ? r.stack : undefined,
-    });
+    };
+    if (isForeignError(info)) {
+      console.warn("[crash] ignoring rejection from outside the app:", info.message);
+      return;
+    }
+    reportCrash(info);
   });
 }
 

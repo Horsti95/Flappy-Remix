@@ -4,7 +4,7 @@ Ordered by consequence. Items 1–4 are **owner actions in the live Supabase
 project / Vercel dashboard** — code alone cannot do them, and the deploy is not
 safe until they are done.
 
-## 1. Apply migrations 0031–0034
+## 1. Apply the security migrations
 
 Paste each into the Supabase SQL Editor in order and Run:
 
@@ -84,7 +84,7 @@ silently, but players still have no way to make an account durable. See
 
 ```bash
 npm run typecheck                 # clean
-npm test                          # 252 tests
+npm test                          # all green (count grows; don't pin it)
 npm run build                     # precache should be ~1.2MB, not 6.4MB
 ./scripts/test-migrations.sh      # migrations + privilege + race assertions
 ```

@@ -24,6 +24,13 @@ export interface SubmitResult {
    * row lock, so this is authoritative where a client-side count is not.
    */
   mode?: "casual" | "daily" | "challenge" | "ranked";
+  /**
+   * True when the daily best-of-3 cap demoted this run to casual. The server
+   * has always sent this; it simply wasn't declared here, so nothing could
+   * act on it. Kept as a fallback signal for deployments whose API predates
+   * `mode` above.
+   */
+  daily_over_cap?: boolean;
   /** Server-decided personal best (settled under the same lock). */
   is_new_pb?: boolean;
   /** XP this single run earned, for the client's XP animation. */

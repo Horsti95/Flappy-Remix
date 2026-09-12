@@ -9,6 +9,7 @@ import {
   sanitizeHistory,
   pruneHistory,
   attemptsUsedFrom,
+  countedAsDaily,
   KEEP_DAYS,
 } from "../src/game/daily-history";
 
@@ -225,5 +226,68 @@ describe("tier type trap", () => {
       expect(text).not.toContain("undefined");
       expect(text.split("\n")[0]).toMatch(/^Glide daily · 12 Sep · \S+ \S/);
     }
+  });
+});
+
+describe("countedAsDaily — what may enter the shared history", () => {
+  /**
+   * The history feeds the results screen and the block players paste into
+   * chats, so it must contain only runs that actually counted. The score used
+   * to be written the moment the run ended, BEFORE the submit — so a run the
+   * server rejected, or demoted past the best-of-3 cap, still appeared as
+   * though it had counted.
+   */
+  it("records an accepted daily", () => {
+    expect(countedAsDaily({ result: { accepted: true, mode: "daily" } })).toBe(true);
+  });
+
+  it("does NOT record a run the cap demoted to casual", () => {
+    expect(countedAsDaily({ result: { accepted: true, mode: "casual" } })).toBe(false);
+  });
+
+  it("does NOT record any rejected run", () => {
+    for (const reason of [
+      "wrong_daily_seed",
+      "stale_daily_date",
+      "replay_theft",
+      "duplicate_run",
+      "cadence",
+      "score_mismatch",
+    ]) {
+      expect(countedAsDaily({ result: { accepted: false, reason } })).toBe(false);
+    }
+  });
+
+  it("records optimistically when queued offline (it will submit later)", () => {
+    expect(
+      countedAsDaily({ result: { accepted: false, reason: "queued_offline" } }),
+    ).toBe(true);
+  });
+
+  it("records when there is no backend at all — local play is all there is", () => {
+    expect(countedAsDaily({ result: null })).toBe(true);
+  });
+
+  it("falls back to daily_over_cap on an API that predates `mode`", () => {
+    // Older deployment: accepted, no `mode` field.
+    expect(countedAsDaily({ result: { accepted: true } })).toBe(true);
+    expect(countedAsDaily({ result: { accepted: true, daily_over_cap: true } })).toBe(false);
+    expect(countedAsDaily({ result: { accepted: true, daily_over_cap: false } })).toBe(true);
+  });
+
+  it("prefers `mode` over the fallback when both are present", () => {
+    // mode is the authoritative field — it comes straight out of the
+    // transaction that decided it.
+    expect(
+      countedAsDaily({ result: { accepted: true, mode: "daily", daily_over_cap: true } }),
+    ).toBe(true);
+    expect(
+      countedAsDaily({ result: { accepted: true, mode: "casual", daily_over_cap: false } }),
+    ).toBe(false);
+  });
+
+  it("never records an http failure as a played daily", () => {
+    expect(countedAsDaily({ result: { accepted: false, reason: "http_500" } })).toBe(false);
+    expect(countedAsDaily({ result: { accepted: false, reason: "http_403" } })).toBe(false);
   });
 });

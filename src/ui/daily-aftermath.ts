@@ -23,6 +23,16 @@ export interface DailyAftermathMeta {
   streakDays: number;
   /** World-wide plays today, for the "you and N others" line. */
   playsCount: number;
+  /**
+   * Attempts the local cap counted, which can EXCEED `attempts.length`: the
+   * counter ticks when a run ends, but a score only enters the history once
+   * the server confirms it counted as a daily. A run that was rejected or
+   * demoted past the cap therefore consumes a try without appearing above,
+   * and saying so is better than a silently short list.
+   */
+  attemptsUsed: number;
+  /** Cap for the day, for the "N of M" line. */
+  maxAttempts: number;
 }
 
 export interface DailyAftermathCallbacks {
@@ -50,6 +60,22 @@ export function renderDailyAftermath(
     streakDays: meta.streakDays,
     url: typeof window !== "undefined" ? window.location.origin : undefined,
   });
+
+  // Attempts that consumed a try but never counted (rejected by the server, or
+  // demoted past the cap). Usually zero; when it isn't, say so plainly rather
+  // than showing a short list with no explanation.
+  const uncounted = Math.max(0, meta.attemptsUsed - meta.attempts.length);
+  const uncountedNote =
+    uncounted > 0
+      ? `<div class="pt-1 text-[10px] opacity-50 text-center">${uncounted} attempt${uncounted === 1 ? "" : "s"} didn't count toward the daily</div>`
+      : "";
+
+  // Social proof: the daily's whole premise is that everyone flies the same
+  // wind, so how many did is worth saying.
+  const othersLine =
+    meta.playsCount > 1
+      ? `${formatPlays(meta.playsCount)} flew this wind today`
+      : "you're early — the world is still asleep";
 
   // In-screen bars mirror the shared block exactly, so what the player sees is
   // what their friends will see.
@@ -86,6 +112,11 @@ export function renderDailyAftermath(
 
       <div class="w-full max-w-[300px] paper-note rounded-2xl px-4 py-3 space-y-2">
         ${rows || `<div class="text-center text-xs opacity-60">no attempts recorded</div>`}
+        ${uncountedNote}
+      </div>
+
+      <div class="text-[11px] opacity-60 text-center">
+        ${othersLine}
       </div>
 
       <div class="w-full max-w-[300px]">
@@ -104,7 +135,7 @@ export function renderDailyAftermath(
 
     <div class="px-5 pb-6">
       <div class="text-center text-[11px] opacity-60">
-        That's your three. Same wind for everyone — new one tomorrow.
+        That's your ${meta.maxAttempts}. Same wind for everyone — new one tomorrow.
       </div>
       <button data-casual class="mt-2 w-full text-[12px] underline opacity-60">play a casual run</button>
     </div>
@@ -168,4 +199,10 @@ function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
   );
+}
+
+/** Compact play counts: 1234 -> "1.2k", 12345 -> "12k". */
+function formatPlays(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
+  return String(n);
 }

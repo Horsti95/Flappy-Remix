@@ -123,3 +123,41 @@ export function dailyBest(date: string): number {
   }
   return Math.max(...list);
 }
+
+/**
+ * Did a submitted run actually count as a daily attempt?
+ *
+ * Only such runs belong in the history above, because the history is what the
+ * results screen shows AND what the player shares. A run the server rejected
+ * (wrong_daily_seed, stale_daily_date, replay_theft, duplicate_run) or demoted
+ * past the best-of-3 cap did not count, and showing it — or putting it in a
+ * block sent to a friend — would be a lie.
+ *
+ * Takes the fields it needs rather than the whole SubmitResult, so this stays
+ * a pure decision with no import cycle back into the social layer.
+ */
+export interface DailyVerdict {
+  /** null when there is no backend configured at all. */
+  result: {
+    accepted: boolean;
+    reason?: string;
+    mode?: string;
+    daily_over_cap?: boolean;
+  } | null;
+}
+
+export function countedAsDaily({ result }: DailyVerdict): boolean {
+  // No backend: local play is all there is, so local history should reflect
+  // what was actually played.
+  if (result == null) return true;
+  // Queued while offline — it will be submitted when the network returns.
+  // Recorded optimistically; the alternative is an offline player never
+  // seeing their own results.
+  if (result.reason === "queued_offline") return true;
+  if (!result.accepted) return false;
+  // The server reports what it recorded (added with submit_run_tx). An API
+  // deployed before that doesn't send `mode`, so fall back to the over-cap
+  // flag, which has been in the response for far longer.
+  if (result.mode) return result.mode === "daily";
+  return result.daily_over_cap !== true;
+}

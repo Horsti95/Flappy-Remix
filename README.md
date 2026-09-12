@@ -3,8 +3,8 @@
 A daily flap-through-gaps arcade game. Mobile-first, browser-only, no
 install required (PWA-installable). Vanilla TypeScript on HTML5 canvas
 with a hand-rolled deterministic sim, Supabase auth + postgres, and
-Vercel edge functions for replay validation, OG image rendering, and
-matchmaking.
+Vercel serverless functions for replay validation, matchmaking and OG
+image rendering.
 
 > **Name**: Glide (domain `glide.uno`). The character is a paper plane,
 > not a bird. Both choices were made deliberately to be distinct from
@@ -77,8 +77,10 @@ See [`IDEAS.md`](./IDEAS.md) for the running list of what to build next.
   Discord, or email (magic link) with anonymous→account linking so
   progress carries over; 3–8 char alphanumeric usernames with a curated
   profanity blocklist.
-- Server-side replay validation via a Vercel edge function. Every
-  accepted run is re-simulated and rejected if its score doesn't match.
+- Server-side replay validation in a Vercel function. Every accepted run
+  is re-simulated and rejected if its score doesn't match, and the whole
+  write path (duplicate check, daily cap, personal best, insert, counters)
+  commits as one transaction.
 - Daily seed shared by every player on a given UTC date, with a daily
   leaderboard view and home-screen plays-count surface.
 - Daily twist: the daily seed also rolls a difficulty tier (easy / medium
@@ -130,15 +132,19 @@ npm run icons              # regenerate PWA / OG icons from the SVG
 
 ## Backend setup
 
-The backend is Supabase (auth + postgres) plus Vercel edge functions.
-Both are free tier for the scale you're likely to start at.
+The backend is Supabase (auth + postgres) plus Vercel functions. Both are
+free tier for the scale you're likely to start at.
 
 1. Create a project at <https://supabase.com>.
 2. Install the Supabase CLI: `brew install supabase/tap/supabase`.
 3. Link this repo: `supabase link --project-ref YOUR-REF`.
 4. Apply migrations: `supabase db push`. Migrations live in
-   `supabase/migrations/` numbered sequentially (`0001_init.sql` onward —
-   30 and counting); apply them in order.
+   `supabase/migrations/` numbered sequentially from `0001_init.sql`; apply
+   them in order. Count the directory rather than trusting a number written
+   here — and note that the later ones are **security** changes the app
+   depends on (function privileges, a unique replay-hash index, atomic
+   counters, column-level input privacy). See
+   [`docs/pre-deploy-checklist.md`](docs/pre-deploy-checklist.md).
 5. In the Supabase dashboard: enable **Anonymous Sign-Ins**
    (Authentication → Providers). To offer account sign-in, enable the
    **Email**, **Google**, and **Discord** providers, turn on **Manual
@@ -157,8 +163,8 @@ Both are free tier for the scale you're likely to start at.
    ```
 
 The `VITE_`-prefixed pair is bundled into the browser build (the anon
-key is safe to expose under RLS). The unprefixed keys are for Vercel
-edge functions only and must never leak to the client.
+key is safe to expose under RLS). The unprefixed keys are for the Vercel
+functions only and must never leak to the client.
 
 ### Schema
 
@@ -186,7 +192,11 @@ RPCs: `add_friend_by_username`, `friends_leaderboard`, `current_season`,
 
 ### API surface
 
-Vercel edge functions in `api/`:
+Vercel functions in `api/`. All of them are database-bound and therefore
+run on the **regional Node** runtime, pinned next to Supabase via `regions`
+in `vercel.json` — at the edge each query crossed a continent. The two
+exceptions are `api/og.ts` and `api/og-meta.ts`, which stay on the **edge**
+runtime (`@vercel/og` requires it, and they are crawler-facing):
 
 - `POST /api/submit-run` — server-side replay validation; mints
   unlocks, settles ranked ELO when a BO3 finishes

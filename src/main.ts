@@ -26,6 +26,7 @@ import {
   recordDailyAttempt,
   dailyAttempts,
   dailyAttemptsUsed as dailyAttemptsUsedStored,
+  countedAsDaily,
 } from "./game/daily-history";
 import { syncSecureAccountNudge } from "./ui/secure-account-nudge";
 import { renderGallery } from "./ui/gallery";
@@ -679,6 +680,8 @@ function openDailyAftermath(): void {
       twist,
       streakDays: authState().profile?.streak_days ?? 0,
       playsCount: dailyInfo.plays_count,
+      attemptsUsed: dailyAttemptsUsed(dailyInfo.date),
+      maxAttempts: DAILY_MAX_ATTEMPTS,
     },
     {
       onClose: () => showMenu(),
@@ -968,13 +971,15 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
         // Racing a player's best run is a real scored run: it submits (as a
         // casual run), counts toward your total, and can set your record. The
         // head-to-head result is shown via raceContext on the game-over below.
+        // The attempt COUNTER is bumped immediately, on purpose: it is the
+        // local cap guard, and counting the try the moment it ends is what
+        // stops a player farming extra daily attempts by killing the network
+        // mid-run. The SCORE is recorded further down instead, once the server
+        // has said whether the run actually counted as a daily — writing it
+        // here meant a rejected or demoted run still showed up in the daily
+        // results screen as though it had counted.
         if (currentRunMode === "daily" && dailyInfo) {
-          recordDailyBest(dailyInfo.date, score);
           bumpDailyAttempt(dailyInfo.date);
-          // Also record the individual score. The two legacy keys above only
-          // track best + count, which can't reconstruct the day — the results
-          // screen needs each attempt in order.
-          recordDailyAttempt(dailyInfo.date, score);
         }
         if (score > bestScoreSeen) {
           bestScoreSeen = score;
@@ -989,6 +994,12 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
         recordEventPlay();
         announce(`Run ended. Score ${score}. Press R to play again.`);
         const result = await trySubmit(sim);
+        // Now that the verdict is in, record the daily score locally — but
+        // only if it counted. See countedAsDaily().
+        if (currentRunMode === "daily" && dailyInfo && countedAsDaily({ result })) {
+          recordDailyBest(dailyInfo.date, score);
+          recordDailyAttempt(dailyInfo.date, score);
+        }
         // Newly-earned achievements this run — surfaced as full-screen
         // celebration cards (built in renderGameOver) so each one is read,
         // not flashed by in a toast. Training returns earlier, so the stats

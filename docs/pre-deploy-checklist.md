@@ -119,6 +119,7 @@ Applying files individually also works — in order, no skips:
 | `0040_search_path_hardening.sql` | Moves this project's `SECURITY DEFINER` functions to `search_path = ''`. Hardening, not a live hole — no client role can create objects in `public`. |
 | `0041_client_rpc_anon_lockdown.sql` | Fixes a gap in 0031: its allowlist branch only GRANTED and never revoked the PUBLIC default, so the 11 per-caller RPCs stayed executable by `anon`. Also repairs `friends_leaderboard()`, which had been raising "column reference user_id is ambiguous" for **every** caller since 0013, and sets `security_invoker` on the six leaderboard views. |
 | `0042_search_path_remaining.sql` | Pins `search_path` on the last two unpinned functions (`current_season`, `gen_challenge_short_id`). Low severity — both are SECURITY INVOKER, so there is no escalation — but it clears Supabase's remaining advisor warnings. 0040 missed them because its check filtered on `SECURITY DEFINER`. |
+| `0043_disable_burned_promo_codes.sql` | Disables all **six** promo codes that were committed as literals (0005, 0006, 0028 — including `THANKYOU`, which grants the supporter badge). Rows are kept, not deleted: `skin_code_redemptions` references them `ON DELETE CASCADE`, so deleting would wipe players' redemption history and let them redeem again. |
 
 Then run 0031's **step 5 verification query** — it must return zero rows.
 
@@ -130,11 +131,28 @@ alter default privileges in schema public revoke execute on functions from publi
 
 Without it, the next function you add is world-executable all over again.
 
-## 2. Rotate the burned promo codes
+## 2. Promo codes — handled by migration 0043
 
-`PLAYTEST2025`, `FOUNDER` and `FRIENDSFAMILY` were committed in plaintext in
-`0005_skin_codes.sql`, so they are in git history forever. `FRIENDSFAMILY` is
-uncapped (`max_uses = null`) and grants the supporter badge.
+**No longer a blocker.** Six codes were committed as literals across `0005`,
+`0006` and `0028`:
+
+| Code | Why it mattered |
+| --- | --- |
+| `FRIENDSFAMILY` | `max_uses = null` — unlimited |
+| `THANKYOU` | grants the **supporter badge** (an entitlement, not a cosmetic) |
+| `PLAYTEST2025`, `FOUNDER`, `LENNART2`, `ISA_S2` | legendary/epic skins, `ISA_S2` also a shape |
+
+Migration `0043` disables all six. That needs no secret, so it lives in the
+repo and `npm run migrate` applies it — which is why this stopped being
+something you owe.
+
+Players who already redeemed keep their skin and badge; only new redemptions
+are refused. The rows are **not** deleted, because
+`skin_code_redemptions.code` references them `ON DELETE CASCADE` — deleting one
+would wipe the redemption history of everyone who used it and let them redeem
+again once the `(user_id, code)` primary key vanished with it.
+
+**To hand out codes later** (optional, whenever you want to):
 
 ```bash
 node scripts/rotate-codes.mjs        # prints SQL; new codes go to stderr

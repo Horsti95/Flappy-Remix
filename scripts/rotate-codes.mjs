@@ -1,18 +1,19 @@
 #!/usr/bin/env node
 /**
- * Rotate the promo codes that were committed in plaintext.
+ * Mint fresh promo codes.
  *
- * WHY: 0005_skin_codes.sql seeded PLAYTEST2025, FOUNDER and FRIENDSFAMILY as
- * literal values, so they are in git history permanently. 0030 removed the
- * public read policy (nobody can discover NEW codes), and 0031 locked down the
- * RPCs — but anyone who already has one of those three strings can still
- * redeem it, and via skin_codes.unlocks_badge (0028) that self-grants the
- * founder/supporter badge. FRIENDSFAMILY is the worst of the three: max_uses
- * is NULL, so it is unlimited.
+ * NO LONGER A SECURITY CHORE. Six codes were seeded as literals across
+ * migrations 0005, 0006 and 0028 (PLAYTEST2025, FOUNDER, FRIENDSFAMILY,
+ * LENNART2, ISA_S2, THANKYOU), so all six are in git history permanently —
+ * and THANKYOU granted the supporter badge. Migration 0043 DISABLES all of
+ * them, which needs no secret and therefore can live in the repo.
  *
- * This prints the SQL to replace them with fresh random codes. It deliberately
- * does NOT write the codes to any file in the repo — paste the output into the
- * Supabase SQL Editor, then save the new codes in your password manager.
+ * So this script is now optional: run it when you actually want codes to hand
+ * out. What it prints replaces the disabled rows with fresh random secrets.
+ *
+ * It deliberately does NOT write the codes to any file in the repo — paste the
+ * output into the Supabase SQL Editor, then save the new codes in your password
+ * manager.
  *
  *   node scripts/rotate-codes.mjs
  *   node scripts/rotate-codes.mjs --len 12
@@ -42,10 +43,15 @@ function code() {
 
 // The three burned codes, and what each should become. FRIENDSFAMILY gains a
 // cap: an uncapped promo code is a standing liability even when it is secret.
+// Every code seeded as a literal. Caps are deliberate: an uncapped code is a
+// standing liability even when secret, so nothing here gets max_uses = null.
 const rotations = [
   { old: "PLAYTEST2025", maxUses: 100, note: "early playtester" },
   { old: "FOUNDER", maxUses: 25, note: "founder" },
   { old: "FRIENDSFAMILY", maxUses: 100, note: "friends & family (was UNLIMITED)" },
+  { old: "LENNART2", maxUses: 1, note: "lennart re-issue" },
+  { old: "ISA_S2", maxUses: 1, note: "isa s2 (also grants the butterfly shape)" },
+  { old: "THANKYOU", maxUses: 250, note: "supporter — GRANTS THE SUPPORTER BADGE" },
 ];
 
 const minted = rotations.map((r) => ({ ...r, next: code() }));
@@ -62,8 +68,11 @@ begin;
 
 for (const { old, next, maxUses, note } of minted) {
   console.log(`-- ${old}  ->  ${next}      (${note}, max_uses ${maxUses})`);
+  // expires_at must be cleared too: 0043 set it to now() to disable the code,
+  // so a rotation that only changes the string would mint an already-expired
+  // code and the redemption would fail with "expired".
   console.log(`update public.skin_codes
-   set code = '${next}', max_uses = ${maxUses}
+   set code = '${next}', max_uses = ${maxUses}, expires_at = null
  where code = '${old}';
 `);
 }

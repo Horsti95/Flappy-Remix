@@ -219,26 +219,41 @@ if (!url || !key) {
   }
 
   // B3 — the promo codes that are in git history forever.
-  const codes = await rest("skin_codes?select=code,max_uses");
+  const codes = await rest("skin_codes?select=code,uses,max_uses,expires_at,unlocks_badge");
   if (codes.status === 200) {
     let rows = [];
     try { rows = JSON.parse(codes.text); } catch { /* ignore */ }
-    const burned = rows.filter((r) => ["PLAYTEST2025", "FOUNDER", "FRIENDSFAMILY"].includes(r.code));
-    if (burned.length > 0) {
-      bad(`promo codes still un-rotated: ${burned.map((r) => r.code).join(", ")}`,
-          "these are in git history forever — run: node scripts/rotate-codes.mjs");
+    // "Redeemable" is the property that matters, not "present". 0043 disables
+    // the committed codes rather than deleting them, because
+    // skin_code_redemptions references them ON DELETE CASCADE.
+    const redeemable = (r) =>
+      (r.expires_at === null || new Date(r.expires_at) > new Date()) &&
+      (r.max_uses === null || r.uses < r.max_uses);
+    const committed = ["PLAYTEST2025", "FOUNDER", "FRIENDSFAMILY", "LENNART2", "ISA_S2", "THANKYOU"];
+
+    const live = rows.filter((r) => committed.includes(r.code) && redeemable(r));
+    if (live.length > 0) {
+      bad(`committed promo codes are still redeemable: ${live.map((r) => r.code).join(", ")}`,
+          "they are in git history forever — apply migration 0043 (npm run migrate)");
     } else {
-      ok("the committed promo codes have been rotated");
+      ok("no committed promo code is redeemable");
     }
-    const uncapped = rows.filter((r) => r.max_uses === null);
+
+    const uncapped = rows.filter((r) => r.max_uses === null && redeemable(r));
     if (uncapped.length > 0) {
-      warn(`${uncapped.length} promo code(s) have no use limit`,
-           "an uncapped code is a standing liability even when secret");
-    } else if (rows.length > 0) {
-      ok("every promo code has a use limit");
+      bad(`uncapped promo code(s) still redeemable: ${uncapped.map((r) => r.code).join(", ")}`,
+          "an unlimited code is a standing liability even when secret");
+    } else {
+      ok("no uncapped promo code is redeemable");
+    }
+
+    const badged = rows.filter((r) => r.unlocks_badge && redeemable(r));
+    if (badged.length > 0) {
+      warn(`badge-granting code(s) live: ${badged.map((r) => `${r.code}->${r.unlocks_badge}`).join(", ")}`,
+           "fine if you minted them yourself; not fine if they were ever committed");
     }
   } else {
-    warn(`could not read skin_codes (HTTP ${codes.status})`, "cannot verify the promo-code rotation");
+    warn(`could not read skin_codes (HTTP ${codes.status})`, "cannot verify the promo codes");
   }
 
   // Account durability — the biggest remaining risk for a beta.

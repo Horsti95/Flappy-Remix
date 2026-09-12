@@ -345,29 +345,55 @@ try {
   );
   check("no function has a mutable search_path (any security mode)", mut.names === "", mut.names);
 
-  // B3 — the promo codes that live in git history forever. An OWNER ACTION,
-  // not a migration outcome: the new codes must be secrets, so they can't come
-  // from a file in the repo.
+  // The promo codes that live in git history forever. This is now a genuine
+  // INVARIANT rather than an owner action: 0043 disables them, which needs no
+  // secret. What matters is whether they are still REDEEMABLE, not whether the
+  // rows exist — the rows must stay, because skin_code_redemptions references
+  // them ON DELETE CASCADE and deleting one would wipe players' redemption
+  // history and let them redeem again.
+  //
+  // All six seeded literals, across 0005 / 0006 / 0028. Listing only the three
+  // that 0030's comment names is what left LENNART2, ISA_S2 and THANKYOU live,
+  // and THANKYOU grants the supporter badge.
   const codes = await one(
-    `select coalesce(string_agg(code, ', '), '') as burned
+    `select coalesce(string_agg(code, ', ' order by code), '') as live
        from public.skin_codes
-      where code in ('PLAYTEST2025','FOUNDER','FRIENDSFAMILY')`,
+      where code in ('PLAYTEST2025','FOUNDER','FRIENDSFAMILY',
+                     'LENNART2','ISA_S2','THANKYOU')
+        and (expires_at is null or expires_at > now())
+        and (max_uses is null or uses < max_uses)`,
   );
-  todo(
-    codes.burned
-      ? `rotate the committed promo codes (still live: ${codes.burned})`
-      : "committed promo codes rotated",
-    codes.burned === "",
-    "node scripts/rotate-codes.mjs   # prints SQL; new codes go to stderr",
+  check(
+    "committed promo codes are no longer redeemable",
+    codes.live === "",
+    codes.live ? `still redeemable: ${codes.live} — migration 0043 is unapplied` : "",
   );
 
+  // Nothing uncapped may be redeemable anywhere, including codes the owner
+  // added by hand.
   const uncapped = await one(
-    `select coalesce(string_agg(code, ', '), '') as c
-       from public.skin_codes where max_uses is null`,
+    `select coalesce(string_agg(code, ', ' order by code), '') as c
+       from public.skin_codes
+      where max_uses is null and (expires_at is null or expires_at > now())`,
   );
-  if (uncapped.c) {
-    todo(`cap the unlimited promo code(s): ${uncapped.c}`, false,
-         "update public.skin_codes set max_uses = 100 where max_uses is null;");
+  check(
+    "no uncapped promo code is redeemable",
+    uncapped.c === "",
+    uncapped.c ? `uncapped and live: ${uncapped.c}` : "",
+  );
+
+  // A badge-granting code that is still live is worth a look either way — it is
+  // an entitlement, not a cosmetic.
+  const badged = await one(
+    `select coalesce(string_agg(code || '->' || unlocks_badge, ', '), '') as c
+       from public.skin_codes
+      where unlocks_badge is not null
+        and (expires_at is null or expires_at > now())
+        and (max_uses is null or uses < max_uses)`,
+  );
+  if (badged.c) {
+    todo(`badge-granting promo code(s) are live: ${badged.c}`, false,
+         "fine if you minted them yourself; not fine if they were ever committed");
   }
 
   // -------------------------------------------------------------------------

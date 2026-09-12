@@ -637,6 +637,58 @@ else
   echo "    FAIL service_role lost challenges.inputs — ghosts would break"; fails=$((fails+1))
 fi
 
+echo "==> asserting committed promo codes are dead (migration 0043)"
+
+# All SIX seeded literals, not the three that 0030's comment happens to name —
+# trusting that list is what left LENNART2, ISA_S2 and THANKYOU live, and
+# THANKYOU grants the supporter badge.
+live=$("${PSQL[@]}" -tAc "
+  select coalesce(string_agg(code, ', ' order by code), '')
+  from public.skin_codes
+  where code in ('PLAYTEST2025','FOUNDER','FRIENDSFAMILY','LENNART2','ISA_S2','THANKYOU')
+    and (expires_at is null or expires_at > now())
+    and (max_uses is null or uses < max_uses);")
+if [ -z "$live" ]; then
+  echo "    ok   all six committed promo codes are no longer redeemable"
+else
+  echo "    FAIL still redeemable: $live"; fails=$((fails+1))
+fi
+
+# claim_code_use() must actually refuse them, not merely look disabled.
+for c in FRIENDSFAMILY THANKYOU; do
+  got=$("${PSQL[@]}" -tAc "set role service_role; select public.claim_code_use('$c');")
+  if [ "$got" = "f" ]; then echo "    ok   claim_code_use('$c') refused"
+  else echo "    FAIL claim_code_use('$c') returned '$got' (want f)"; fails=$((fails+1)); fi
+done
+
+# Nothing uncapped may remain redeemable anywhere.
+uncapped=$("${PSQL[@]}" -tAc "
+  select coalesce(string_agg(code, ', ' order by code), '')
+  from public.skin_codes
+  where max_uses is null and (expires_at is null or expires_at > now());")
+if [ -z "$uncapped" ]; then
+  echo "    ok   no uncapped promo code is redeemable"
+else
+  echo "    FAIL uncapped and live: $uncapped"; fails=$((fails+1))
+fi
+
+# Disabling must NOT have cost anyone their redemption. skin_code_redemptions
+# references skin_codes ON DELETE CASCADE, so DELETING a code would wipe the
+# history AND let the player redeem again (the (user_id, code) PK would be gone).
+"${PSQL[@]}" -c "
+  insert into public.skins (user_id, body_r, body_g, body_b, accent_r, accent_g, accent_b,
+                            encoded_int, rarity, unlocked_at_games)
+    values ('$UA',1,2,3,4,5,6,99,'epic',0) on conflict do nothing;
+  insert into public.skin_code_redemptions (user_id, code, skin_id)
+    select '$UA', 'THANKYOU', s.id from public.skins s where s.user_id='$UA' limit 1
+    on conflict do nothing;" >/dev/null 2>&1
+kept=$("${PSQL[@]}" -tAc "select count(*) from public.skin_code_redemptions where code='THANKYOU';")
+if [ "$kept" -ge 1 ]; then
+  echo "    ok   an existing redemption survives the code being disabled"
+else
+  echo "    FAIL redemption history lost (code was deleted, not disabled?)"; fails=$((fails+1))
+fi
+
 echo "==> asserting account durability (migration 0035)"
 
 # An anonymous account >30d old with a STALE zero counter but real runs must

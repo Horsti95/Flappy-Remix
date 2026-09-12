@@ -8,6 +8,7 @@ import { getTheme, DEFAULT_THEME_ID, type ThemeId } from "../game/themes";
 import { shapeSvgInner } from "./shape-svg";
 import { SUPPORT_ENABLED, SUPPORT_URL } from "../game/support";
 import { APP_VERSION } from "../game/changelog";
+import { lastSubmitFailure, failureLabel } from "../social/submit-diagnostics";
 import { getShowEquippedInMenu, setShowEquippedInMenu } from "../game/menu-prefs";
 import { levelFromTotalXp, loadTotalXp, type RunXpResult } from "../game/xp";
 import { loadAchievementStats } from "../game/achievements";
@@ -82,10 +83,17 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   const streakBadge = meta.streakDays > 0
     ? `<span class="ml-2 inline-flex items-center gap-1 text-[11px] font-bold bg-orange-500/25 text-orange-700 rounded-full px-2.5 py-0.5">🔥 ${meta.streakDays}</span>`
     : "";
+  // Runs queued while ONLINE means the server refused them, which is a
+  // different problem from being offline — so name it. Without this the pill
+  // said "5 queued" and the only record of WHY was a console.warn nobody has
+  // open on a phone.
+  const fail = meta.pendingSubmissions && meta.online !== false ? lastSubmitFailure() : null;
+  const failSuffix = fail ? ` · ${escapeHtml(failureLabel(fail))}` : "";
+  const failTitle = fail?.detail ? ` title="${escapeHtml(fail.detail)}"` : "";
   const offlineBadge = meta.online === false
     ? `<div class="absolute top-3 left-1/2 -translate-x-1/2 text-[10px] rounded-full px-2 py-0.5 bg-orange-400/30 text-paper">offline${meta.pendingSubmissions ? ` · ${meta.pendingSubmissions} queued` : ""}</div>`
     : meta.pendingSubmissions
-      ? `<div class="absolute top-3 left-1/2 -translate-x-1/2 text-[10px] rounded-full px-2 py-0.5 bg-paper/15">${meta.pendingSubmissions} queued</div>`
+      ? `<div class="absolute top-3 left-1/2 -translate-x-1/2 text-[10px] rounded-full px-2 py-0.5 bg-paper/15"${failTitle}>${meta.pendingSubmissions} queued${failSuffix}</div>`
       : "";
 
   wrap.innerHTML = `

@@ -1,3 +1,4 @@
+import { recordSubmitFailure, clearSubmitFailure } from "./submit-diagnostics";
 import { getSupabase } from "../lib/supabase";
 import { authState } from "./auth";
 import { type InputEvent } from "../game/sim";
@@ -112,12 +113,21 @@ export async function submitRun(payload: SubmitPayload): Promise<SubmitResult | 
   } catch (err) {
     // Timeout (AbortError) or network failure — treat as retriable, not fatal.
     console.warn("[submit-run] request failed", err);
+    recordSubmitFailure(
+      err instanceof Error && err.name === "AbortError" ? "timeout" : "network",
+      err instanceof Error ? err.message : String(err),
+    );
     return null;
   }
   if (!res.ok) {
     const txt = await res.text();
     console.warn("[submit-run] non-200", res.status, txt);
+    recordSubmitFailure(`http_${res.status}`, txt);
     return { accepted: false, reason: `http_${res.status}` };
   }
+  // Reached the server and it answered properly. A validator reject (200 with
+  // accepted:false) is not a failure of this kind — it is a verdict, and the
+  // run will never be retried, so the pill must not keep accusing the server.
+  clearSubmitFailure();
   return (await res.json()) as SubmitResult;
 }

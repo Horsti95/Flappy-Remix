@@ -332,15 +332,18 @@ try {
   );
   check("runs skin-ownership trigger installed", Number(trg.n) > 0);
 
-  // 0040 — no SECURITY DEFINER function may have a mutable search_path.
+  // 0040 + 0042 — NO function may have a mutable search_path. The `prosecdef`
+  // filter this used to carry is what hid two SECURITY INVOKER functions and
+  // left Supabase's advisor reporting warnings nobody could locate.
   const mut = await one(
     `select coalesce(string_agg(p.proname, ', ' order by p.proname), '') as names
        from pg_proc p
        join pg_namespace n on n.oid = p.pronamespace
        left join pg_depend d on d.objid = p.oid and d.deptype = 'e'
-      where n.nspname='public' and p.prosecdef and d.objid is null and p.proconfig is null`,
+      where n.nspname='public' and p.prokind='f' and d.objid is null
+        and p.proconfig is null`,
   );
-  check("no SECURITY DEFINER function has a mutable search_path", mut.names === "", mut.names);
+  check("no function has a mutable search_path (any security mode)", mut.names === "", mut.names);
 
   // B3 — the promo codes that live in git history forever. An OWNER ACTION,
   // not a migration outcome: the new codes must be secrets, so they can't come

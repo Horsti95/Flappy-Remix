@@ -1,0 +1,48 @@
+-- 0042_search_path_remaining.sql
+--
+-- Clears the last two `function_search_path_mutable` warnings from Supabase's
+-- advisor: `current_season()` and `gen_challenge_short_id()` had no search_path
+-- pinned at all.
+--
+-- WHY 0040 MISSED THEM — the same shape of test gap that hid the anon leak
+-- 0041 fixed. 0040's assertion was:
+--
+--     where n.nspname='public' and p.prosecdef and p.proconfig is null
+--
+-- i.e. it only looked at SECURITY DEFINER functions. Both of these are SECURITY
+-- INVOKER, so they were invisible to a check that passed with "no SECURITY
+-- DEFINER function has a mutable search_path" — a true statement that answered
+-- the wrong question. The assertion now covers every function in the schema.
+--
+-- SEVERITY: low, and the review's "non-critical" is fair. Both run as the
+-- CALLER (security invoker), so an attacker manipulating search_path to shadow
+-- `public.seasons` or `public.challenges` would only be fooling themselves with
+-- privileges they already hold — there is no escalation, which is what makes
+-- the equivalent gap on a SECURITY DEFINER function serious. And
+-- gen_challenge_short_id is revoked from every client role (0031) anyway.
+--
+-- Worth doing regardless: it is two statements, and an advisor with permanent
+-- warnings in it is an advisor you stop reading — which is how the genuinely
+-- important finding gets missed next time.
+--
+-- Both bodies already fully qualify every reference (`public.seasons`,
+-- `public.challenges`), so ALTER FUNCTION is enough and no body is rewritten.
+-- The migrations suite calls both, so an unqualified reference would fail there
+-- rather than in production.
+--
+-- Re-runnable. Apply via `supabase db push` or the Supabase SQL Editor.
+
+alter function public.current_season() set search_path = '';
+alter function public.gen_challenge_short_id() set search_path = '';
+
+-- ---------------------------------------------------------------------------
+-- Verify — must return ZERO rows. Note this deliberately does NOT filter on
+-- prosecdef: that filter is what let these two through.
+--
+--   select p.proname, p.prosecdef
+--   from pg_proc p
+--   join pg_namespace n on n.oid = p.pronamespace
+--   left join pg_depend d on d.objid = p.oid and d.deptype = 'e'
+--   where n.nspname = 'public' and p.prokind = 'f' and d.objid is null
+--     and p.proconfig is null;
+-- ---------------------------------------------------------------------------

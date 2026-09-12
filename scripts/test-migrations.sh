@@ -218,17 +218,23 @@ fi
 
 echo "==> asserting search_path hardening (migration 0040)"
 
-# No SECURITY DEFINER function may have a MUTABLE (unset) search_path — that is
-# the real vulnerability, and it must hold for every function, old or new.
+# NO function in `public` may have a MUTABLE (unset) search_path.
+#
+# This deliberately does NOT filter on `p.prosecdef`. It used to, and that
+# filter is exactly why current_season() and gen_challenge_short_id() — both
+# SECURITY INVOKER — sat unpinned while this printed "no SECURITY DEFINER
+# function has a mutable search_path": a true statement answering the wrong
+# question, and Supabase's advisor kept reporting two warnings nobody could
+# find. Fixed in 0042.
 mutable=$("${PSQL[@]}" -tAc "
   select coalesce(string_agg(p.proname, ', ' order by p.proname), '')
   from pg_proc p
   join pg_namespace n on n.oid = p.pronamespace
   left join pg_depend d on d.objid = p.oid and d.deptype = 'e'
-  where n.nspname = 'public' and p.prosecdef and d.objid is null
+  where n.nspname = 'public' and p.prokind = 'f' and d.objid is null
     and p.proconfig is null;")
 if [ -z "$mutable" ]; then
-  echo "    ok   no SECURITY DEFINER function has a mutable search_path"
+  echo "    ok   no function in public has a mutable search_path (any security mode)"
 else
   echo "    FAIL mutable search_path on: $mutable"; fails=$((fails+1))
 fi

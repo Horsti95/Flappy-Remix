@@ -8,7 +8,7 @@
  * Bump APP_VERSION + prepend an entry when shipping notable changes.
  */
 
-export const APP_VERSION = "0.23.0";
+export const APP_VERSION = "0.24.0";
 
 export interface ChangeEntry {
   version: string;
@@ -19,6 +19,16 @@ export interface ChangeEntry {
 
 // Newest first.
 export const CHANGELOG: ChangeEntry[] = [
+  {
+    version: "0.24.0",
+    date: "2026-09-12",
+    title: "Beta-ready: if it breaks, you can tell us",
+    notes: [
+      "🪂 If the game ever hits an error you now get a proper screen instead of a black one — with a one-tap \u201ccopy report\u201d that includes exactly which build you were on. Your progress is untouched, and \u201ckeep playing\u201d usually just works.",
+      "🔖 Every build is stamped with its own id, so a bug report points at one exact version instead of \u201cit happened on 0.23\u201d.",
+      "🔍 The beta is kept out of search results, so an unfinished build doesn't end up ranking on Google.",
+    ],
+  },
   {
     version: "0.23.0",
     date: "2026-09-12",

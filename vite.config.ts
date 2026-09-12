@@ -1,9 +1,40 @@
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 import path from "node:path";
+import { execSync } from "node:child_process";
 import { devApi } from "./dev-api";
 
+/**
+ * Build identity, stamped in at build time.
+ *
+ * APP_VERSION alone cannot tell two deploys apart, which matters the moment
+ * real testers start filing reports: "it crashed on v0.23.0" doesn't say which
+ * build, so you can't tell a fixed bug from a live one. The crash screen and
+ * the feedback form both send this.
+ *
+ * Vercel exposes the commit as VERCEL_GIT_COMMIT_SHA; locally we ask git. If
+ * neither works (a tarball build, no git), "unknown" is honest and harmless —
+ * never fail a build over a label.
+ */
+function buildId(): string {
+  const fromCi = process.env.VERCEL_GIT_COMMIT_SHA;
+  if (fromCi) return fromCi.slice(0, 7);
+  try {
+    return execSync("git rev-parse --short=7 HEAD", { stdio: ["ignore", "pipe", "ignore"] })
+      .toString()
+      .trim();
+  } catch {
+    return "unknown";
+  }
+}
+
 export default defineConfig({
+  define: {
+    __BUILD_ID__: JSON.stringify(buildId()),
+    // Minute precision: enough to order two builds, not so precise that it
+    // busts the bundle hash on every rebuild of identical source.
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString().slice(0, 16) + "Z"),
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),

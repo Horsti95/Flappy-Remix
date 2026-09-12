@@ -1,3 +1,24 @@
+# Glide — BETA. Search engines are asked not to index this.
+#
+# Two reasons this is the right default for now:
+#   1. A beta is unfinished by definition. An indexed page ranks, gets shared,
+#      and outlives the build it described — a bad first impression that keeps
+#      arriving for months.
+#   2. Share links (/?c=<challenge>, /run/<id>) are meant for one recipient,
+#      not for a crawler to enumerate and index.
+#
+# FOR THE PUBLIC RELEASE, replace the block below with:
+#
+#     User-agent: *
+#     Allow: /
+#     Disallow: /api/
+#
+# (and add a real sitemap only once something generates one — the previous
+#  version of this file pointed at /sitemap.xml, which has never existed.)
+#
+# Note what this does NOT do: robots.txt is a request, not access control, and
+# it does not hide anything. Nothing secret is served from here; the actual
+# protections are RLS, column privileges and function grants in the database.
+
 User-agent: *
-Allow: /
-Sitemap: /sitemap.xml
+Disallow: /

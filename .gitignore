@@ -21,3 +21,4 @@ design/uploads/
 # One-off operational SQL (score restores, account merges, diagnostics).
 # These name real handles and document manual DB edits — keep local, never publish.
 scripts/sql/
+migration-bundle.sql

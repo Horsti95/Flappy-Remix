@@ -13,3 +13,11 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/**
+ * Build identity, replaced at build time by vite's `define` (see
+ * vite.config.ts). Declared here so the crash screen and feedback form can
+ * read them without an import.
+ */
+declare const __BUILD_ID__: string;
+declare const __BUILD_TIME__: string;

@@ -1,12 +1,48 @@
 # Pre-deploy checklist
 
-Ordered by consequence. Items 1–4 are **owner actions in the live Supabase
-project / Vercel dashboard** — code alone cannot do them, and the deploy is not
-safe until they are done.
+**Run this first — it checks most of the list for you:**
+
+```bash
+npm run preflight        # local config only
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... VITE_SUPABASE_ANON_KEY=... npm run preflight
+```
+
+With credentials it queries your live project and verifies what actually
+matters: that `submit_run_tx()` exists, that `anon` genuinely cannot reach
+`roll_season()`, that `runs.inputs` and `challenges.inputs` are closed to
+clients, that the committed promo codes are rotated, and whether a real auth
+provider is enabled. It exits non-zero on anything blocking; warnings are
+listed but do not fail it, because a beta may ship with known gaps.
+
+The two items most worth checking that way are the two that fail **silently**
+in production: an unapplied `0031` leaves the ranked season resettable by
+anyone holding the publishable anon key, and an unapplied `0037` makes
+`submit-run` stop persisting progress while still returning correct-looking
+numbers to the client.
+
+Ordered by consequence below. Items 1–4 are **owner actions in the live
+Supabase project / Vercel dashboard** — code alone cannot do them, and the
+deploy is not safe until they are done.
 
 ## 1. Apply the security migrations
 
-Paste each into the Supabase SQL Editor in order and Run:
+**One paste, not ten:**
+
+```bash
+npm run migration:bundle      # writes migration-bundle.sql (gitignored)
+```
+
+Paste that single file into the Supabase SQL Editor and Run. Every migration in
+it is re-runnable, so applying it twice is safe, and applying it when some were
+already applied is safe too — verified by test, once as a fresh apply and once
+as a re-apply over itself.
+
+It is deliberately not wrapped in one transaction: a few statements
+(`ALTER DEFAULT PRIVILEGES`, `CREATE INDEX`) behave differently or cannot run
+inside one, and a half-applied bundle is recoverable by re-running whereas a
+silently rolled-back one looks like success.
+
+Applying them individually also works — in order, no skips:
 
 | Migration | What it fixes |
 | --- | --- |
@@ -86,8 +122,20 @@ silently, but players still have no way to make an account durable. See
 npm run typecheck                 # clean
 npm test                          # all green (count grows; don't pin it)
 npm run build                     # precache should be ~1.2MB, not 6.4MB
-./scripts/test-migrations.sh      # migrations + privilege + race assertions
+npm run test:migrations           # migrations + privilege + race assertions
+npm run preflight                 # deploy config + live-project checks
+
+# and, against a running preview, that the app actually BOOTS:
+npm run build && npm run preview &
+npm i -D --no-save playwright-core && npm run smoke
 ```
+
+`npm run smoke` is the only check that opens a browser. Nothing else verifies
+the thing a tester notices first — that the app starts at all. A bundling
+mistake or a top-level throw passes typecheck, tests and build, then shows a
+black screen. It also proves the crash reporter appears, because a crash screen
+that silently doesn't work is worse than none: you believe you have reporting
+and you don't.
 
 `test-migrations.sh` spins up a throwaway Postgres, applies every migration,
 and asserts the security, privacy and concurrency invariants (including that 40

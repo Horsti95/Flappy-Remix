@@ -1,7 +1,7 @@
 {
   "name": "glide",
   "private": true,
-  "version": "0.23.0",
+  "version": "0.24.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,7 +11,11 @@
     "test:watch": "vitest",
     "typecheck": "tsc -b --noEmit",
     "icons": "node scripts/generate-icons.mjs",
-    "backup": "node scripts/backup.mjs"
+    "backup": "node scripts/backup.mjs",
+    "smoke": "node scripts/smoke-browser.mjs",
+    "test:migrations": "./scripts/test-migrations.sh",
+    "migration:bundle": "node scripts/build-combined-migration.mjs -o migration-bundle.sql",
+    "preflight": "node scripts/preflight.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

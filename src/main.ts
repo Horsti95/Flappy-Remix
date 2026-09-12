@@ -83,6 +83,14 @@ import { evaluateRun, type QuestCompletion } from "./game/quests";
 import { getGrantedShapesLocal } from "./social/grants";
 import { listMyBadges } from "./social/badges";
 import { BANNER } from "./game/support";
+import { installCrashHandler } from "./ui/crash";
+
+// FIRST thing to run. Anything below can throw, and until now an uncaught
+// throw left a black canvas with no message and nothing for a tester to
+// report. Installing before setupPWA()/initAuth() means a crash during boot
+// — the case most likely to look like "the game just doesn't load" — still
+// surfaces a report.
+installCrashHandler();
 
 setupPWA();
 initAuth();

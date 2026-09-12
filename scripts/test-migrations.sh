@@ -34,8 +34,12 @@ su "$RUNAS" -s /bin/bash -c "PATH=$PGBIN:\$PATH initdb -D $PGD -U postgres --aut
 su "$RUNAS" -s /bin/bash -c "PATH=$PGBIN:\$PATH pg_ctl -D $PGD -o '-p $PORT' -l $PGD/log start" >/dev/null
 for _ in $(seq 1 30); do "${PSQL[@]}" -c 'select 1' >/dev/null 2>&1 && break; sleep 0.5; done
 
+# NOTE: the harness lives in scripts/, NOT scripts/sql/ — that directory is
+# gitignored (it holds one-off operational SQL naming real handles), so a
+# harness kept there is absent from every fresh clone and this script fails
+# in CI while passing locally. It did, once.
 echo "==> scaffolding supabase-shaped roles + auth schema"
-"${PSQL[@]}" -f "$HERE/scripts/sql/test-harness.sql"
+"${PSQL[@]}" -f "$HERE/scripts/migration-test-harness.sql"
 
 echo "==> applying migrations"
 for f in "$HERE"/supabase/migrations/0*.sql; do

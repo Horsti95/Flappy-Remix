@@ -382,6 +382,27 @@ try {
     uncapped.c ? `uncapped and live: ${uncapped.c}` : "",
   );
 
+  // 0044 — "capped" must be a CONSTRAINT, not a habit. The check above finds an
+  // uncapped code after the fact; this one proves the database would have
+  // refused to create it. convalidated also has to be true: NOT VALID blocks
+  // new writes but tolerates a legacy uncapped row, so an unvalidated
+  // constraint means one is still in there.
+  const cap = await one(
+    `select coalesce(max(case when convalidated then 'valid' else 'notvalid' end), 'missing') as state
+       from pg_constraint
+      where conrelid = 'public.skin_codes'::regclass
+        and conname  = 'skin_codes_max_uses_capped'`,
+  );
+  check(
+    "an uncapped promo code is impossible (0044)",
+    cap.state === "valid",
+    cap.state === "missing"
+      ? "constraint absent — migration 0044 is unapplied"
+      : cap.state === "notvalid"
+        ? "constraint is NOT VALID — an existing code is uncapped; cap it, then re-run 0044"
+        : "",
+  );
+
   // A badge-granting code that is still live is worth a look either way — it is
   // an entitlement, not a cosmetic.
   const badged = await one(

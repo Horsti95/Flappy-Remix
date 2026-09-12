@@ -2,12 +2,12 @@
 /**
  * Concatenate the security migrations into ONE file to paste.
  *
- * Applying 0031-0040 means ten separate paste-and-Run operations in the
- * Supabase SQL Editor, in the right order, with no skips. That is ten chances
- * to miss one — and several of them are the security fixes the app depends on,
- * so a miss is not a cosmetic problem: 0031 is what stops any holder of the
- * anon key ending the ranked season, and 0037 is what keeps the server able to
- * persist progress at all.
+ * Applying the whole 0031+ range means a separate paste-and-Run operation per
+ * file, in the right order, with no skips. That is a dozen chances to miss one
+ * in the Supabase SQL Editor — and several of them are the security fixes the
+ * app depends on, so a miss is not a cosmetic problem: 0031 is what stops any
+ * holder of the anon key ending the ranked season, and 0037 is what keeps the
+ * server able to persist progress at all.
  *
  * So generate one ordered file instead. Output is NOT committed (it is a build
  * artifact of files that are already in git, and regenerating it is free):

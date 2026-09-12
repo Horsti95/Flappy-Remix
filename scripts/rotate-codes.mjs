@@ -41,10 +41,12 @@ function code() {
   return out;
 }
 
-// The three burned codes, and what each should become. FRIENDSFAMILY gains a
-// cap: an uncapped promo code is a standing liability even when it is secret.
-// Every code seeded as a literal. Caps are deliberate: an uncapped code is a
-// standing liability even when secret, so nothing here gets max_uses = null.
+// Every code seeded as a literal, and what each should become. Caps are
+// deliberate: an uncapped code is a standing liability even when secret, so
+// nothing here gets max_uses = null — FRIENDSFAMILY, which was unlimited, gains
+// one. Since 0044 the database enforces that too (a CHECK constraint refuses
+// max_uses = null), so an uncapped rotation would now fail outright rather than
+// quietly succeed.
 const rotations = [
   { old: "PLAYTEST2025", maxUses: 100, note: "early playtester" },
   { old: "FOUNDER", maxUses: 25, note: "founder" },

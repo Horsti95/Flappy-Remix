@@ -34,7 +34,7 @@ npm run migrate:verify        # then prove the invariants actually hold
 ```
 
 `db push` applies exactly what is missing and records it. `migrate:verify`
-adds the 27 read-only checks that prove the effect, which `db push` does not do.
+adds the 30 read-only checks that prove the effect, which `db push` does not do.
 
 **If the CLI is not set up**, or you want apply-and-verify in one step:
 
@@ -56,7 +56,7 @@ npm run migrate
 
 If the password contains `@ : / ? # %`, URL-encode it (`@` → `%40`).
 
-It applies 0031-0040, then runs 16 read-only checks that prove they took
+It applies 0031-0044, then runs 30 read-only checks that prove they took
 effect — `anon` really cannot reach `roll_season()`, `service_role` really can
 execute `submit_run_tx()`, `runs.inputs` and `challenges.inputs` really are
 closed, scores really are still readable. Output ends in either
@@ -66,8 +66,8 @@ Useful variants:
 
 ```bash
 npm run migrate -- --dry-run    # list what would run, change nothing
-npm run migrate:verify          # skip applying, just re-run the 16 checks
-npm run migrate -- --from 1     # a brand-new EMPTY project (applies all 40)
+npm run migrate:verify          # skip applying, just re-run the 30 checks
+npm run migrate -- --from 1     # a brand-new EMPTY project (applies all 44)
 ```
 
 Safe to re-run at any time: 0031+ are written to be idempotent, and each file
@@ -120,6 +120,7 @@ Applying files individually also works — in order, no skips:
 | `0041_client_rpc_anon_lockdown.sql` | Fixes a gap in 0031: its allowlist branch only GRANTED and never revoked the PUBLIC default, so the 11 per-caller RPCs stayed executable by `anon`. Also repairs `friends_leaderboard()`, which had been raising "column reference user_id is ambiguous" for **every** caller since 0013, and sets `security_invoker` on the six leaderboard views. |
 | `0042_search_path_remaining.sql` | Pins `search_path` on the last two unpinned functions (`current_season`, `gen_challenge_short_id`). Low severity — both are SECURITY INVOKER, so there is no escalation — but it clears Supabase's remaining advisor warnings. 0040 missed them because its check filtered on `SECURITY DEFINER`. |
 | `0043_disable_burned_promo_codes.sql` | Disables all **six** promo codes that were committed as literals (0005, 0006, 0028 — including `THANKYOU`, which grants the supporter badge). Rows are kept, not deleted: `skin_code_redemptions` references them `ON DELETE CASCADE`, so deleting would wipe players' redemption history and let them redeem again. |
+| `0044_promo_codes_must_be_capped.sql` | Makes "every promo code has a use cap" a CHECK constraint, so an uncapped code cannot be created at all. Until now the cap was data: a hand-minted code capped in the SQL editor is correct but not guaranteed, and 0005's `max_uses integer default null` made uncapped the *default* outcome of an INSERT that omits the column. Added `NOT VALID` on purpose — new writes are refused, but a pre-existing uncapped code the owner made deliberately is left alone rather than silently disabled by a schema migration; the file then validates the constraint once the rows are clean (after 0043 they are). |
 
 Then run 0031's **step 5 verification query** — it must return zero rows.
 

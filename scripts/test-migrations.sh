@@ -672,6 +672,58 @@ else
   echo "    FAIL uncapped and live: $uncapped"; fails=$((fails+1))
 fi
 
+echo "==> asserting an uncapped promo code is impossible (migration 0044)"
+
+# The database must REFUSE an uncapped code, not merely warn about one. Before
+# 0044 the cap was data: one `set max_uses = null`, or one INSERT that omits the
+# column (0005 declared `default null`), and a code was unlimited again.
+if out=$("${PSQL[@]}" -c "
+  insert into public.skin_codes
+    (code, body_r, body_g, body_b, accent_r, accent_g, accent_b, rarity, label)
+  values ('UNCAPPED0', 1,2,3, 4,5,6, 'rare', 'must be rejected');" 2>&1); then
+  echo "    FAIL an uncapped promo code was accepted"; fails=$((fails+1))
+  "${PSQL[@]}" -c "delete from public.skin_codes where code='UNCAPPED0';" >/dev/null 2>&1
+elif echo "$out" | grep -q "skin_codes_max_uses_capped"; then
+  echo "    ok   inserting an uncapped promo code is rejected"
+else
+  echo "    FAIL insert failed for the wrong reason:"; echo "$out" | head -3; fails=$((fails+1))
+fi
+
+# Un-capping an EXISTING code must fail too — that is the one-keystroke path.
+if out=$("${PSQL[@]}" -c "
+  update public.skin_codes set max_uses = null where code='CONCUR5';" 2>&1); then
+  echo "    FAIL an existing code could be un-capped"; fails=$((fails+1))
+  "${PSQL[@]}" -c "update public.skin_codes set max_uses = 5 where code='CONCUR5';" >/dev/null 2>&1
+elif echo "$out" | grep -q "skin_codes_max_uses_capped"; then
+  echo "    ok   un-capping an existing promo code is rejected"
+else
+  echo "    FAIL update failed for the wrong reason:"; echo "$out" | head -3; fails=$((fails+1))
+fi
+
+# NOT VALID would still block writes, so assert the constraint was VALIDATED —
+# that is what proves no legacy uncapped row is hiding behind it.
+valid=$("${PSQL[@]}" -tAc "
+  select convalidated from pg_constraint
+   where conrelid = 'public.skin_codes'::regclass
+     and conname  = 'skin_codes_max_uses_capped';")
+if [ "$valid" = "t" ]; then
+  echo "    ok   the cap constraint is validated against existing rows"
+else
+  echo "    FAIL cap constraint convalidated='$valid' (want t)"; fails=$((fails+1))
+fi
+
+# A capped code must still insert — the constraint must not have locked out the
+# normal case.
+if "${PSQL[@]}" -c "
+  insert into public.skin_codes
+    (code, body_r, body_g, body_b, accent_r, accent_g, accent_b, rarity, label, max_uses)
+  values ('CAPPED10', 1,2,3, 4,5,6, 'rare', 'capped is fine', 10)
+  on conflict (code) do nothing;" >/dev/null 2>&1; then
+  echo "    ok   a capped promo code still inserts normally"
+else
+  echo "    FAIL a capped promo code was rejected"; fails=$((fails+1))
+fi
+
 # Disabling must NOT have cost anyone their redemption. skin_code_redemptions
 # references skin_codes ON DELETE CASCADE, so DELETING a code would wipe the
 # history AND let the player redeem again (the (user_id, code) PK would be gone).

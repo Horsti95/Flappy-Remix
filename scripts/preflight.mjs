@@ -242,7 +242,8 @@ if (!url || !key) {
     const uncapped = rows.filter((r) => r.max_uses === null && redeemable(r));
     if (uncapped.length > 0) {
       bad(`uncapped promo code(s) still redeemable: ${uncapped.map((r) => r.code).join(", ")}`,
-          "an unlimited code is a standing liability even when secret");
+          "an unlimited code is a standing liability even when secret — 0044 blocks NEW ones, "
+          + "so this is a row that predates it: cap it, then re-run 0044 to validate the constraint");
     } else {
       ok("no uncapped promo code is redeemable");
     }

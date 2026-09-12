@@ -2,44 +2,29 @@
 
 Branch: `claude/compassionate-archimedes-6n0uwm`. **Do not merge yet.**
 
-## ⚠️ First, the thing that can bite you
+## ⚠️ Read this first — the migrations are ALREADY applied
 
 **A Vercel preview deploy talks to the same Supabase project as production.**
 Vercel gives you an isolated *frontend* per branch; it does not give you an
-isolated *database*. So the moment you apply these migrations to test the
-preview, **production is running against the new schema too** — while
-production's code is still the old `main` build.
+isolated *database*. And `0031`–`0044` have all been applied to that shared
+project already (the Supabase ledger is at `0044`).
 
-Almost all of the migrations are safe in that situation. **One is not:**
+So production — still serving the old `main` build — is running against the new
+schema right now. Almost everything is fine there by design: the migrations add
+functions old code doesn't call, and narrow privileges old code doesn't use.
 
-| Migration | Safe to apply before merging `main`? |
-| --- | --- |
-| `0031` privilege lockdown | ✅ Yes — nothing in the client calls the revoked functions. |
-| `0032` unique replay hash | ✅ Yes — the old duplicate pre-check still runs first. |
-| `0033` atomic counters | ✅ Yes — adds functions; old code simply doesn't call them. |
-| `0034` friends / hygiene | ✅ Yes — old one-sided removal still works (RLS permits your own row). |
-| `0035` account durability | ✅ Yes — narrows a reaper, adds a lookup. |
-| `0036` run-inputs privacy | ⚠️ **No — apply this one AFTER merging.** |
+**One thing is genuinely broken on production until you merge:**
 
-`0036` revokes client `SELECT` on `runs.inputs`. The old `main` code reads that
-column directly for "duel a player's best run"
-(`src/social/challenges.ts`). With `0036` applied and old code live, that one
-feature stops working — it fails soft (three retries, then "couldn't load
-challenge"), so nothing crashes and no data is at risk, but it is broken until
-the new code ships.
+> **"Duel a player's best run" does not work on production.** `0036` revoked
+> client `SELECT` on `runs.inputs`, and `main`'s `src/social/challenges.ts`
+> still reads that column directly. It fails soft — three retries, then
+> "couldn't load challenge" — so nothing crashes and no data is at risk. The
+> new code on this branch reads the same data through `best_run_ghost()`
+> instead, so it works on the preview and will work on production the moment
+> this branch ships.
 
-**Recommended order:**
-
-1. Apply `0031`–`0035` now. Test the preview.
-2. Merge to `main`, let production deploy.
-3. Apply `0036`.
-4. Re-test "duel a player's best run" on production.
-
-If you would rather test everything at once, point the preview at a **separate
-Supabase project** (Vercel → Settings → Environment Variables, set the
-`SUPABASE_*` / `VITE_SUPABASE_*` values for the *Preview* environment only)
-and apply all of them there. That is the clean way, and it is also how you'd test
-`cleanup_stale_anonymous_users()` without risk.
+That is the only user-visible regression from the current split, and merging is
+what fixes it. Everything else in the list below is testable on the preview as-is.
 
 ## Setup
 
@@ -62,8 +47,9 @@ Configuration, or email/OAuth links will bounce:
 https://*-<your-vercel-scope>.vercel.app/**
 ```
 
-**Region.** `vercel.json` pins functions to `fra1`. If your Supabase project
-isn't in `eu-central-1`, change it first — see
+**Region.** `vercel.json` pins functions to `lhr1`, which is the closest Vercel
+region to a Supabase project in `eu-west-2`. This only takes effect once the
+branch is deployed — see
 [`deploy.md`](./deploy.md#function-regions-latency).
 
 ## What to look out for
@@ -151,9 +137,9 @@ Needs two accounts (two browsers, or one incognito):
 
 ### 6. Duel a player's best run
 
-This is the `0036` path. If you applied `0036`, this only works on the **new**
-code — so test it on the preview, and expect it to be broken on production
-until you merge:
+This is the `0036` path, and `0036` is applied — so this works on the **new**
+code only. Test it on the preview; it is broken on production until you merge
+(see the warning at the top):
 
 - Open a player's profile → duel their best run → the ghost replays
 
@@ -186,4 +172,10 @@ rather than fail silently, so the logs should name the problem.
 Nothing in this branch is destructive to player data, with one exception worth
 knowing: `0032` nulls the `inputs_hash` of **duplicate** runs before adding the
 unique index (scores are kept, only the hash is cleared). It reports the count
-first, and on a healthy database it finds none.
+first, and on a healthy database it finds none. It has already run.
+
+## After you merge
+
+Re-check the one thing the split was hiding: open a player's profile on
+production and **duel their best run**. That is the feature `0036` took away
+from the old code, and the merge is what gives it back.

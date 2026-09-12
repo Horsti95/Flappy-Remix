@@ -214,13 +214,26 @@ export async function listFriends(): Promise<Friend[]> {
   }));
 }
 
-export async function removeFriend(friendId: string): Promise<void> {
+/**
+ * Remove a friend in BOTH directions.
+ *
+ * Friendships are two directional rows and `friendships_delete_self` only
+ * permits deleting the one you own, so this used to delete a single side. The
+ * person removed kept you in their list, kept seeing you on their friends
+ * leaderboard, and could still challenge you — a "remove" that didn't remove.
+ * public.remove_friend() (migration 0034) is SECURITY DEFINER and drops both
+ * rows, scoped to pairs that include the caller.
+ */
+export async function removeFriend(friendId: string): Promise<{ ok: boolean; reason?: string }> {
   const sb = getSupabase();
   const s = authState();
-  if (!sb || !s.user) return;
-  // Only delete our own side; the trigger doesn't auto-mirror.
-  // For symmetric removal both users can drop their row individually.
-  await sb.from("friendships").delete()
-    .eq("user_id", s.user.id)
-    .eq("friend_id", friendId);
+  if (!sb || !s.user) return { ok: false, reason: "offline" };
+  const { data, error } = await sb.rpc("remove_friend", { p_friend_id: friendId });
+  if (error) {
+    console.error("[friends] removeFriend", error);
+    return { ok: false, reason: error.message };
+  }
+  const res = data as { ok?: boolean; error?: string } | null;
+  if (res?.error) return { ok: false, reason: res.error };
+  return { ok: true };
 }

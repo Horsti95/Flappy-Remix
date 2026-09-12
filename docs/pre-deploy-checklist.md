@@ -1,0 +1,106 @@
+# Pre-deploy checklist
+
+Ordered by consequence. Items 1–4 are **owner actions in the live Supabase
+project / Vercel dashboard** — code alone cannot do them, and the deploy is not
+safe until they are done.
+
+## 1. Apply migrations 0031–0034
+
+Paste each into the Supabase SQL Editor in order and Run:
+
+| Migration | What it fixes |
+| --- | --- |
+| `0031_function_privilege_lockdown.sql` | **Critical.** Revokes client `EXECUTE` on every non-client function. Before this, any holder of the anon key could `POST /rest/v1/rpc/roll_season` and end the ranked season, or call `upsert_daily_seed` for a future date to pre-set that day's daily seed to one they had already practised. |
+| `0032_runs_hash_unique.sql` | Makes `runs.inputs_hash` UNIQUE, so duplicate-replay detection is enforced by the database rather than a raceable application check. Reports and de-duplicates any existing collisions first. |
+| `0033_atomic_counters.sql` | Atomic RPCs for profile totals/XP, ranked ELO, and promo-code uses. Removes the lost-update races. |
+| `0034_friends_symmetry_and_hygiene.sql` | Symmetric friend removal, run-cosmetic ownership trigger, link-code purge, durable feedback rate limit. |
+
+Then run 0031's **step 5 verification query** — it must return zero rows.
+
+Also run 0031's one-off default-privilege change (it is in the file, step 4):
+
+```sql
+alter default privileges in schema public revoke execute on functions from public;
+```
+
+Without it, the next function you add is world-executable all over again.
+
+## 2. Rotate the burned promo codes
+
+`PLAYTEST2025`, `FOUNDER` and `FRIENDSFAMILY` were committed in plaintext in
+`0005_skin_codes.sql`, so they are in git history forever. `FRIENDSFAMILY` is
+uncapped (`max_uses = null`) and grants the supporter badge.
+
+```bash
+node scripts/rotate-codes.mjs        # prints SQL; new codes go to stderr
+```
+
+Paste the SQL into the Supabase SQL Editor, then store the new codes in a
+password manager. Do not commit them.
+
+## 3. Set the function region
+
+`vercel.json` pins serverless functions to `fra1`. **Change it if your Supabase
+project is not in `eu-central-1`.** See [`deploy.md`](./deploy.md#function-regions-latency)
+for the region mapping. A mismatch is silently slow, not broken.
+
+## 4. Decide the banner
+
+`VITE_BANNER_ENABLED` defaults to **on**. The default label is now a neutral
+house message, so shipping as-is is safe — but set `VITE_BANNER_LABEL` to what
+you actually want to say, or set `VITE_BANNER_ENABLED=false` to hide the slot.
+
+If you are switching it to real Google ads, read the block comment in
+`src/game/support.ts` first: it needs an ETHICS.md/PRIVACY.md rewrite, a
+Google-certified consent CMP for EEA/UK traffic, and a CSP change. None of
+those are optional.
+
+## 5. Verify locally
+
+```bash
+npm run typecheck                 # clean
+npm test                          # 239 tests
+npm run build                     # precache should be ~1.2MB, not 6.4MB
+./scripts/test-migrations.sh      # migrations + privilege + race assertions
+```
+
+`test-migrations.sh` spins up a throwaway Postgres, applies all 34 migrations,
+and asserts the security and concurrency invariants (including that 40 parallel
+claims on a 5-use promo code consume exactly 5). It needs a local
+`postgresql-16` install and is not wired into CI yet.
+
+## 6. Smoke-test after deploying
+
+The DB-bound routes moved from the edge runtime to regional Node. The handlers
+use the Web `Request`/`Response` signature, which Vercel's Node runtime
+supports unchanged — but verify rather than assume:
+
+- `POST /api/submit-run` — a real run submits and the score appears
+- `GET /api/daily` — today's seed loads
+- `GET /run/:id` — a share link still renders its OG preview (this one is
+  still on edge)
+- Install the PWA on Android and confirm the status bar is **black**, not
+  sky blue, and that no strip of menu shows above the game
+
+## 7. Known gaps (accepted, not fixed)
+
+- **Run inputs are world-readable.** `runs_select_all using (true)` (0001)
+  exposes the per-tick input trace, which is what makes ghost duels work and
+  also what makes replay copying possible at all. The unique canonical hash
+  (0032) means a copied replay cannot be *submitted*, but the traces are still
+  readable. This sits awkwardly with `PRIVACY.md`; tighten the policy or
+  soften the wording.
+- **Device link codes share one refresh-token lineage.** When a second device
+  redeems a code, the originating device's stored token is rotated away. It no
+  longer silently becomes a new guest account (that was the account-loss bug),
+  but it does have to re-link. Supabase exposes no admin "mint a session for
+  user X" API for anonymous users, so this is inherent to the approach.
+- **`submit-run` is still ~10 sequential round trips**, now intra-region. The
+  races are fixed via atomic RPCs, but collapsing the whole write path into a
+  single `submit_run_tx()` transaction would cut it to one. Worth doing before
+  a public ranked launch.
+- **No API-level integration tests.** `test-migrations.sh` covers SQL;
+  the HTTP handlers are still only covered indirectly.
+- **`pflug.*` localStorage keys and `supabase/config.toml`'s `project_id`
+  deliberately keep the old name** — see `README.md`. Renaming the keys would
+  wipe every existing player's local save.

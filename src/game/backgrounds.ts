@@ -11,9 +11,9 @@
  */
 
 const sources: Record<string, string> = {
-  "neo-city": "/backgrounds/neo-city.png",
-  "fairy-spires": "/backgrounds/fairy-spires.png",
-  "stadium": "/backgrounds/stadium.png",
+  "neo-city": "/backgrounds/neo-city.webp",
+  "fairy-spires": "/backgrounds/fairy-spires.webp",
+  "stadium": "/backgrounds/stadium.webp",
   // Interactive "ascent" set — the backdrop zooms out with your score.
   // Lazy-loaded (not preloaded) so a player only downloads the stages they
   // actually reach.

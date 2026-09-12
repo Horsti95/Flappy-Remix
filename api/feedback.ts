@@ -2,7 +2,12 @@ import { getAdminClient } from "./_lib/supabaseAdmin";
 import { json } from "./_lib/http";
 import { bearerJwt, resolveUserId } from "./_lib/auth";
 
-export const config = { runtime: "edge" };
+// Runtime: regional Node, NOT edge. This handler is database-bound, and the
+// database is single-region. At the edge each Supabase round trip crossed a
+// continent, so the sequential calls below cost ~200-300ms EACH for a distant
+// player. Pinned to the Supabase region via `regions` in vercel.json, the same
+// calls are intra-datacentre. The Web `Request`/`Response` signature below is
+// supported by Vercel's Node runtime as-is, so no handler rewrite is needed.
 
 /**
  * In-app feedback → GitHub issue.
@@ -12,12 +17,14 @@ export const config = { runtime: "edge" };
  *  - GITHUB_FEEDBACK_TOKEN  fine-grained PAT with issues:write on the repo
  *  - GITHUB_FEEDBACK_REPO   "owner/repo" the issues land in
  *
- * Best-effort rate limit: one submission per user per 10 minutes, tracked
- * per edge instance (good enough to stop accidental double-sends; the client
- * keeps its own cooldown too).
+ * Rate limit: one submission per user per 10 minutes, enforced in the DB via
+ * claim_feedback_slot() (migration 0034).
+ *
+ * This used to be a module-level `Map` — i.e. per instance. Serverless spreads
+ * requests across instances, so retrying until a cold one answered bypassed it
+ * entirely. The limit is now a single conditional UPSERT: shared across
+ * instances, durable across cold starts, and not raceable.
  */
-const COOLDOWN_MS = 10 * 60 * 1000;
-const lastSentByUser = new Map<string, number>();
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
@@ -35,11 +42,6 @@ export default async function handler(req: Request): Promise<Response> {
   const userId = await resolveUserId(admin, jwt);
   if (!userId) return json({ error: "invalid token" }, 401);
 
-  const last = lastSentByUser.get(userId);
-  if (last != null && Date.now() - last < COOLDOWN_MS) {
-    return json({ error: "rate_limited" }, 429);
-  }
-
   let body: { message?: string; contact?: string; version?: string };
   try {
     body = (await req.json()) as typeof body;
@@ -52,6 +54,17 @@ export default async function handler(req: Request): Promise<Response> {
   }
   const contact = (body.contact ?? "").trim().slice(0, 200);
   const version = (body.version ?? "").trim().slice(0, 32);
+
+  // Claim the slot only once the payload is known-good, so a malformed request
+  // can't burn the sender's 10-minute window.
+  const slot = await admin.rpc("claim_feedback_slot", { p_user_id: userId });
+  if (slot.error) {
+    console.error("[feedback] claim_feedback_slot failed", slot.error);
+    return json({ error: "rate_limit_unavailable" }, 503);
+  }
+  if (slot.data !== true) {
+    return json({ error: "rate_limited" }, 429);
+  }
 
   const profile = await admin
     .from("profiles")
@@ -90,9 +103,15 @@ export default async function handler(req: Request): Promise<Response> {
   // rather than failing the submission over a cosmetic label.
   let res = await create(true);
   if (!res.ok) res = await create(false);
-  if (!res.ok) return json({ error: "github_error" }, 502);
+  if (!res.ok) {
+    // The slot was claimed before we called GitHub. Give it back so a GitHub
+    // outage doesn't cost the player their 10-minute window for a message
+    // that never got filed.
+    const rel = await admin.from("feedback_rate_limit").delete().eq("user_id", userId);
+    if (rel.error) console.error("[feedback] failed to release rate-limit slot", rel.error);
+    return json({ error: "github_error" }, 502);
+  }
 
-  lastSentByUser.set(userId, Date.now());
   return json({ ok: true });
 }
 

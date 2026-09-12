@@ -18,6 +18,13 @@ export interface AuthState {
   profile: Profile | null;
   ready: boolean;
   offline: boolean;
+  /**
+   * True when this device provably HAD an account (see the account marker
+   * below) but the stored session could not be restored this launch. The app
+   * must NOT mint a replacement anonymous account in that state — see
+   * {@link initAuth}. The UI surfaces a retry instead.
+   */
+  sessionLost: boolean;
 }
 
 const state: AuthState = {
@@ -26,7 +33,108 @@ const state: AuthState = {
   profile: null,
   ready: false,
   offline: !isBackendConfigured(),
+  sessionLost: false,
 };
+
+/**
+ * "This device has an account" marker.
+ *
+ * WHY THIS EXISTS — the account-loss bug.
+ *
+ * initAuth used to do:
+ *
+ *     const { data } = await sb.auth.getSession();   // error discarded!
+ *     if (!data.session) await sb.auth.signInAnonymously();
+ *
+ * `getSession()` returns `{ data: { session }, error }` and refreshes an
+ * expired access token on the way. The error was thrown away, so ANY transient
+ * failure to restore — dead network mid-refresh, a Supabase 5xx, device clock
+ * skew, a refresh token already rotated by another device (exactly what
+ * redeemLinkCode does to the originating device) — produced `session: null`
+ * and fell straight into `signInAnonymously()`.
+ *
+ * That mints a brand-new user_id AND overwrites the stored Supabase session in
+ * localStorage, destroying the only copy of the old refresh token. The old
+ * account still exists server-side with all its runs, skins and streak, but
+ * the device can never reach it again. Symptom: a player relaunches and is
+ * suddenly `guest-xxxx` on the leaderboard with zero progress.
+ *
+ * A fresh anonymous sign-in is only ever correct on a device that has never
+ * had an account. This marker is how we tell those two cases apart: it is
+ * written once we hold a real user, and cleared only by an explicit sign-out
+ * or an explicit "start fresh". It is deliberately a separate key from
+ * Supabase's own session storage so that losing one does not lose the other.
+ */
+const ACCOUNT_MARKER_KEY = "pflug.account.v1";
+
+interface AccountMarker {
+  userId: string;
+  username: string | null;
+  /** Epoch ms of the last successful session restore. */
+  at: number;
+}
+
+function readAccountMarker(): AccountMarker | null {
+  try {
+    const raw = localStorage.getItem(ACCOUNT_MARKER_KEY);
+    if (!raw) return null;
+    const m = JSON.parse(raw) as AccountMarker;
+    return typeof m?.userId === "string" && m.userId.length > 0 ? m : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeAccountMarker(userId: string, username: string | null): void {
+  try {
+    const prev = readAccountMarker();
+    // Never let a marker silently point at a different account than the one it
+    // pointed at before: that is the fingerprint of the bug above. Log loudly
+    // so it shows up in a bug report instead of being invisible.
+    if (prev && prev.userId !== userId) {
+      console.warn(
+        `[auth] account identity changed on this device: ${prev.userId} -> ${userId}` +
+          (prev.username ? ` (was @${prev.username})` : ""),
+      );
+    }
+    localStorage.setItem(
+      ACCOUNT_MARKER_KEY,
+      JSON.stringify({ userId, username, at: Date.now() } satisfies AccountMarker),
+    );
+  } catch {
+    /* localStorage full or blocked — we simply lose the safety net */
+  }
+}
+
+function clearAccountMarker(): void {
+  try {
+    localStorage.removeItem(ACCOUNT_MARKER_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * The whole account-loss bug reduced to one decision, kept pure so it can be
+ * unit-tested without a Supabase client or a browser.
+ *
+ *   hasMarker  — this device has previously held a real account
+ *   hasSession — getSession() returned a usable session this launch
+ *
+ * The critical row is (marker, no session) => "report-lost". Returning
+ * "fresh-anon" there is exactly what orphaned real accounts.
+ */
+export type RestoreDecision = "use-session" | "fresh-anon" | "report-lost";
+
+export function decideRestore(hasMarker: boolean, hasSession: boolean): RestoreDecision {
+  if (hasSession) return "use-session";
+  return hasMarker ? "report-lost" : "fresh-anon";
+}
+
+/** The handle this device last knew itself by, for the "session lost" notice. */
+export function lastKnownUsername(): string | null {
+  return readAccountMarker()?.username ?? null;
+}
 
 type Listener = (s: AuthState) => void;
 const listeners = new Set<Listener>();
@@ -49,30 +157,137 @@ export async function initAuth(): Promise<void> {
     emit();
     return;
   }
-  const { data } = await sb.auth.getSession();
-  if (!data.session) {
-    const { data: signin, error } = await sb.auth.signInAnonymously();
-    if (error) {
-      console.error("[auth] anonymous sign-in failed", error);
+
+  const marker = readAccountMarker();
+  const { data, error } = await sb.auth.getSession();
+
+  const decision = decideRestore(marker !== null, data.session !== null);
+
+  if (decision === "use-session" && data.session) {
+    state.session = data.session;
+    state.user = data.session.user;
+    state.sessionLost = false;
+  } else if (decision === "report-lost") {
+    // This device HAS an account but we could not restore it. Minting a fresh
+    // anonymous account here is what used to orphan real accounts (see
+    // ACCOUNT_MARKER_KEY). Stop, tell the UI, and let the player retry or
+    // explicitly choose to start over.
+    console.error(
+      "[auth] stored session did not restore; refusing to replace account",
+      marker?.userId,
+      error ?? "(no session, no error)",
+    );
+    state.sessionLost = true;
+    state.ready = true;
+    emit();
+    armRestoreRetry();
+    return;
+  } else {
+    // Genuinely a first visit: nothing to lose, so a new anon account is right.
+    if (error) console.warn("[auth] getSession failed on a fresh device", error);
+    const { data: signin, error: signinErr } = await sb.auth.signInAnonymously();
+    if (signinErr) {
+      console.error("[auth] anonymous sign-in failed", signinErr);
     } else {
       state.session = signin.session ?? null;
       state.user = signin.user ?? null;
     }
-  } else {
-    state.session = data.session;
-    state.user = data.session.user;
   }
-  if (state.user) await refreshProfile();
+
+  if (state.user) {
+    await refreshProfile();
+    writeAccountMarker(state.user.id, state.profile?.username ?? null);
+  }
   state.ready = true;
   emit();
 
-  sb.auth.onAuthStateChange(async (_event, session) => {
-    state.session = session;
-    state.user = session?.user ?? null;
-    if (state.user) await refreshProfile();
-    else state.profile = null;
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (session) {
+      state.session = session;
+      state.user = session.user;
+      state.sessionLost = false;
+      await refreshProfile();
+      writeAccountMarker(session.user.id, state.profile?.username ?? null);
+      emit();
+      return;
+    }
+
+    // A null session here is either a real sign-out (we cleared the marker
+    // already) or a failed token refresh. In the latter case keep the marker
+    // and flag the loss rather than dropping to a silent guest state.
+    state.session = null;
+    state.user = null;
+    state.profile = null;
+    if (event !== "SIGNED_OUT" && readAccountMarker()) {
+      console.error(`[auth] session dropped (${event}) without a sign-out`);
+      state.sessionLost = true;
+      armRestoreRetry();
+    }
     emit();
   });
+}
+
+/**
+ * Retry a failed restore when the network comes back, and once on a timer.
+ * Deliberately conservative: a restore attempt must never fall through to
+ * signInAnonymously(), so it only ever calls getSession() again.
+ */
+let restoreRetryArmed = false;
+function armRestoreRetry(): void {
+  if (restoreRetryArmed) return;
+  restoreRetryArmed = true;
+  const attempt = (): void => void retryRestore();
+  window.addEventListener("online", attempt);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") attempt();
+  });
+}
+
+/**
+ * Re-attempt restoring the stored session after a {@link AuthState.sessionLost}.
+ * Returns true once the real account is back.
+ */
+export async function retryRestore(): Promise<boolean> {
+  const sb = getSupabase();
+  if (!sb || !state.sessionLost) return false;
+  const { data, error } = await sb.auth.getSession();
+  if (error || !data.session) return false;
+  state.session = data.session;
+  state.user = data.session.user;
+  state.sessionLost = false;
+  await refreshProfile();
+  writeAccountMarker(data.session.user.id, state.profile?.username ?? null);
+  emit();
+  return true;
+}
+
+/**
+ * Explicitly abandon an unrecoverable account and start over as a new player.
+ *
+ * This is the ONLY path that may replace a marked account with a fresh
+ * anonymous one, and it exists solely so a player whose account really is gone
+ * (e.g. an unplayed anon reaped by cleanup_stale_anonymous_users) is not stuck
+ * on the retry screen forever. It must stay user-initiated — never automatic.
+ */
+export async function startFreshAccount(): Promise<void> {
+  const sb = getSupabase();
+  if (!sb) return;
+  clearAccountMarker();
+  state.sessionLost = false;
+  state.profile = null;
+  const { data, error } = await sb.auth.signInAnonymously();
+  if (error) {
+    console.error("[auth] fresh anonymous sign-in failed", error);
+    emit();
+    return;
+  }
+  state.session = data.session ?? null;
+  state.user = data.user ?? null;
+  if (state.user) {
+    const profile = await refreshProfile();
+    writeAccountMarker(state.user.id, profile?.username ?? null);
+  }
+  emit();
 }
 
 export async function refreshProfile(): Promise<Profile | null> {
@@ -108,6 +323,7 @@ export async function claimUsername(raw: string): Promise<{ ok: true } | { ok: f
     return { ok: false, reason: "server error" };
   }
   await refreshProfile();
+  if (state.user) writeAccountMarker(state.user.id, state.profile?.username ?? null);
   return { ok: true };
 }
 
@@ -234,7 +450,11 @@ export async function redeemLinkCode(
     if (error || !data.session) return { ok: false, reason: "could not link (code may be stale)" };
     state.session = data.session;
     state.user = data.session.user;
+    state.sessionLost = false;
     await refreshProfile();
+    // This device is now a different account on purpose — re-point the marker
+    // so a later restore failure reports the RIGHT account as lost.
+    writeAccountMarker(data.session.user.id, state.profile?.username ?? null);
     emit();
     return { ok: true };
   } catch {
@@ -256,10 +476,15 @@ function linkErr(code: string): string {
 export async function signOut(): Promise<void> {
   const sb = getSupabase();
   if (!sb) return;
+  // Clear the marker FIRST: this is a deliberate sign-out, so the initAuth()
+  // below should mint a fresh anonymous account rather than report the session
+  // as lost. (With the marker still set it would do the latter.)
+  clearAccountMarker();
   await sb.auth.signOut();
   state.user = null;
   state.session = null;
   state.profile = null;
+  state.sessionLost = false;
   emit();
   await initAuth();
 }

@@ -25,10 +25,47 @@ export const SUPPORT_URL: string =
 export const SUPPORT_ENABLED = true;
 
 /**
- * Non-tracking banner slot. A single static message + optional link that you
- * place yourself — no ad network, no tracking, no SDK. Default-on so the
- * placement is visible on preview deploys; set VITE_BANNER_ENABLED=false to
- * hide it, or point it at a real sponsor with the other VITE_BANNER_* vars.
+ * The banner slot.
+ *
+ * Today this renders ONE static message you control — no ad network, no SDK,
+ * no third-party script, no cookie. That is what makes it compatible with
+ * ETHICS.md as written.
+ *
+ * INTENT: this slot is staying in place so that a real ad banner (Google
+ * AdSense / Ad Manager) can drop into it at launch. The structure is already
+ * right for that — a fixed-height reserved box in the app shell, so filling it
+ * with an ad iframe will not shift the layout or resize the play area.
+ *
+ * ── Before you switch it to real Google ads, three things actually block it ──
+ *
+ * 1. ETHICS.md and PRIVACY.md currently promise the opposite. ETHICS.md says
+ *    "NO tracking / ad SDK … Nothing here loads third-party scripts or sets
+ *    cookies", and PRIVACY.md tells players their data goes nowhere. AdSense
+ *    is a third-party script that sets cookies and profiles users. Both
+ *    documents have to be rewritten to match reality BEFORE the script ships,
+ *    or the app is making a promise it breaks. This is a documentation change,
+ *    not an optional one.
+ *
+ * 2. EEA/UK traffic needs a Google-certified CMP. Google requires a certified
+ *    Consent Management Platform for personalised ads to EEA/UK users, and the
+ *    consent signal has to reach the ad script (TCF). A German launch is
+ *    exactly this case. Without it, either the ads don't serve or the
+ *    deployment isn't GDPR-clean. Budget for a CMP, and gate the ad script
+ *    behind its consent callback — non-consenting players should get the house
+ *    message below rather than a blank box.
+ *
+ * 3. The CSP has to allow it. Loading pagead2.googlesyndication.com means
+ *    widening script-src/frame-src. Add it deliberately and only for the ad
+ *    host.
+ *
+ * The wiring itself is then small: keep `enabled`, swap the innerHTML in
+ * main.ts for the AdSense <ins> element plus its loader, and feed the client
+ * id from an env var the way the values below already are.
+ *
+ * Until then the default is a neutral house message — never a placeholder
+ * joke. The previous default shipped the literal string "100,000 EUR to
+ * advertise to his friends and family only" to every player, because
+ * `enabled` defaults to true and nothing in the deploy path overrode it.
  */
 export interface BannerConfig {
   enabled: boolean;
@@ -37,7 +74,10 @@ export interface BannerConfig {
 }
 
 export const BANNER: BannerConfig = {
+  // Default-on so the placement stays visible on preview deploys (that is the
+  // point of keeping the slot). Set VITE_BANNER_ENABLED=false to hide it.
   enabled: env.VITE_BANNER_ENABLED !== "false",
-  label: env.VITE_BANNER_LABEL ?? "100,000 EUR to advertise to his friends and family only",
+  // Neutral and true as-written: safe to ship as-is to real players.
+  label: env.VITE_BANNER_LABEL ?? "Glide — made by one person. Thanks for playing.",
   href: env.VITE_BANNER_HREF,
 };

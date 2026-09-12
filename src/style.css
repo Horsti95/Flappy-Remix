@@ -393,18 +393,42 @@ a:focus-visible {
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset;
 }
 
-/* House-ad banner: intentionally reads as a joke/placeholder, not real
-   monetization — muted, dashed border, "fake ad slot" framing. */
+/* Safe-area insets.
+   index.html sets viewport-fit=cover, which extends the page under the status
+   bar / notch / home indicator. Nothing consumed the insets, so in the
+   installed Android + iOS app the fixed top bar slid underneath the system UI.
+   Exposed as variables (with 0px fallbacks) so the banner and the app shell
+   can both reserve the right amount. */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Banner bar height, excluding the inset. Mirrored by BANNER_H in main.ts —
+     keep the two in sync. */
+  --banner-h: 2.25rem;
+  /* What the app shell must reserve at the top when the banner slot exists. */
+  --banner-reserve: calc(var(--banner-h) + var(--safe-top));
+}
+
+/* The single sponsor / house-message slot. Sits above the menu chips, never
+   over them. Its box is reserved permanently by .has-banner below, so showing
+   and hiding the CONTENT can't resize the stage. */
 .house-ad {
-  border-style: dashed;
-  border-color: rgba(244, 234, 213, 0.25);
-  background: repeating-linear-gradient(
-    45deg,
-    rgba(255, 255, 255, 0.03),
-    rgba(255, 255, 255, 0.03) 8px,
-    rgba(255, 255, 255, 0.06) 8px,
-    rgba(255, 255, 255, 0.06) 16px
-  );
+  height: var(--banner-reserve);
+  /* Push the text below the status bar rather than under it. */
+  padding-top: var(--safe-top);
+  border-color: rgba(244, 234, 213, 0.18);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+/* Reserve the banner's space on the app shell for the whole session.
+   Previously main.ts toggled `paddingTop` on #app every time a run started or
+   ended. #stage is a h-full child, so that resized the stage, which fired the
+   ResizeObserver, which reallocated the DPR-scaled canvas — a layout shift plus
+   a full canvas realloc on every single run start and menu return. (The comment
+   in main.ts claimed the banner "never resizes the stage"; it did.) The space is
+   now reserved once and the banner's own visibility is all that changes. */
+.has-banner #app {
+  padding-top: var(--banner-reserve);
 }
 
 /* The banner carries the `flex` utility, whose `display:flex` (author rule)

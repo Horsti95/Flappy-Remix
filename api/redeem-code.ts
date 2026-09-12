@@ -3,7 +3,12 @@ import { json } from "./_lib/http";
 import { bearerJwt, resolveUserId } from "./_lib/auth";
 import { encodeSkin } from "../src/game/skin";
 
-export const config = { runtime: "edge" };
+// Runtime: regional Node, NOT edge. This handler is database-bound, and the
+// database is single-region. At the edge each Supabase round trip crossed a
+// continent, so the sequential calls below cost ~200-300ms EACH for a distant
+// player. Pinned to the Supabase region via `regions` in vercel.json, the same
+// calls are intra-datacentre. The Web `Request`/`Response` signature below is
+// supported by Vercel's Node runtime as-is, so no handler rewrite is needed.
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
@@ -39,9 +44,6 @@ export default async function handler(req: Request): Promise<Response> {
   if (c.expires_at && new Date(c.expires_at as string).getTime() < Date.now()) {
     return json({ error: "expired" }, 410);
   }
-  if (c.max_uses != null && (c.uses as number) >= (c.max_uses as number)) {
-    return json({ error: "depleted" }, 410);
-  }
 
   const existing = await admin
     .from("skin_code_redemptions")
@@ -52,6 +54,31 @@ export default async function handler(req: Request): Promise<Response> {
   if (existing.data) {
     return json({ error: "already_redeemed" }, 409);
   }
+
+  // Claim a use ATOMICALLY, before minting anything. The old flow checked
+  // `uses >= max_uses` up front and incremented with `uses = <value read
+  // earlier> + 1` at the very end, so N parallel redemptions of a 25-use code
+  // all passed the check and all succeeded. claim_code_use() re-checks the
+  // limit inside the same statement that increments (migration 0033), so
+  // exactly max_uses callers can ever get true.
+  //
+  // (The per-user duplicate was never raceable: 0005 has
+  // `primary key (user_id, code)` on skin_code_redemptions. It was the shared
+  // limit that leaked.)
+  const claim = await admin.rpc("claim_code_use", { p_code: raw });
+  if (claim.error) {
+    return json({ error: claim.error.message }, 500);
+  }
+  if (claim.data !== true) {
+    return json({ error: "depleted" }, 410);
+  }
+
+  // Everything past this point has consumed a use, so every failure exit must
+  // give it back or a transient error silently burns a slot on a limited code.
+  const releaseUse = async (): Promise<void> => {
+    const rel = await admin.rpc("release_code_use", { p_code: raw });
+    if (rel.error) console.error("[redeem-code] release_code_use failed", rel.error);
+  };
 
   const profile = await admin
     .from("profiles")
@@ -83,6 +110,7 @@ export default async function handler(req: Request): Promise<Response> {
     .select("id, body_r, body_g, body_b, accent_r, accent_g, accent_b, rarity, unlocked_at_games")
     .single();
   if (skinInsert.error || !skinInsert.data) {
+    await releaseUse();
     return json({ error: skinInsert.error?.message ?? "insert_failed" }, 500);
   }
 
@@ -96,10 +124,11 @@ export default async function handler(req: Request): Promise<Response> {
     // redemption attempts. Best-effort — a failure here just leaves an
     // orphan skin row that the user can still equip.
     await admin.from("skins").delete().eq("id", skinInsert.data.id);
+    await releaseUse();
     return json({ error: redemption.error.message }, 500);
   }
 
-  await admin.from("skin_codes").update({ uses: (c.uses as number) + 1 }).eq("code", raw);
+  // The use was already claimed atomically above — no trailing increment.
 
   // If this code also grants a shape, upsert into shape_grants so the
   // client unlock check picks it up regardless of the player's stats.

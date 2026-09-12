@@ -2,6 +2,11 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "regions": ["fra1"],
+  "functions": {
+    "api/og.ts": { "runtime": "edge" },
+    "api/og-meta.ts": { "runtime": "edge" }
+  },
   "rewrites": [
     { "source": "/run/:id", "destination": "/api/og-meta?id=:id" },
     { "source": "/api/(.*)", "destination": "/api/$1" }

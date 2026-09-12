@@ -2,7 +2,12 @@ import { getAdminClient } from "./_lib/supabaseAdmin";
 import { json } from "./_lib/http";
 import { bearerJwt } from "./_lib/auth";
 
-export const config = { runtime: "edge" };
+// Runtime: regional Node, NOT edge. This handler is database-bound, and the
+// database is single-region. At the edge each Supabase round trip crossed a
+// continent, so the sequential calls below cost ~200-300ms EACH for a distant
+// player. Pinned to the Supabase region via `regions` in vercel.json, the same
+// calls are intra-datacentre. The Web `Request`/`Response` signature below is
+// supported by Vercel's Node runtime as-is, so no handler rewrite is needed.
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== "GET") {
@@ -28,6 +33,27 @@ export default async function handler(req: Request): Promise<Response> {
     admin.from("elo_season_snapshots").select("*").eq("user_id", userId),
     admin.from("elo_ratings").select("*").eq("user_id", userId),
   ]);
+
+  // An export is a GDPR data-access response, so "partially complete but
+  // presented as complete" is the one outcome we must not produce. Each query's
+  // error used to be dropped on the floor and the missing table just serialised
+  // as []. Fail the whole request instead: a user retrying is fine, a user
+  // believing they have all their data when they don't is not.
+  const sections: ReadonlyArray<readonly [string, { error: { message: string } | null }]> = [
+    ["profile", profile],
+    ["skins", skins],
+    ["runs", runs],
+    ["friendships", friends],
+    ["challenges", challenges],
+    ["ranked_matches", ranked],
+    ["season_snapshots", badges],
+    ["elo_ratings", elo],
+  ];
+  const failed = sections.filter(([, r]) => r.error).map(([name, r]) => `${name}: ${r.error!.message}`);
+  if (failed.length > 0) {
+    console.error("[me-export] incomplete export", failed);
+    return json({ error: "export_incomplete", failed }, 500);
+  }
 
   return new Response(
     JSON.stringify(

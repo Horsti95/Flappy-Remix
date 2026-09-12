@@ -16,9 +16,20 @@ if (Test-Path $envFile) {
     Write-Host "[start-dev] No .env file found - running in offline mode" -ForegroundColor Yellow
 }
 
-# Pull latest code
+# Pull latest code.
+#
+# --ff-only on purpose: a plain `git pull` here would happily create a merge
+# commit (or leave a conflicted tree) and the `2>$null` used to hide that it
+# had gone wrong, so the dev server could come up on stale or half-merged code
+# with no visible sign. Fast-forward or stop.
 Write-Host "[start-dev] Pulling latest from git..." -ForegroundColor Cyan
-git pull origin main 2>$null
+git pull --ff-only origin main
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[start-dev] git pull could not fast-forward." -ForegroundColor Red
+    Write-Host "[start-dev] You have local commits or uncommitted changes on main." -ForegroundColor Yellow
+    Write-Host "[start-dev] Resolve them first, or run 'npm run dev' directly to skip the pull." -ForegroundColor Yellow
+    exit 1
+}
 
 # Start Vite dev server in background
 Write-Host "[start-dev] Starting game server on http://localhost:5173 ..." -ForegroundColor Cyan

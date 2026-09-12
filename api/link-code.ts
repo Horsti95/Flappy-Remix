@@ -2,7 +2,12 @@ import { getAdminClient } from "./_lib/supabaseAdmin";
 import { json } from "./_lib/http";
 import { bearerJwt, resolveUserId } from "./_lib/auth";
 
-export const config = { runtime: "edge" };
+// Runtime: regional Node, NOT edge. This handler is database-bound, and the
+// database is single-region. At the edge each Supabase round trip crossed a
+// continent, so the sequential calls below cost ~200-300ms EACH for a distant
+// player. Pinned to the Supabase region via `regions` in vercel.json, the same
+// calls are intra-datacentre. The Web `Request`/`Response` signature below is
+// supported by Vercel's Node runtime as-is, so no handler rewrite is needed.
 
 // Emailless cross-device link codes. See supabase/migrations/0029_link_codes.sql.
 //
@@ -75,8 +80,9 @@ export default async function handler(req: Request): Promise<Response> {
       return json({ error: "expired" }, 410);
     }
 
-    // Single use: stamp consumed first, and only hand out the token if WE were
-    // the one to consume it (guards against a double-redeem race).
+    // Single use: claim it with a conditional UPDATE and only hand out the
+    // token if WE were the one to consume it. One statement, so the
+    // double-redeem race is genuinely closed (not merely narrowed).
     const claim = await admin
       .from("link_codes")
       .update({ consumed_at: new Date().toISOString() })
@@ -86,7 +92,20 @@ export default async function handler(req: Request): Promise<Response> {
       .maybeSingle();
     if (claim.error || !claim.data) return json({ error: "already_used" }, 409);
 
-    return json({ ok: true, refresh_token: claim.data.refresh_token });
+    const token = claim.data.refresh_token as string;
+
+    // DELETE the row now that the token is in flight. It holds a raw Supabase
+    // refresh token; leaving consumed rows behind (the old behaviour) meant the
+    // table accumulated working-then-stale session tokens indefinitely, so a DB
+    // backup or a leaked service key exposed historical sessions. Also sweep
+    // anything else expired while we're here, so the table stays small even
+    // without a cron.
+    const del = await admin.from("link_codes").delete().eq("code", raw);
+    if (del.error) console.error("[link-code] failed to delete redeemed code", del.error);
+    const purge = await admin.rpc("purge_link_codes");
+    if (purge.error) console.error("[link-code] purge_link_codes failed", purge.error);
+
+    return json({ ok: true, refresh_token: token });
   }
 
   return json({ error: "bad_action" }, 400);

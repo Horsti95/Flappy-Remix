@@ -2,7 +2,12 @@ import { getAdminClient } from "./_lib/supabaseAdmin";
 import { json } from "./_lib/http";
 import { bearerJwt, resolveUserId } from "./_lib/auth";
 
-export const config = { runtime: "edge" };
+// Runtime: regional Node, NOT edge. This handler is database-bound, and the
+// database is single-region. At the edge each Supabase round trip crossed a
+// continent, so the sequential calls below cost ~200-300ms EACH for a distant
+// player. Pinned to the Supabase region via `regions` in vercel.json, the same
+// calls are intra-datacentre. The Web `Request`/`Response` signature below is
+// supported by Vercel's Node runtime as-is, so no handler rewrite is needed.
 
 export default async function handler(req: Request): Promise<Response> {
   const jwt = bearerJwt(req);

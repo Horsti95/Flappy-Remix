@@ -19,6 +19,7 @@ import { addRunXp, syncTotalXp, levelFromTotalXp, loadTotalXp } from "./game/xp"
 import { nextUnlockHint } from "./game/next-unlock";
 import { setGateSoundLabMode } from "./game/gate-sounds";
 import { initAuth, authState, subscribeAuth } from "./social/auth";
+import { syncSessionLostNotice } from "./ui/session-lost";
 import { renderAccountPanel } from "./ui/account";
 import { renderGallery } from "./ui/gallery";
 import { renderLeaderboard } from "./ui/leaderboard";
@@ -154,15 +155,23 @@ function announce(msg: string): void {
   if (liveRegion) liveRegion.textContent = msg;
 }
 
-// Persistent non-tracking banner slot. A single static message (house message
-// or one sponsor) you control — no ad network, no SDK. It lives in the app
-// shell (a thin fixed bar at the top of the viewport) so it shows on every
-// menu/overlay screen but is hidden during an active run. It sits outside the
-// canvas play area, so it never resizes the stage or perturbs the
-// ResizeObserver-driven canvas sizing.
+// Persistent banner slot — a single static message or one sponsor that you
+// place yourself. It lives in the app shell (a thin fixed bar at the top of the
+// viewport) so it shows on every menu/overlay screen and is hidden during an
+// active run.
+//
+// LAYOUT: the bar's space is reserved for the whole session via the
+// `has-banner` class on <html> (see .has-banner #app in style.css), NOT by
+// toggling padding when it appears. The old code set
+// `appEl.style.paddingTop` on every show/hide; #stage is a `h-full` child, so
+// that resized the stage on every run start and every return to the menu,
+// firing the ResizeObserver and reallocating the DPR-scaled canvas each time.
+// Reserving once means showing and hiding the banner is now a pure visibility
+// change: no reflow, no canvas realloc.
 const appBanner = document.getElementById("app-banner") as HTMLDivElement | null;
 if (appBanner) {
   if (BANNER.enabled) {
+    document.documentElement.classList.add("has-banner");
     const content = BANNER.href
       ? `<a href="${escapeHtmlAttr(BANNER.href)}" target="_blank" rel="noopener noreferrer" class="truncate hover:underline">${escapeHtmlAttr(BANNER.label)}</a>`
       : `<span class="truncate">${escapeHtmlAttr(BANNER.label)}</span>`;
@@ -175,27 +184,13 @@ if (appBanner) {
   }
 }
 
-// Banner height in px (matches the h-9 = 2.25rem bar). When the banner is
-// shown we push #app down by this much so it sits ABOVE the menu chips
-// instead of overlapping the account/settings buttons; the game area shrinks
-// slightly. During gameplay the banner hides and the app returns to full.
-const BANNER_H = 36;
-function applyBannerOffset(active: boolean): void {
-  const appEl = document.getElementById("app");
-  if (!appEl) return;
-  // Pad the top of the centered flex container so the stage sits fully below
-  // the fixed banner (no overlap, no clipped bottom). padding shrinks the
-  // box cleanly; `top` left the stage overflowing past 100vh.
-  appEl.style.paddingTop = active ? `${BANNER_H}px` : "";
-}
-
+/**
+ * Show or hide the banner's content. Never touches layout — the slot's box is
+ * reserved for the session (see above), so this cannot move the stage.
+ */
 function setBannerVisible(visible: boolean): void {
-  if (!appBanner || !BANNER.enabled) {
-    applyBannerOffset(false);
-    return;
-  }
+  if (!appBanner || !BANNER.enabled) return;
   appBanner.hidden = !visible;
-  applyBannerOffset(visible);
 }
 
 function escapeHtmlAttr(s: string): string {
@@ -283,6 +278,11 @@ pauseBtn.addEventListener("click", (e) => {
 let panelOpen = false;
 
 subscribeAuth(async () => {
+  // Account-loss guard: if this device had an account and couldn't restore it,
+  // block the app on a retry notice rather than letting the player build
+  // progress onto a throwaway session. See social/auth.ts ACCOUNT_MARKER_KEY.
+  syncSessionLostNotice();
+  if (authState().sessionLost) return;
   await loadEquippedSkin();
   void refreshFriendCount();
   void refreshChallengeWins();

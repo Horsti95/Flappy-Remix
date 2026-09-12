@@ -102,7 +102,13 @@ export function renderFriendsPanel(host: HTMLElement, onClose: () => void, cbs?:
     }
     rows.sort((a, b) => (a.username ?? "").localeCompare(b.username ?? ""));
     rows.forEach((f) => list.appendChild(row(f, async () => {
-      await removeFriend(f.user_id);
+      // Surface a failed removal. This is a safety control, not a preference:
+      // silently reloading the list would show the friend still present with
+      // no explanation of why.
+      const res = await removeFriend(f.user_id);
+      if (!res.ok) {
+        window.alert(`Couldn't remove @${f.username ?? "player"} — ${res.reason ?? "try again"}.`);
+      }
       await load();
       void refreshFriendCount();
     }, cbs?.onChallenge ? () => cbs.onChallenge!(f) : undefined,

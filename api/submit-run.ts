@@ -13,7 +13,7 @@ import {
   thresholdsCrossed,
   type GeneratedSkin,
 } from "./_lib/unlock";
-import { validatePayloadShape, validateRun } from "./_lib/validate";
+import { validatePayloadShape, validateRun, canonicalInputTicks } from "./_lib/validate";
 import {
   applyElo,
   decideResult,
@@ -22,7 +22,12 @@ import {
   tallyOutcome,
 } from "./_lib/elo";
 
-export const config = { runtime: "edge" };
+// Runtime: regional Node, NOT edge. This handler is database-bound, and the
+// database is single-region. At the edge each Supabase round trip crossed a
+// continent, so the sequential calls below cost ~200-300ms EACH for a distant
+// player. Pinned to the Supabase region via `regions` in vercel.json, the same
+// calls are intra-datacentre. The Web `Request`/`Response` signature below is
+// supported by Vercel's Node runtime as-is, so no handler rewrite is needed.
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
@@ -81,7 +86,14 @@ export default async function handler(req: Request): Promise<Response> {
   // legitimately identical.
   let inputsHash: string | null = null;
   if (body.score >= 10) {
-    inputsHash = await sha256Hex(`${body.seed >>> 0}|${body.inputs.map((i) => i.tick).join(",")}`);
+    // Hash the CANONICAL inputs (flap ticks, ascending, de-duplicated) — not
+    // the received array order. The simulator sorts before replaying, so a
+    // shuffled copy of someone else's run replays identically; hashing the
+    // received order gave it a different hash and let it through as an
+    // original. canonicalInputTicks() is the same function the validator and
+    // the simulator agree on, so the hash now identifies the REPLAY rather
+    // than the JSON that happened to encode it.
+    inputsHash = await sha256Hex(`${body.seed >>> 0}|${canonicalInputTicks(body.inputs).join(",")}`);
     const dupe = await admin
       .from("runs")
       .select("user_id")
@@ -100,9 +112,11 @@ export default async function handler(req: Request): Promise<Response> {
     .eq("user_id", userId)
     .maybeSingle();
   if (profile.error) return json({ error: profile.error.message }, 500);
-  const prev = (profile.data?.total_games as number | undefined) ?? 0;
-  const next = prev + 1;
-  const prevXp = (profile.data?.xp as number | undefined) ?? 0;
+  // Snapshot values only — the authoritative post-increment totals come back
+  // from bump_profile_after_run() below. Deriving `next = prev + 1` here and
+  // writing it later is the lost-update bug (migration 0033).
+  const prevSnapshot = (profile.data?.total_games as number | undefined) ?? 0;
+  const prevXpSnapshot = (profile.data?.xp as number | undefined) ?? 0;
 
   // Server-side PB check for the XP bonus: strictly beating the best prior
   // accepted run. Read BEFORE this run is inserted so the new row can't
@@ -303,38 +317,32 @@ export default async function handler(req: Request): Promise<Response> {
         const seasonId = m.season_id as number;
         const playerA = m.player_a as string;
         const playerB = m.player_b as string;
-        const rows = await admin
-          .from("elo_ratings")
-          .select("user_id, games_played, wins, losses, draws")
-          .eq("season_id", seasonId)
-          .in("user_id", [playerA, playerB]);
-        const counters = (uid: string, won: boolean, lost: boolean) => {
-          const r = rows.data?.find((x) => (x.user_id as string) === uid);
-          return {
-            games_played: ((r?.games_played as number) ?? 0) + 1,
-            wins: ((r?.wins as number) ?? 0) + (won ? 1 : 0),
-            losses: ((r?.losses as number) ?? 0) + (lost ? 1 : 0),
-            draws: ((r?.draws as number) ?? 0) + (result === "draw" ? 1 : 0),
-          };
-        };
-        await admin
-          .from("elo_ratings")
-          .upsert({
-            user_id: playerA,
-            season_id: seasonId,
-            rating: aAfter,
-            updated_at: new Date().toISOString(),
-            ...counters(playerA, result === "a_win", result === "b_win"),
-          }, { onConflict: "user_id,season_id" });
-        await admin
-          .from("elo_ratings")
-          .upsert({
-            user_id: playerB,
-            season_id: seasonId,
-            rating: bAfter,
-            updated_at: new Date().toISOString(),
-            ...counters(playerB, result === "b_win", result === "a_win"),
-          }, { onConflict: "user_id,season_id" });
+        const aBase = (m.a_rating_before as number) ?? 1200;
+        const bBase = (m.b_rating_before as number) ?? 1200;
+
+        // Apply rating DELTAS atomically rather than upserting absolutes
+        // read a moment earlier. a_rating_before / b_rating_before are
+        // snapshotted on the match row at creation, so `after - before` is a
+        // fixed per-match delta that composes correctly when two of a
+        // player's matches settle at once. The old code read both players'
+        // counters, added one in JS and wrote the result back — so a player
+        // with concurrent matches lost one match's rating and W/L/D entirely.
+        const settled = await admin.rpc("settle_ranked_elo", {
+          p_season_id: seasonId,
+          p_a: playerA,
+          p_b: playerB,
+          p_a_delta: (aAfter ?? aBase) - aBase,
+          p_b_delta: (bAfter ?? bBase) - bBase,
+          p_a_base: aBase,
+          p_b_base: bBase,
+          p_result: result,
+        });
+        if (settled.error) {
+          // We already won the versioned settle write, so the match is
+          // recorded; a failure here means ratings lag behind. Log loudly —
+          // this used to be discarded silently.
+          console.error("[submit-run] settle_ranked_elo failed", settled.error);
+        }
       }
 
       rankedSummary = {
@@ -400,21 +408,42 @@ export default async function handler(req: Request): Promise<Response> {
   // effectiveMode (not body.mode) so over-cap daily attempts — demoted to
   // casual above — don't pay the daily bonus more than once per day.
   const xpGain = xpForRun({ score: body.score, mode: effectiveMode, isNewPb }).total;
-  const newXp = prevXp + xpGain;
 
-  await admin.from("profiles").update({
-    total_games: next,
-    last_play_at: new Date().toISOString(),
-    streak_days: streak.streakDays,
-    last_daily_play_at: streak.lastDailyPlayAt,
-    xp: newXp,
-  }).eq("user_id", userId);
+  // Atomic increment in SQL (`total_games = total_games + 1`, `xp = xp + n`)
+  // instead of writing the absolute values computed from the earlier read.
+  // Two runs finishing at once used to discard one game and one XP award.
+  // The RPC returns the true post-update row, and we derive the "before"
+  // values from it — so the milestone/level checks below are also correct
+  // under concurrency instead of re-minting or skipping a reward.
+  const bumped = await admin.rpc("bump_profile_after_run", {
+    p_user_id: userId,
+    p_xp_gain: xpGain,
+    p_streak_days: streak.streakDays,
+    p_last_daily_play_at: streak.lastDailyPlayAt,
+    p_played_at: new Date().toISOString(),
+  });
+  if (bumped.error) {
+    // The run row is already inserted, so don't fail the request — but this
+    // must be visible, not swallowed like the old fire-and-forget update.
+    console.error("[submit-run] bump_profile_after_run failed", bumped.error);
+  }
+  const bumpedRow = (Array.isArray(bumped.data) ? bumped.data[0] : bumped.data) as
+    | { total_games?: number; xp?: number; streak_days?: number }
+    | null
+    | undefined;
+  // Fall back to the optimistic local arithmetic only if the RPC gave us
+  // nothing, so a transient failure degrades instead of breaking rewards.
+  const next = bumpedRow?.total_games ?? prevSnapshot + 1;
+  const newXp = bumpedRow?.xp ?? prevXpSnapshot + xpGain;
+  const prev = next - 1;
+  const prevXp = newXp - xpGain;
 
   if (effectiveMode === "daily") {
-    await admin.rpc("upsert_daily_seed", {
+    const seeded = await admin.rpc("upsert_daily_seed", {
       d: effectiveDailyDate ?? dailyDateString(),
       s: body.seed,
     });
+    if (seeded.error) console.error("[submit-run] upsert_daily_seed failed", seeded.error);
   }
 
   const crossed = thresholdsCrossed(prev, next);
@@ -503,7 +532,9 @@ function sanitizeRgb(v: unknown): [number, number, number] | null {
   return out as [number, number, number];
 }
 
-/** Hex SHA-256 via Web Crypto (available in the edge runtime). */
+/** Hex SHA-256 via Web Crypto (globalThis.crypto.subtle — present in both
+ *  the edge runtime and Node 18+, so this survived the move to regional
+ *  Node in vercel.json). */
 async function sha256Hex(s: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");

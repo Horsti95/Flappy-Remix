@@ -8,7 +8,7 @@
  * Bump APP_VERSION + prepend an entry when shipping notable changes.
  */
 
-export const APP_VERSION = "0.21.1";
+export const APP_VERSION = "0.22.0";
 
 export interface ChangeEntry {
   version: string;
@@ -19,6 +19,22 @@ export interface ChangeEntry {
 
 // Newest first.
 export const CHANGELOG: ChangeEntry[] = [
+  {
+    version: "0.22.0",
+    date: "2026-09-12",
+    title: "Your account stays yours",
+    notes: [
+      "🔒 Fixed the big one: if the game couldn't sign you back in — a patchy connection, a server hiccup, a second device — it used to quietly hand you a brand-new empty account. Your real one was still there, but your phone could never find it again, so you'd open the app as a fresh guest with your scores, skins and streak gone. That can't happen any more: if sign-in fails the game now says so and offers to retry instead of replacing you. If this bit you, your old account was never deleted — get in touch and it can be found.",
+      "📱 Installed-app fix: the odd blue strip across the top (a stray piece of the menu bleeding past the game) is gone, and the game no longer slides under your phone's status bar.",
+      "⚡ Much faster first load — about 5× less to download before you can play, because three background images were shipping at full size. Backgrounds now load as you meet them.",
+      "🏃 Scores sync a lot quicker. Finishing a run used to mean a long round trip for every single thing being saved; those now happen next to the database instead of across the world.",
+      "🏅 Fairer leaderboards: a couple of ways to copy someone else's run, or to fake superhuman tapping, no longer work.",
+      "🧮 Fixed rare cases where two runs finishing at the same time could lose one of them — a game, some XP, a level-up reward or a ranked result could quietly go missing.",
+      "👋 Removing a friend now actually removes you from THEIR list too, not just yours. Before, they could still see you and challenge you.",
+      "✍️ The top bar no longer shows a placeholder message that was never meant to ship.",
+      "🛡️ Under the hood: a serious permissions hole closed (it was possible to end the ranked season, or tamper with a future daily, from outside the game), plus promo-code limits, sign-out cleanup and account deletion all tightened.",
+    ],
+  },
   {
     version: "0.21.1",
     date: "2026-07-13",

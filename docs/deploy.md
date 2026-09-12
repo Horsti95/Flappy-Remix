@@ -117,3 +117,64 @@ supabase db reset --linked   # NUKES the database; only on a staging project
 
 For schema rollbacks, write a follow-up migration rather than rolling
 back files — migrations only flow forward in `supabase db push`.
+
+## Function regions (latency)
+
+Every API route except the two OG renderers is **database-bound**: it makes a
+series of sequential Supabase calls. Supabase Postgres is single-region, so
+where the *function* runs decides how far each of those calls travels.
+
+Running them at the edge was the worst case: a player in Sydney hitting an edge
+node in Sydney, talking to Postgres in Frankfurt, paid a full inter-continental
+round trip **per call**. `submit-run` makes ~10, so ~2-3s of pure network time
+before any work happened.
+
+They now run on regional Node, pinned next to the database:
+
+```jsonc
+// vercel.json
+"regions": ["fra1"],                          // <- must match your Supabase region
+"functions": {
+  "api/og.ts":      { "runtime": "edge" },    // @vercel/og needs edge
+  "api/og-meta.ts": { "runtime": "edge" }     // crawler-facing, no heavy DB work
+}
+```
+
+**Set `regions` to your own Supabase region.** Check it in the Supabase
+dashboard under Project Settings → General → Region, then map it to the nearest
+Vercel region:
+
+| Supabase region      | Vercel region |
+| -------------------- | ------------- |
+| `eu-central-1`       | `fra1`        |
+| `eu-west-1`          | `dub1`        |
+| `eu-west-2`          | `lhr1`        |
+| `us-east-1`          | `iad1`        |
+| `us-west-1`          | `sfo1`        |
+| `ap-southeast-2`     | `syd1`        |
+
+A mismatch here is silently expensive — everything still works, just slowly.
+
+### Verify it took effect
+
+After deploying, time a real submission from a device far from the region:
+
+```bash
+curl -o /dev/null -s -w 'total=%{time_total}s\n' \
+  -X POST https://YOUR-APP/api/submit-run \
+  -H "authorization: Bearer $ACCESS_TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{"seed":1,"score":0,"ticks":30,"inputs":[],"mode":"casual"}'
+```
+
+Measure p50 and p95 before and after, from the same device — the win is in the
+function↔database leg, and the browser still has to reach the region, so don't
+expect the end-to-end number to drop by the full amount.
+
+### Note on the handler signature
+
+These routes export a Web-standard `async function handler(req: Request):
+Promise<Response>`, which Vercel's Node runtime supports directly — removing
+`export const config = { runtime: "edge" }` was a config change, not a rewrite.
+Smoke-test one write path (`/api/submit-run`) and one read path (`/api/daily`)
+on the first deploy after this change.

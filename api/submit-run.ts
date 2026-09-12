@@ -13,7 +13,7 @@ import {
   thresholdsCrossed,
   type GeneratedSkin,
 } from "./_lib/unlock";
-import { validatePayloadShape, validateRun, canonicalInputTicks } from "./_lib/validate";
+import { validatePayloadShape, validateRun, canonicalInputTicks, type SubmitBody } from "./_lib/validate";
 import {
   applyElo,
   decideResult,
@@ -94,48 +94,32 @@ export default async function handler(req: Request): Promise<Response> {
     // the simulator agree on, so the hash now identifies the REPLAY rather
     // than the JSON that happened to encode it.
     inputsHash = await sha256Hex(`${body.seed >>> 0}|${canonicalInputTicks(body.inputs).join(",")}`);
-    const dupe = await admin
-      .from("runs")
-      .select("user_id")
-      .eq("inputs_hash", inputsHash)
-      .limit(1)
-      .maybeSingle();
-    if (dupe.data) {
-      const reason = (dupe.data.user_id as string | null) === userId ? "duplicate_run" : "replay_theft";
-      return json({ accepted: false, reason }, 200);
-    }
   }
 
+  // Streak inputs. This is the ONLY profile read left on the submit path:
+  // computeStreak() is date arithmetic (src/../_lib/streak.ts) and its answer
+  // is the same for every concurrent run on a given day, so reading it outside
+  // the transaction is safe. Everything race-sensitive — the duplicate check,
+  // the daily cap, the personal-best comparison, the insert and the counter
+  // bump — happens inside submit_run_tx() below.
   const profile = await admin
     .from("profiles")
-    .select("total_games, streak_days, last_play_at, last_daily_play_at, xp")
+    .select("streak_days, last_play_at, last_daily_play_at")
     .eq("user_id", userId)
     .maybeSingle();
   if (profile.error) return json({ error: profile.error.message }, 500);
-  // Snapshot values only — the authoritative post-increment totals come back
-  // from bump_profile_after_run() below. Deriving `next = prev + 1` here and
-  // writing it later is the lost-update bug (migration 0033).
-  const prevSnapshot = (profile.data?.total_games as number | undefined) ?? 0;
-  const prevXpSnapshot = (profile.data?.xp as number | undefined) ?? 0;
-
-  // Server-side PB check for the XP bonus: strictly beating the best prior
-  // accepted run. Read BEFORE this run is inserted so the new row can't
-  // count against itself. (runs is indexed on (user_id); score desc limit 1.)
-  const bestPrior = await admin
-    .from("runs")
-    .select("score")
-    .eq("user_id", userId)
-    .order("score", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const isNewPb = body.score > ((bestPrior.data?.score as number | undefined) ?? -1);
 
   // For daily mode: the seed must match the server's notion of today's
   // daily seed. Reject mismatches so players can't farm yesterday's
   // easier seed under the daily badge.
-  let effectiveMode = body.mode;
-  let effectiveDailyDate: string | null = body.mode === "daily" ? body.daily_date ?? null : null;
-  let dailyOverCap = false;
+  // Daily seed/date checks are reject-only, so they stay here: a mismatch is
+  // rejected before we take any lock. The best-of-3 CAP, by contrast, used to
+  // be decided here from a COUNT read minutes-of-CPU before the insert — two
+  // concurrent submissions both saw room and both counted as daily, giving 4+
+  // attempts on a 3-attempt board and paying the PB bonus twice. That decision
+  // now belongs to submit_run_tx(), which counts under a row lock.
+  const DAILY_MAX_ATTEMPTS = 3;
+  let requestedDailyDate: string | null = body.mode === "daily" ? body.daily_date ?? null : null;
   if (body.mode === "daily") {
     const expectedDate = body.daily_date ?? dailyDateString();
     if (body.daily_date && body.daily_date !== dailyDateString()) {
@@ -144,21 +128,9 @@ export default async function handler(req: Request): Promise<Response> {
     if (body.seed >>> 0 !== dailySeed(expectedDate) >>> 0) {
       return json({ accepted: false, reason: "wrong_daily_seed" }, 200);
     }
-    // Daily best-of-3: only the first 3 daily runs per UTC day get daily
-    // credit. Extra runs are accepted but stored as casual so they don't
-    // appear on the daily board (the client also caps this for UX).
-    const DAILY_MAX_ATTEMPTS = 3;
-    const prior = await admin
-      .from("runs")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("mode", "daily")
-      .eq("daily_date", expectedDate);
-    if ((prior.count ?? 0) >= DAILY_MAX_ATTEMPTS) {
-      dailyOverCap = true;
-      effectiveMode = "casual";
-      effectiveDailyDate = null;
-    }
+    requestedDailyDate = expectedDate;
+  } else if (body.mode === "challenge") {
+    requestedDailyDate = body.daily_date ?? null;
   }
 
   // Ranked submissions are checked against the match BEFORE the run row is
@@ -185,30 +157,102 @@ export default async function handler(req: Request): Promise<Response> {
   const snapBody = sanitizeRgb(body.body);
   const snapAccent = sanitizeRgb(body.accent);
 
-  const run = await admin
-    .from("runs")
-    .insert({
-      user_id: userId,
-      seed: body.seed,
-      score: body.score,
-      ticks: v.ticks,
-      inputs: body.inputs,
-      inputs_count: body.inputs.length,
-      inputs_hash: inputsHash,
-      equipped_skin_id: body.equipped_skin_id ?? null,
-      mode: effectiveMode,
-      daily_date: effectiveDailyDate,
-      shape: snapShape,
-      body_r: snapBody?.[0] ?? null,
-      body_g: snapBody?.[1] ?? null,
-      body_b: snapBody?.[2] ?? null,
-      accent_r: snapAccent?.[0] ?? null,
-      accent_g: snapAccent?.[1] ?? null,
-      accent_b: snapAccent?.[2] ?? null,
-    })
-    .select("id")
-    .single();
-  if (run.error) return json({ error: run.error.message }, 500);
+  const streak = computeStreak({
+    prevStreak: (profile.data?.streak_days as number | undefined) ?? 0,
+    lastPlayAt: (profile.data?.last_play_at as string | null | undefined) ?? null,
+    lastDailyPlayAt: (profile.data?.last_daily_play_at as string | null | undefined) ?? null,
+    // Over-cap daily runs count as casual for streak — daily credit was
+    // already granted on the first attempt of the day. The transaction tells
+    // us which it was, but the streak only distinguishes "played a daily
+    // today" and that is already true by the first attempt, so passing the
+    // requested mode here is correct.
+    mode: body.mode,
+  });
+
+  // XP depends on two things only the transaction can decide: whether the
+  // daily cap demoted this run, and whether it is a personal best. The formula
+  // must not be duplicated in SQL, so hand over every possible answer and let
+  // the transaction pick the one matching what it decided. Keys are
+  // `<effective_mode>_<pb|nopb>` — see submit_run_tx() in migration 0039.
+  const xpFor = (mode: SubmitBody["mode"], isNewPb: boolean): number =>
+    xpForRun({ score: body.score, mode, isNewPb }).total;
+  const xpByOutcome: Record<string, number> = {
+    daily_pb: xpFor("daily", true),
+    daily_nopb: xpFor("daily", false),
+    casual_pb: xpFor("casual", true),
+    casual_nopb: xpFor("casual", false),
+    challenge_pb: xpFor("challenge", true),
+    challenge_nopb: xpFor("challenge", false),
+    ranked_pb: xpFor("ranked", true),
+    ranked_nopb: xpFor("ranked", false),
+  };
+
+  // ── THE TRANSACTION ───────────────────────────────────────────────────────
+  // Duplicate check, daily-cap decision, personal-best comparison, run insert
+  // and counter bump, all under a FOR UPDATE lock on this player's profile
+  // row. Replaces five separate round trips that could interleave with each
+  // other (migration 0039).
+  const tx = await admin.rpc("submit_run_tx", {
+    p_user_id: userId,
+    p_seed: body.seed,
+    p_score: body.score,
+    p_ticks: v.ticks,
+    p_inputs: body.inputs,
+    p_inputs_count: body.inputs.length,
+    p_inputs_hash: inputsHash,
+    p_requested_mode: body.mode,
+    p_daily_date: requestedDailyDate,
+    p_equipped_skin_id: body.equipped_skin_id ?? null,
+    p_shape: snapShape,
+    p_body_r: snapBody?.[0] ?? null,
+    p_body_g: snapBody?.[1] ?? null,
+    p_body_b: snapBody?.[2] ?? null,
+    p_accent_r: snapAccent?.[0] ?? null,
+    p_accent_g: snapAccent?.[1] ?? null,
+    p_accent_b: snapAccent?.[2] ?? null,
+    p_xp_by_outcome: xpByOutcome,
+    p_streak_days: streak.streakDays,
+    p_last_daily_play_at: streak.lastDailyPlayAt,
+    p_daily_max_attempts: DAILY_MAX_ATTEMPTS,
+    p_daily_seed: body.mode === "daily" ? body.seed : null,
+  });
+  if (tx.error) return json({ error: tx.error.message }, 500);
+
+  const txRow = (Array.isArray(tx.data) ? tx.data[0] : tx.data) as
+    | {
+        accepted: boolean;
+        reason: string | null;
+        run_id: string | null;
+        effective_mode: SubmitBody["mode"];
+        effective_daily_date: string | null;
+        daily_over_cap: boolean;
+        is_new_pb: boolean;
+        xp_gain: number;
+        total_games: number;
+        xp_total: number;
+        streak_days: number;
+        prev_total_games: number;
+        prev_xp: number;
+      }
+    | null
+    | undefined;
+  if (!txRow) return json({ error: "submit_run_tx returned no row" }, 500);
+  if (!txRow.accepted || !txRow.run_id) {
+    // duplicate_run / replay_theft / no_profile — all decided inside the
+    // transaction, so a concurrent duplicate gets the same answer as a
+    // sequential one.
+    return json({ accepted: false, reason: txRow.reason ?? "rejected" }, 200);
+  }
+
+  const runId = txRow.run_id;
+  const effectiveMode = txRow.effective_mode;
+  const dailyOverCap = txRow.daily_over_cap;
+  const isNewPb = txRow.is_new_pb;
+  const xpGain = txRow.xp_gain;
+  const next = txRow.total_games;
+  const newXp = txRow.xp_total;
+  const prev = txRow.prev_total_games;
+  const prevXp = txRow.prev_xp;
 
   // Lazy day-close: the first daily submission of a new UTC day mints
   // champion skins for yesterday's podium. Strictly best-effort — a
@@ -246,7 +290,7 @@ export default async function handler(req: Request): Promise<Response> {
       if ("reason" in pre) {
         // Lost a race (settled/expired/replayed between our pre-check and
         // now). Remove the just-inserted run so no orphan hits the boards.
-        await admin.from("runs").delete().eq("id", run.data.id);
+        await admin.from("runs").delete().eq("id", runId);
         return json({ accepted: false, reason: pre.reason }, 200);
       }
       const m = pre.m;
@@ -256,7 +300,7 @@ export default async function handler(req: Request): Promise<Response> {
       const aRunIds = ((m.a_run_ids as string[]) ?? []).slice();
       const bRunIds = ((m.b_run_ids as string[]) ?? []).slice();
       (youAreA ? aScores : bScores)[round] = body.score;
-      (youAreA ? aRunIds : bRunIds)[round] = run.data.id;
+      (youAreA ? aRunIds : bRunIds)[round] = runId;
 
       // Decide outcome based on the rounds that have both players' scores.
       const definedPaired = [0, 1, 2].filter((i) => aScores[i] != null && bScores[i] != null);
@@ -358,7 +402,7 @@ export default async function handler(req: Request): Promise<Response> {
       };
     }
     if (!rankedSummary) {
-      await admin.from("runs").delete().eq("id", run.data.id);
+      await admin.from("runs").delete().eq("id", runId);
       return json({ accepted: false, reason: "settle_conflict" }, 200);
     }
   }
@@ -381,7 +425,7 @@ export default async function handler(req: Request): Promise<Response> {
       if (unclaimed || (claimedByMe && body.score > prevBest)) {
         const patch: Record<string, unknown> = {
           responder_id: userId,
-          responder_run_id: run.data.id,
+          responder_run_id: runId,
           responder_score: body.score,
           responded_at: new Date().toISOString(),
         };
@@ -395,56 +439,8 @@ export default async function handler(req: Request): Promise<Response> {
     }
   }
 
-  const streak = computeStreak({
-    prevStreak: (profile.data?.streak_days as number | undefined) ?? 0,
-    lastPlayAt: (profile.data?.last_play_at as string | null | undefined) ?? null,
-    lastDailyPlayAt: (profile.data?.last_daily_play_at as string | null | undefined) ?? null,
-    // Over-cap daily runs count as casual for streak — daily credit was
-    // already granted on the first attempt of the day.
-    mode: effectiveMode,
-  });
-
-  // XP mirror: the same formula the client runs locally (src/game/xp.ts).
-  // effectiveMode (not body.mode) so over-cap daily attempts — demoted to
-  // casual above — don't pay the daily bonus more than once per day.
-  const xpGain = xpForRun({ score: body.score, mode: effectiveMode, isNewPb }).total;
-
-  // Atomic increment in SQL (`total_games = total_games + 1`, `xp = xp + n`)
-  // instead of writing the absolute values computed from the earlier read.
-  // Two runs finishing at once used to discard one game and one XP award.
-  // The RPC returns the true post-update row, and we derive the "before"
-  // values from it — so the milestone/level checks below are also correct
-  // under concurrency instead of re-minting or skipping a reward.
-  const bumped = await admin.rpc("bump_profile_after_run", {
-    p_user_id: userId,
-    p_xp_gain: xpGain,
-    p_streak_days: streak.streakDays,
-    p_last_daily_play_at: streak.lastDailyPlayAt,
-    p_played_at: new Date().toISOString(),
-  });
-  if (bumped.error) {
-    // The run row is already inserted, so don't fail the request — but this
-    // must be visible, not swallowed like the old fire-and-forget update.
-    console.error("[submit-run] bump_profile_after_run failed", bumped.error);
-  }
-  const bumpedRow = (Array.isArray(bumped.data) ? bumped.data[0] : bumped.data) as
-    | { total_games?: number; xp?: number; streak_days?: number }
-    | null
-    | undefined;
-  // Fall back to the optimistic local arithmetic only if the RPC gave us
-  // nothing, so a transient failure degrades instead of breaking rewards.
-  const next = bumpedRow?.total_games ?? prevSnapshot + 1;
-  const newXp = bumpedRow?.xp ?? prevXpSnapshot + xpGain;
-  const prev = next - 1;
-  const prevXp = newXp - xpGain;
-
-  if (effectiveMode === "daily") {
-    const seeded = await admin.rpc("upsert_daily_seed", {
-      d: effectiveDailyDate ?? dailyDateString(),
-      s: body.seed,
-    });
-    if (seeded.error) console.error("[submit-run] upsert_daily_seed failed", seeded.error);
-  }
+  // (The streak, XP, run insert, counter bump and daily-seed upsert that used
+  // to live here all happen inside submit_run_tx() above, in one transaction.)
 
   const crossed = thresholdsCrossed(prev, next);
   const granted: GeneratedSkin[] = [];
@@ -502,10 +498,16 @@ export default async function handler(req: Request): Promise<Response> {
 
   return json({
     accepted: true,
-    run_id: run.data.id,
+    run_id: runId,
     total_games: next,
     streak_days: streak.streakDays,
     daily_over_cap: dailyOverCap,
+    // What the run was actually RECORDED as. Differs from the submitted mode
+    // when the daily cap demoted it, and the transaction is the only thing
+    // that knows — so report it rather than leaving the client to infer it.
+    mode: effectiveMode,
+    is_new_pb: isNewPb,
+    xp_gain: xpGain,
     unlocked: granted.map((g) => ({
       threshold: g.threshold,
       rarity: g.rarity,

@@ -33,6 +33,7 @@ export const CHANGELOG: ChangeEntry[] = [
       "👋 Removing a friend now actually removes you from THEIR list too, not just yours. Before, they could still see you and challenge you.",
       "💾 You can now back up your account. Until now every account was anonymous — it lived only in your browser's storage, so clearing your data or changing phone lost everything with no way back. Account → “Secure this account” attaches an email (or Google/Discord) and your runs, skins and streak come with you. There's also a short recovery reference in Account → Progress, worth noting down.",
       "🕵️ Your tap-by-tap run data is no longer readable by anyone who asks — only for a challenge you were actually sent, or a duel against a named player's best run.",
+      "📅 The daily's 3-attempt limit now actually holds. Finishing two runs at the same moment could slip extra attempts onto the daily board and pay the personal-best bonus twice; a run is now recorded in one go, so the count can't drift.",
       "🛡️ Under the hood: a serious permissions hole closed (it was possible to end the ranked season, or tamper with a future daily, from outside the game), plus promo-code limits, sign-out cleanup and account deletion all tightened.",
     ],
   },

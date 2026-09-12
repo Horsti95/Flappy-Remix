@@ -17,6 +17,17 @@ export interface SubmitResult {
   /** Server-authoritative pilot XP after this run (client syncs to it). */
   xp_total?: number;
   level?: number;
+  /**
+   * What the run was actually RECORDED as, decided inside submit_run_tx()
+   * (migration 0039). Differs from the submitted mode when the daily
+   * best-of-3 cap demoted the attempt to casual — the server counts under a
+   * row lock, so this is authoritative where a client-side count is not.
+   */
+  mode?: "casual" | "daily" | "challenge" | "ranked";
+  /** Server-decided personal best (settled under the same lock). */
+  is_new_pb?: boolean;
+  /** XP this single run earned, for the client's XP animation. */
+  xp_gain?: number;
   /** Color skins minted for account levels crossed this run (every 5). */
   level_skins?: Array<{
     level: number;

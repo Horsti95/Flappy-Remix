@@ -110,6 +110,90 @@ else
   echo "    FAIL authenticated can NOT call remove_friend"; fails=$((fails+1))
 fi
 
+echo "==> asserting search_path hardening (migration 0040)"
+
+# No SECURITY DEFINER function may have a MUTABLE (unset) search_path — that is
+# the real vulnerability, and it must hold for every function, old or new.
+mutable=$("${PSQL[@]}" -tAc "
+  select coalesce(string_agg(p.proname, ', ' order by p.proname), '')
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+  left join pg_depend d on d.objid = p.oid and d.deptype = 'e'
+  where n.nspname = 'public' and p.prosecdef and d.objid is null
+    and p.proconfig is null;")
+if [ -z "$mutable" ]; then
+  echo "    ok   no SECURITY DEFINER function has a mutable search_path"
+else
+  echo "    FAIL mutable search_path on: $mutable"; fails=$((fails+1))
+fi
+
+# The functions 0040 hardens must actually be on the empty search_path.
+for fn in bump_profile_after_run settle_ranked_elo _apply_elo_row claim_code_use \
+          release_code_use remove_friend enforce_run_skin_ownership \
+          purge_link_codes claim_feedback_slot cleanup_stale_anonymous_users \
+          find_account_by_reference best_run_ghost submit_run_tx; do
+  cfg=$("${PSQL[@]}" -tAc "
+    select coalesce(array_to_string(p.proconfig, ','), 'NONE')
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname='public' and p.proname='$fn' limit 1;")
+  case "$cfg" in
+    *"search_path="*) echo "    ok   $fn -> $cfg" ;;
+    *) echo "    FAIL $fn search_path config: $cfg"; fails=$((fails+1)) ;;
+  esac
+done
+
+# The two functions that had no direct coverage — if a body reference were
+# unqualified, search_path='' makes it fail HERE instead of in production.
+if "${PSQL[@]}" -c "set role service_role; select public.release_code_use('CONCUR5');" >/dev/null 2>&1; then
+  echo "    ok   release_code_use executes under the empty search_path"
+else
+  echo "    FAIL release_code_use broke under search_path='' (unqualified reference?)"; fails=$((fails+1))
+fi
+if "${PSQL[@]}" -c "set role service_role; select public.purge_link_codes();" >/dev/null 2>&1; then
+  echo "    ok   purge_link_codes executes under the empty search_path"
+else
+  echo "    FAIL purge_link_codes broke under search_path='' (unqualified reference?)"; fails=$((fails+1))
+fi
+
+echo "==> asserting service_role access (migration 0037)"
+
+# THE GAP THIS CLOSES: the suite previously only asserted the NEGATIVE (anon and
+# authenticated are blocked) and the client-RPC positive. It never checked that
+# the SERVER can still call the functions api/* depends on. Since service_role
+# is not a superuser and not a member of the function owner, a revoke that
+# caught it would have been invisible here -- and the failure in production is
+# quiet: submit-run only logs the error and falls back to local arithmetic for
+# the response, so players would see correct numbers while nothing persisted.
+for fn in upsert_daily_seed bump_profile_after_run settle_ranked_elo \
+          _apply_elo_row claim_code_use release_code_use claim_feedback_slot \
+          purge_link_codes submit_run_tx; do
+  has=$("${PSQL[@]}" -tAc "
+    select coalesce(bool_or(has_function_privilege('service_role', p.oid, 'execute')), false)
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = '$fn';")
+  if [ "$has" = "t" ]; then
+    echo "    ok   service_role can execute $fn"
+  else
+    echo "    FAIL service_role CANNOT execute $fn (api/* would break silently)"; fails=$((fails+1))
+  fi
+done
+
+# And the pairing that matters: server yes, client no, on the same function.
+svc=$("${PSQL[@]}" -tAc "select has_function_privilege('service_role','public.bump_profile_after_run(uuid,integer,integer,timestamptz,timestamptz)','execute');")
+cli=$("${PSQL[@]}" -tAc "select has_function_privilege('authenticated','public.bump_profile_after_run(uuid,integer,integer,timestamptz,timestamptz)','execute');")
+if [ "$svc" = "t" ] && [ "$cli" = "f" ]; then
+  echo "    ok   bump_profile_after_run: server yes, client no"
+else
+  echo "    FAIL bump_profile_after_run svc=$svc client=$cli (want t/f)"; fails=$((fails+1))
+fi
+
+# service_role must also keep full table access despite 0036's column revoke.
+if "${PSQL[@]}" -c "set role service_role; select inputs from public.runs limit 1;" >/dev/null 2>&1; then
+  echo "    ok   service_role still reads runs.inputs (needed by me-export/me-delete)"
+else
+  echo "    FAIL 0036's column revoke also caught service_role"; fails=$((fails+1))
+fi
+
 echo "==> asserting data integrity (migration 0032: unique replay hash)"
 
 UA=11111111-1111-1111-1111-111111111111
@@ -325,6 +409,122 @@ if [ "$ghostin" = "1" ]; then
   echo "    ok   best_run_ghost returns the inputs the ghost needs"
 else
   echo "    FAIL best_run_ghost inputs length '$ghostin' (expected 1)"; fails=$((fails+1))
+fi
+
+echo "==> asserting submit_run_tx atomicity (migration 0039)"
+
+UE=55555555-5555-5555-5555-555555555555
+"${PSQL[@]}" -c "
+  insert into auth.users (id) values ('$UE') on conflict (id) do nothing;
+  insert into public.profiles (user_id) values ('$UE') on conflict (user_id) do nothing;
+  update public.profiles set total_games = 0, xp = 0 where user_id = '$UE';
+  delete from public.runs where user_id = '$UE';
+  delete from public.daily_seeds where date = '2026-09-20';"
+
+XPM='{"daily_pb":80,"daily_nopb":30,"casual_pb":55,"casual_nopb":5}'
+
+# 12 DAILY submissions fired at once. The cap is 3. Before 0039 each request
+# read the count before any of them had inserted, so all 12 counted as daily.
+for i in $(seq 1 12); do
+  ( psql -h 127.0.0.1 -p "$PORT" -U postgres -tAc "
+      select accepted, effective_mode, daily_over_cap from public.submit_run_tx(
+        '$UE'::uuid, 4242::bigint, 20, 500, '[]'::jsonb, 0, 'hash-daily-$i',
+        'daily', '2026-09-20'::date, null, null,
+        null,null,null,null,null,null,
+        '$XPM'::jsonb, 1, now(), 3, 4242::bigint);" >/dev/null 2>&1 ) &
+done
+wait
+
+daily_rows=$("${PSQL[@]}" -tAc "select count(*) from public.runs where user_id='$UE' and mode='daily';")
+casual_rows=$("${PSQL[@]}" -tAc "select count(*) from public.runs where user_id='$UE' and mode='casual';")
+total_rows=$("${PSQL[@]}" -tAc "select count(*) from public.runs where user_id='$UE';")
+
+if [ "$daily_rows" = "3" ]; then
+  echo "    ok   12 parallel daily submits produced exactly 3 daily runs (cap held)"
+else
+  echo "    FAIL daily cap leaked: $daily_rows daily rows (expected 3)"; fails=$((fails+1))
+fi
+if [ "$casual_rows" = "9" ] && [ "$total_rows" = "12" ]; then
+  echo "    ok   the other 9 were demoted to casual, none lost"
+else
+  echo "    FAIL expected 9 casual / 12 total, got $casual_rows / $total_rows"; fails=$((fails+1))
+fi
+
+# Counters must match the rows exactly — insert and bump are one transaction.
+read -r g x <<<"$("${PSQL[@]}" -tAc "select total_games, xp from public.profiles where user_id='$UE';" | tr '|' ' ')"
+if [ "$g" = "12" ]; then
+  echo "    ok   total_games == rows inserted (12), no lost update"
+else
+  echo "    FAIL total_games=$g but 12 runs exist (insert/bump not atomic)"; fails=$((fails+1))
+fi
+
+# Exactly ONE run may claim the personal-best bonus. All 12 have the same
+# score, the 3 that fit under the cap commit first (they are the ones that saw
+# room), and whichever of those commits first is the PB. So the XP total is
+# fully determined:
+#     1 x daily_pb    (80)
+#   + 2 x daily_nopb  (30 each)
+#   + 9 x casual_nopb ( 5 each)  = 185
+# Pre-0039 several runs could each claim the +50 PB bonus, pushing this higher.
+EXPECTED_XP=185
+if [ "$x" = "$EXPECTED_XP" ]; then
+  echo "    ok   xp total is exactly $EXPECTED_XP — one PB bonus, paid once"
+else
+  echo "    FAIL xp total $x, expected $EXPECTED_XP (a duplicated PB bonus reads high)"; fails=$((fails+1))
+fi
+
+# daily_seeds.plays_count must count only the runs that actually counted.
+plays=$("${PSQL[@]}" -tAc "select coalesce(plays_count,0) from public.daily_seeds where date='2026-09-20';")
+if [ "$plays" = "3" ]; then
+  echo "    ok   daily plays_count == 3, matching the capped runs"
+else
+  echo "    FAIL daily plays_count=$plays (expected 3)"; fails=$((fails+1))
+fi
+
+# A repeated replay hash must be refused with the right reason, not a 500.
+r1=$("${PSQL[@]}" -tAc "
+  select reason from public.submit_run_tx('$UE'::uuid, 9::bigint, 30, 600, '[]'::jsonb, 0,
+    'hash-daily-1', 'casual', null, null, null, null,null,null,null,null,null,
+    '$XPM'::jsonb, 1, now(), 3, null);")
+if [ "$r1" = "duplicate_run" ]; then
+  echo "    ok   resubmitting your own replay hash -> duplicate_run"
+else
+  echo "    FAIL expected duplicate_run, got '$r1'"; fails=$((fails+1))
+fi
+r2=$("${PSQL[@]}" -tAc "
+  select reason from public.submit_run_tx('$UA'::uuid, 9::bigint, 30, 600, '[]'::jsonb, 0,
+    'hash-daily-1', 'casual', null, null, null, null,null,null,null,null,null,
+    '$XPM'::jsonb, 1, now(), 3, null);")
+if [ "$r2" = "replay_theft" ]; then
+  echo "    ok   another player submitting the same hash -> replay_theft"
+else
+  echo "    FAIL expected replay_theft, got '$r2'"; fails=$((fails+1))
+fi
+
+echo "==> asserting challenge-input privacy (migration 0038)"
+
+for role in anon authenticated; do
+  if "${PSQL[@]}" -c "set role $role; select inputs from public.challenges limit 1;" >/dev/null 2>&1; then
+    echo "    FAIL $role can still bulk-read challenges.inputs"; fails=$((fails+1))
+  else
+    echo "    ok   $role denied bulk access to challenges.inputs"
+  fi
+done
+
+# What the client actually selects from this table must keep working.
+for role in anon authenticated; do
+  if "${PSQL[@]}" -c "set role $role; select short_id, creator_score, responder_score, status, daily_date from public.challenges limit 1;" >/dev/null 2>&1; then
+    echo "    ok   $role can still read challenge scores/metadata"
+  else
+    echo "    FAIL $role lost challenge columns the client needs"; fails=$((fails+1))
+  fi
+done
+
+# api/challenge.ts serves the ghost with the service key — must be unaffected.
+if "${PSQL[@]}" -c "set role service_role; select inputs from public.challenges limit 1;" >/dev/null 2>&1; then
+  echo "    ok   service_role still reads challenges.inputs (api/challenge.ts)"
+else
+  echo "    FAIL service_role lost challenges.inputs — ghosts would break"; fails=$((fails+1))
 fi
 
 echo "==> asserting account durability (migration 0035)"

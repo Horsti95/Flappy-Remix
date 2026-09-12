@@ -38,7 +38,7 @@ the new code ships.
 If you would rather test everything at once, point the preview at a **separate
 Supabase project** (Vercel → Settings → Environment Variables, set the
 `SUPABASE_*` / `VITE_SUPABASE_*` values for the *Preview* environment only)
-and apply all six there. That is the clean way, and it is also how you'd test
+and apply all of them there. That is the clean way, and it is also how you'd test
 `cleanup_stale_anonymous_users()` without risk.
 
 ## Setup

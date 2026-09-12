@@ -16,8 +16,27 @@ Supabase + Vercel before.
    brew install supabase/tap/supabase   # or your platform's equivalent
    supabase login
    supabase link --project-ref YOUR-REF
-   supabase db push                     # applies 0001 .. 0004
+   supabase db push                     # applies every migration in order
    ```
+
+   > **How many migrations there are is NOT fixed.** `supabase/migrations/`
+   > is the source of truth — count the files rather than trusting a number
+   > written in a doc. This line used to say "applies 0001 .. 0004", which was
+   > stale by 30+ migrations and gave a badly wrong impression of the schema
+   > state during a deploy.
+   >
+   > Several of the later migrations are **security** changes that the app now
+   > depends on (function privileges, a unique replay-hash index, atomic
+   > counter RPCs, column-level input privacy). Deploying the app code without
+   > them leaves known holes open; applying them without the app code breaks
+   > one feature. See
+   > [`pre-deploy-checklist.md`](./pre-deploy-checklist.md) for the required
+   > order.
+   >
+   > Migrations 0031+ are written for the **Supabase SQL Editor** (paste + Run)
+   > rather than `db push`, because each one carries verification queries and
+   > owner actions in comments. Either path works; the SQL Editor is what the
+   > checklist assumes.
 
    > **Back up before every `db push`.** Our migrations are additive
    > (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN`), so existing

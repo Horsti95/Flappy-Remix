@@ -16,6 +16,10 @@ Paste each into the Supabase SQL Editor in order and Run:
 | `0034_friends_symmetry_and_hygiene.sql` | Symmetric friend removal, run-cosmetic ownership trigger, link-code purge, durable feedback rate limit. |
 | `0035_account_durability.sql` | Stops `cleanup_stale_anonymous_users()` deleting an account that has content but a stale `total_games` counter. Adds `find_account_by_reference()` for support-side recovery. |
 | `0036_run_inputs_privacy.sql` | Revokes client `SELECT` on `runs.inputs` (it allowed bulk-harvesting every player's per-tick tap trace) and serves the one legitimate ghost read through `best_run_ghost()`. |
+| `0037_service_role_grants.sql` | Makes the server's own `EXECUTE` explicit instead of relying on a Supabase default privilege. Without it, a missing default would make `submit-run` stop persisting progress **silently**. |
+| `0038_challenge_inputs_privacy.sql` | Closes the same input-trace hole on `challenges`, which 0036 left open — it made 0036 a half-measure. |
+| `0039_submit_run_tx.sql` | One transaction under a profile row lock for the whole run-submit write path. Fixes the last read-then-act race: the daily best-of-3 cap could be exceeded, and the PB bonus paid twice, by two concurrent submissions. |
+| `0040_search_path_hardening.sql` | Moves this project's `SECURITY DEFINER` functions to `search_path = ''`. Hardening, not a live hole — no client role can create objects in `public`. |
 
 Then run 0031's **step 5 verification query** — it must return zero rows.
 
@@ -85,7 +89,7 @@ npm run build                     # precache should be ~1.2MB, not 6.4MB
 ./scripts/test-migrations.sh      # migrations + privilege + race assertions
 ```
 
-`test-migrations.sh` spins up a throwaway Postgres, applies all 36 migrations,
+`test-migrations.sh` spins up a throwaway Postgres, applies every migration,
 and asserts the security, privacy and concurrency invariants (including that 40
 parallel claims on a 5-use promo code consume exactly 5, and that the reaper
 spares an account with a stale counter but real runs). It needs a local
@@ -117,10 +121,13 @@ supports unchanged — but verify rather than assume:
   longer silently becomes a new guest account (that was the account-loss bug),
   but it does have to re-link. Supabase exposes no admin "mint a session for
   user X" API for anonymous users, so this is inherent to the approach.
-- **`submit-run` is still ~10 sequential round trips**, now intra-region. The
-  races are fixed via atomic RPCs, but collapsing the whole write path into a
-  single `submit_run_tx()` transaction would cut it to one. Worth doing before
-  a public ranked launch.
+- **`submit-run` makes ~13 round trips**, down from 18 and all intra-region.
+  The write path (duplicate check, daily cap, PB, insert, counters, daily seed)
+  is now a single transaction (0039). What remains sequential is the ranked
+  settlement (already guarded by optimistic versioning), the challenge update,
+  and skin/level minting — each needs a JS generator or a compensating delete,
+  so they were deliberately left outside the lock to keep the transaction
+  short.
 - **No API-level integration tests.** `test-migrations.sh` covers SQL (and now
   runs in CI); the HTTP handlers are still only covered indirectly. The
   Playwright spec in `tests/e2e/` remains a scaffold.

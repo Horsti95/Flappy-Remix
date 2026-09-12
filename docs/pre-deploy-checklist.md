@@ -98,6 +98,7 @@ Applying files individually also works — in order, no skips:
 | `0038_challenge_inputs_privacy.sql` | Closes the same input-trace hole on `challenges`, which 0036 left open — it made 0036 a half-measure. |
 | `0039_submit_run_tx.sql` | One transaction under a profile row lock for the whole run-submit write path. Fixes the last read-then-act race: the daily best-of-3 cap could be exceeded, and the PB bonus paid twice, by two concurrent submissions. |
 | `0040_search_path_hardening.sql` | Moves this project's `SECURITY DEFINER` functions to `search_path = ''`. Hardening, not a live hole — no client role can create objects in `public`. |
+| `0041_client_rpc_anon_lockdown.sql` | Fixes a gap in 0031: its allowlist branch only GRANTED and never revoked the PUBLIC default, so the 11 per-caller RPCs stayed executable by `anon`. Also repairs `friends_leaderboard()`, which had been raising "column reference user_id is ambiguous" for **every** caller since 0013, and sets `security_invoker` on the six leaderboard views. |
 
 Then run 0031's **step 5 verification query** — it must return zero rows.
 

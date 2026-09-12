@@ -176,6 +176,29 @@ try {
     check(`authenticated can call ${fn}()`, r.can === true, r.can ? "" : "client would 404");
   }
 
+  // 0041 — the per-caller RPCs must be authenticated-only. 0031 granted them
+  // to `authenticated` but never revoked the PUBLIC default, so `anon` kept
+  // access; and the check above never looked, because it excluded the whole
+  // allowlist from scrutiny instead of checking it per role.
+  for (const fn of [
+    "add_friend_by_username", "incoming_friend_requests", "accept_friend_request",
+    "decline_friend_request", "remove_friend", "inbox_incoming", "inbox_outgoing",
+    "inbox_unseen_count", "inbox_mark_seen", "decline_challenge", "friends_leaderboard",
+  ]) {
+    const r = await one(
+      `select coalesce(bool_or(has_function_privilege('anon', p.oid, 'execute')), false) as a,
+              coalesce(bool_or(has_function_privilege('authenticated', p.oid, 'execute')), false) as u
+         from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'public' and p.proname = $1`,
+      [fn],
+    );
+    check(
+      `${fn}(): authenticated yes, anon no`,
+      r.a === false && r.u === true,
+      r.a ? "anon can still reach it (0041 unapplied)" : r.u ? "" : "client would 404",
+    );
+  }
+
   // 0037 — the silent one.
   for (const fn of ["submit_run_tx", "bump_profile_after_run", "claim_code_use", "claim_feedback_slot"]) {
     const r = await one(

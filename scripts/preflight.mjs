@@ -183,6 +183,28 @@ if (!url || !key) {
     warn("cannot test anon access — VITE_SUPABASE_ANON_KEY not set in this shell");
   }
 
+  // 0041 — per-caller RPCs must refuse the bare anon key. A 404 from PostgREST
+  // is what "no EXECUTE for this role" looks like over REST.
+  if (env.VITE_SUPABASE_ANON_KEY) {
+    for (const fn of ["add_friend_by_username", "remove_friend", "inbox_incoming"]) {
+      const res = await fetch(`${url.replace(/\/$/, "")}/rest/v1/rpc/${fn}`, {
+        method: "POST",
+        headers: {
+          apikey: env.VITE_SUPABASE_ANON_KEY,
+          authorization: `Bearer ${env.VITE_SUPABASE_ANON_KEY}`,
+          "content-type": "application/json",
+        },
+        body: "{}",
+      });
+      if (res.status === 404 || res.status === 403 || res.status === 401) {
+        ok(`anon cannot reach ${fn}() (0041 applied)`, `HTTP ${res.status}`);
+      } else {
+        bad(`anon CAN reach ${fn}() — HTTP ${res.status}. Migration 0041 is unapplied.`,
+            "these act on auth.uid(); an unauthenticated caller has no business reaching them");
+      }
+    }
+  }
+
   // 0036 / 0038 — input traces must not be bulk-readable by a client.
   if (env.VITE_SUPABASE_ANON_KEY) {
     for (const [table, migration] of [["runs", "0036"], ["challenges", "0038"]]) {

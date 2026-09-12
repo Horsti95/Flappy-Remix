@@ -18,6 +18,16 @@ PORT=55432
 PGD="${PGD:-/var/lib/postgresql/glide-migtest}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PSQL=(psql -h 127.0.0.1 -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -q)
+
+# Fixed test identities, used by several assertion blocks. Defined up here
+# because the blocks run in file order and `set -u` turns a forward reference
+# into an abort rather than an empty string.
+UA=11111111-1111-1111-1111-111111111111
+UB=22222222-2222-2222-2222-222222222222
+# Dedicated identity for the client-RPC calls. It claims a username, and 0023
+# makes usernames PERMANENT — reusing $UA here broke the later ghost assertion,
+# which needs to claim a different one.
+URPC=66666666-6666-6666-6666-666666666666
 RUNAS=postgres
 fails=0
 
@@ -114,6 +124,98 @@ else
   echo "    FAIL authenticated can NOT call remove_friend"; fails=$((fails+1))
 fi
 
+echo "==> asserting per-role access on the client RPCs (migration 0041)"
+
+# THE GAP THIS CLOSES: the leak check above excludes the whole allowlist from
+# scrutiny, so it asked "is any NON-allowlisted function client-executable?"
+# and never "are the allowlisted ones reachable by the RIGHT role?". 0031's
+# allowlist branch only GRANTED and never revoked the PUBLIC default, so all 12
+# per-caller RPCs stayed executable by `anon` and no test noticed.
+for fn in add_friend_by_username incoming_friend_requests accept_friend_request \
+          decline_friend_request remove_friend inbox_incoming inbox_outgoing \
+          inbox_unseen_count inbox_mark_seen decline_challenge friends_leaderboard; do
+  read -r a u <<<"$("${PSQL[@]}" -tAc "
+    select coalesce(bool_or(has_function_privilege('anon', p.oid,'execute')),false)::text
+           || ' ' ||
+           coalesce(bool_or(has_function_privilege('authenticated', p.oid,'execute')),false)::text
+    from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+    where n.nspname='public' and p.proname='$fn';")"
+  if [ "$a" = "false" ] && [ "$u" = "true" ]; then
+    echo "    ok   $fn: authenticated yes, anon no"
+  else
+    echo "    FAIL $fn: anon=$a authenticated=$u (want false/true)"; fails=$((fails+1))
+  fi
+done
+
+# The deliberately-public ones must STAY public — they feed the OG/share renderer.
+for fn in public_profile leaderboard_by best_run_ghost current_season; do
+  a=$("${PSQL[@]}" -tAc "
+    select coalesce(bool_or(has_function_privilege('anon', p.oid,'execute')),false)
+    from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+    where n.nspname='public' and p.proname='$fn';")
+  if [ "$a" = "t" ]; then echo "    ok   $fn stays anon-readable (by design)"
+  else echo "    FAIL $fn lost anon access — share links would break"; fails=$((fails+1)); fi
+done
+
+# ---------------------------------------------------------------------------
+# And CALL every client RPC with a real auth.uid(). Checking a privilege bit is
+# not the same as checking the function works: friends_leaderboard had been
+# raising "column reference user_id is ambiguous" for EVERY caller since 0013,
+# because its RETURNS TABLE declares an OUT column named user_id that collides
+# with friendships.user_id in the body. It is plpgsql, so the ambiguity only
+# surfaces at CALL time — a privilege check would never have found it.
+# ---------------------------------------------------------------------------
+"${PSQL[@]}" -c "
+  insert into auth.users (id) values ('$URPC'),('$UB') on conflict (id) do nothing;
+  insert into public.profiles (user_id) values ('$URPC'),('$UB')
+    on conflict (user_id) do nothing;
+  update public.profiles set username = 'rpcuser'
+    where user_id = '$URPC' and username is null;" >/dev/null 2>&1
+
+while read -r call; do
+  # `|| true` matters: under `set -euo pipefail` a grep that finds nothing
+  # exits 1 — which is the PASSING case here — and would abort the whole script
+  # mid-suite while still letting an outer pipe report success. It did.
+  err=$("${PSQL[@]}" -c "set role authenticated;
+        set request.jwt.claim.sub = '$URPC';
+        select * from public.$call;" 2>&1 | grep -i "^ERROR" | head -1 || true)
+  if [ -z "$err" ]; then
+    echo "    ok   ${call%%(*}() executes for a signed-in caller"
+  else
+    echo "    FAIL ${call%%(*}() errors for a signed-in caller: $(echo "$err" | cut -c1-70)"
+    fails=$((fails+1))
+  fi
+done <<CALLS
+add_friend_by_username('nobody')
+incoming_friend_requests()
+accept_friend_request('$UB'::uuid)
+decline_friend_request('$UB'::uuid)
+remove_friend('$UB'::uuid)
+inbox_incoming()
+inbox_outgoing()
+inbox_unseen_count()
+inbox_mark_seen()
+decline_challenge('nope')
+friends_leaderboard('weekly','casual')
+leaderboard_by('weekly','casual')
+public_profile('rpcuser')
+best_run_ghost('rpcuser')
+current_season()
+CALLS
+
+# The leaderboard views must respect the caller (0041), so a future column
+# revoke on runs applies through them instead of silently not.
+noninv=$("${PSQL[@]}" -tAc "
+  select coalesce(string_agg(c.relname, ', ' order by c.relname), '')
+  from pg_class c join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname='public' and c.relkind='v'
+    and not coalesce(array_to_string(c.reloptions,',') like '%security_invoker=true%', false);")
+if [ -z "$noninv" ]; then
+  echo "    ok   every leaderboard view is security_invoker"
+else
+  echo "    FAIL views still run as owner: $noninv"; fails=$((fails+1))
+fi
+
 echo "==> asserting search_path hardening (migration 0040)"
 
 # No SECURITY DEFINER function may have a MUTABLE (unset) search_path — that is
@@ -200,8 +302,6 @@ fi
 
 echo "==> asserting data integrity (migration 0032: unique replay hash)"
 
-UA=11111111-1111-1111-1111-111111111111
-UB=22222222-2222-2222-2222-222222222222
 "${PSQL[@]}" -c "
   insert into auth.users (id) values ('$UA'),('$UB') on conflict do nothing;
   insert into public.profiles (user_id) values ('$UA'),('$UB') on conflict do nothing;"

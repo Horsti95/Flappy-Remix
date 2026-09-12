@@ -15,11 +15,14 @@
     "smoke": "node scripts/smoke-browser.mjs",
     "test:migrations": "./scripts/test-migrations.sh",
     "migration:bundle": "node scripts/build-combined-migration.mjs -o migration-bundle.sql",
-    "preflight": "node scripts/preflight.mjs"
+    "preflight": "node scripts/preflight.mjs",
+    "migrate": "node scripts/apply-migrations.mjs",
+    "migrate:verify": "node scripts/apply-migrations.mjs --verify-only"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "autoprefixer": "^10.4.20",
+    "pg": "^8.23.0",
     "postcss": "^8.4.49",
     "sharp": "^0.34.5",
     "tailwindcss": "^3.4.16",

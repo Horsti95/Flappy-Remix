@@ -26,23 +26,65 @@ deploy is not safe until they are done.
 
 ## 1. Apply the security migrations
 
-**One paste, not ten:**
+**One command. It applies them and then proves it worked.**
+
+Get the connection string from Supabase → your project → **Connect** →
+*Connection string*. Take the **direct** connection on port **5432** — not the
+transaction pooler on 6543, which cannot run some of this DDL.
+
+```powershell
+# PowerShell
+$env:SUPABASE_DB_URL="postgresql://postgres:YOUR-PASSWORD@db.YOUR-REF.supabase.co:5432/postgres"
+npm run migrate
+```
+
+```bash
+# bash / zsh
+export SUPABASE_DB_URL='postgresql://postgres:YOUR-PASSWORD@db.YOUR-REF.supabase.co:5432/postgres'
+npm run migrate
+```
+
+If the password contains `@ : / ? # %`, URL-encode it (`@` → `%40`).
+
+It applies 0031-0040, then runs 16 read-only checks that prove they took
+effect — `anon` really cannot reach `roll_season()`, `service_role` really can
+execute `submit_run_tx()`, `runs.inputs` and `challenges.inputs` really are
+closed, scores really are still readable. Output ends in either
+`✔ MIGRATIONS OK` or `✘ MIGRATIONS NOT OK` with the failing checks named.
+
+Useful variants:
+
+```bash
+npm run migrate -- --dry-run    # list what would run, change nothing
+npm run migrate:verify          # skip applying, just re-run the 16 checks
+npm run migrate -- --from 1     # a brand-new EMPTY project (applies all 40)
+```
+
+Safe to re-run at any time: 0031+ are written to be idempotent, and each file
+is sent as one query so Postgres applies it all-or-nothing. `--from` defaults
+to 31 because 0001-0030 are **not** re-runnable (0001 does a bare
+`create table`) and are already applied on any project where the app has ever
+worked; the script refuses to continue if that baseline is missing and tells
+you to use `--from 1`.
+
+Promo-code rotation is reported separately, under **STILL TO DO** — it is an
+owner action, not a migration, because the new codes have to be secrets.
+
+### Alternative: the SQL Editor
+
+If you would rather paste it:
 
 ```bash
 npm run migration:bundle      # writes migration-bundle.sql (gitignored)
 ```
 
-Paste that single file into the Supabase SQL Editor and Run. Every migration in
-it is re-runnable, so applying it twice is safe, and applying it when some were
-already applied is safe too — verified by test, once as a fresh apply and once
-as a re-apply over itself.
+One ordered file for the Supabase SQL Editor. Deliberately not wrapped in a
+single transaction — a few statements (`ALTER DEFAULT PRIVILEGES`,
+`CREATE INDEX`) behave differently inside one, and a half-applied bundle is
+recoverable by re-running whereas a silently rolled-back one looks like
+success. Verify afterwards with `npm run migrate:verify`.
 
-It is deliberately not wrapped in one transaction: a few statements
-(`ALTER DEFAULT PRIVILEGES`, `CREATE INDEX`) behave differently or cannot run
-inside one, and a half-applied bundle is recoverable by re-running whereas a
-silently rolled-back one looks like success.
-
-Applying them individually also works — in order, no skips:
+Applying files individually also works — in order, no skips:
 
 | Migration | What it fixes |
 | --- | --- |

@@ -8,7 +8,7 @@
  * Bump APP_VERSION + prepend an entry when shipping notable changes.
  */
 
-export const APP_VERSION = "0.24.1";
+export const APP_VERSION = "0.25.0";
 
 export interface ChangeEntry {
   version: string;
@@ -19,6 +19,17 @@ export interface ChangeEntry {
 
 // Newest first.
 export const CHANGELOG: ChangeEntry[] = [
+  {
+    version: "0.25.0",
+    date: "2026-09-12",
+    title: "The beta is live",
+    notes: [
+      "🚀 This is the update everything below has been waiting for — the account rescue, the daily results screen, the faster first load and the proper error screen are all live now, not just in testing. If you've been away a while, the older entries below are your catch-up.",
+      "🥊 “Duel their best run” loads again. For a couple of days it just said “couldn't load challenge”: the game and the database were briefly out of step while this update was being prepared. No runs, scores or streaks were affected — only that one button.",
+      "🎟️ Promo codes can't be handed out without a use limit any more, not even by accident. An unlimited code is one screenshot away from being everyone's, and a rare skin that everyone has isn't rare.",
+      "🐛 Something looks wrong? Settings → Feedback. It quietly attaches which exact build you were on, which is usually the difference between “we'll look into it” and a fix.",
+    ],
+  },
   {
     version: "0.24.1",
     date: "2026-09-12",

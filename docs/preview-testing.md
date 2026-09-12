@@ -1,6 +1,8 @@
 # Testing this branch on a Vercel preview
 
-Branch: `claude/compassionate-archimedes-6n0uwm`. **Do not merge yet.**
+Branch: `claude/compassionate-archimedes-6n0uwm`. **Merged into `main` in v0.25.0** —
+kept because the checks below are still the right ones to run against a preview,
+and because the next branch will want them.
 
 ## ⚠️ Read this first — the migrations are ALREADY applied
 

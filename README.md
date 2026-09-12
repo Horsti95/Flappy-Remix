@@ -192,11 +192,17 @@ RPCs: `add_friend_by_username`, `friends_leaderboard`, `current_season`,
 
 ### API surface
 
-Vercel functions in `api/`. All of them are database-bound and therefore
-run on the **regional Node** runtime, pinned next to Supabase via `regions`
-in `vercel.json` — at the edge each query crossed a continent. The two
-exceptions are `api/og.ts` and `api/og-meta.ts`, which stay on the **edge**
-runtime (`@vercel/og` requires it, and they are crawler-facing):
+Vercel functions in `api/`, all on the **edge** runtime, declared per file with
+`export const config = { runtime: "edge" }` (it cannot go in `vercel.json`,
+whose `functions.runtime` must be a semver-versioned package).
+
+Most of them are database-bound, so moving them to regional Node pinned next to
+Supabase is a real latency win — at the edge each query crosses a continent.
+That move has been attempted twice and 500'd production both times: Node treats
+a default-exported `(req: Request)` handler as the legacy `(req, res)` signature,
+and `export default { fetch: handler }` did not fix it either. Re-attempt it on a
+**preview** deploy and confirm a run actually saves before shipping it. See the
+note at the top of `api/submit-run.ts`.
 
 - `POST /api/submit-run` — server-side replay validation; mints
   unlocks, settles ranked ELO when a BO3 finishes

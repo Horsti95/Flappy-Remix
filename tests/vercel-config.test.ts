@@ -63,15 +63,29 @@ describe("vercel.json", () => {
 });
 
 describe("edge runtime declarations", () => {
-  it("only the two OG renderers opt into edge, and they do it in-file", () => {
-    const edge: string[] = [];
-    for (const f of ["og.ts", "og-meta.ts", "submit-run.ts", "daily.ts", "challenge.ts",
-                     "redeem-code.ts", "feedback.ts", "link-code.ts", "me-export.ts",
-                     "me-delete.ts", "ranked-queue.ts", "ranked-match.ts",
-                     "ranked-challenge.ts", "challenge-create.ts"]) {
-      const src = readFileSync(join(root, "api", f), "utf8");
-      if (/runtime:\s*"edge"/.test(src)) edge.push(f);
-    }
-    expect(edge.sort()).toEqual(["og-meta.ts", "og.ts"]);
+  // Every route is back on edge after two failed attempts to move the
+  // database-bound ones to regional Node: production answered 500 with a
+  // default-exported Request handler (Node reads that as the legacy (req, res)
+  // signature) AND with `export default { fetch }`. Edge is the configuration
+  // that actually served this app, so it is the one that ships until a PREVIEW
+  // deploy proves otherwise.
+  const ROUTES = ["og.ts", "og-meta.ts", "submit-run.ts", "daily.ts", "challenge.ts",
+                  "redeem-code.ts", "feedback.ts", "link-code.ts", "me-export.ts",
+                  "me-delete.ts", "ranked-queue.ts", "ranked-match.ts",
+                  "ranked-challenge.ts", "challenge-create.ts"];
+
+  it("declares the runtime in-file for every route", () => {
+    const notEdge = ROUTES.filter(
+      (f) => !/runtime:\s*"edge"/.test(readFileSync(join(root, "api", f), "utf8")),
+    );
+    expect(notEdge).toEqual([]);
+  });
+
+  it("a route that leaves edge must not keep a bare default function", () => {
+    // The trap that cost two deploys: Node needs `export default { fetch }`.
+    // tests/api-handler-shape.test.ts enforces this per file; this asserts the
+    // rule is still checked somewhere, so removing it there cannot go unnoticed.
+    const guard = readFileSync(join(root, "tests", "api-handler-shape.test.ts"), "utf8");
+    expect(guard).toContain("GUARD-ID: node-requires-default-fetch");
   });
 });

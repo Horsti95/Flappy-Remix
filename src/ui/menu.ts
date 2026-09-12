@@ -9,6 +9,7 @@ import { shapeSvgInner } from "./shape-svg";
 import { SUPPORT_ENABLED, SUPPORT_URL } from "../game/support";
 import { APP_VERSION } from "../game/changelog";
 import { lastSubmitFailure, failureLabel } from "../social/submit-diagnostics";
+import { renderSubmitError } from "./submit-error";
 import { getShowEquippedInMenu, setShowEquippedInMenu } from "../game/menu-prefs";
 import { levelFromTotalXp, loadTotalXp, type RunXpResult } from "../game/xp";
 import { loadAchievementStats } from "../game/achievements";
@@ -88,12 +89,13 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   // said "5 queued" and the only record of WHY was a console.warn nobody has
   // open on a phone.
   const fail = meta.pendingSubmissions && meta.online !== false ? lastSubmitFailure() : null;
-  const failSuffix = fail ? ` · ${escapeHtml(failureLabel(fail))}` : "";
   const failTitle = fail?.detail ? ` title="${escapeHtml(fail.detail)}"` : "";
   const offlineBadge = meta.online === false
     ? `<div class="absolute top-3 left-1/2 -translate-x-1/2 text-[10px] rounded-full px-2 py-0.5 bg-orange-400/30 text-paper">offline${meta.pendingSubmissions ? ` · ${meta.pendingSubmissions} queued` : ""}</div>`
     : meta.pendingSubmissions
-      ? `<div class="absolute top-3 left-1/2 -translate-x-1/2 text-[10px] rounded-full px-2 py-0.5 bg-paper/15"${failTitle}>${meta.pendingSubmissions} queued${failSuffix}</div>`
+      ? fail
+        ? `<button type="button" data-queued-detail class="absolute top-3 left-1/2 -translate-x-1/2 text-[10px] rounded-full px-2 py-0.5 bg-paper/15 underline decoration-dotted"${failTitle}>${meta.pendingSubmissions} queued \u00b7 ${escapeHtml(failureLabel(fail))}</button>`
+        : `<div class="absolute top-3 left-1/2 -translate-x-1/2 text-[10px] rounded-full px-2 py-0.5 bg-paper/15">${meta.pendingSubmissions} queued</div>`
       : "";
 
   wrap.innerHTML = `
@@ -297,6 +299,14 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
     if (val) val.textContent = `${pct}%`;
     cbs.onSetGhostOpacity(pct);
   });
+  // Tapping the queued pill shows the server's own message. Hover-only (a
+  // `title`) was useless on the phones the beta is played on.
+  wrap.querySelector("[data-queued-detail]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const f = lastSubmitFailure();
+    if (f) renderSubmitError(f, meta.pendingSubmissions ?? 0);
+  });
+
   wrap.querySelector("[data-whatsnew]")?.addEventListener("click", (e) => {
     e.stopPropagation();
     cbs.onShowChangelog();

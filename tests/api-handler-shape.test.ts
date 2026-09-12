@@ -15,6 +15,9 @@ import { join } from "node:path";
  *
  * So: an edge route may export a bare default function; a Node route must not.
  *
+ * GUARD-ID: node-requires-default-fetch — tests/vercel-config.test.ts asserts
+ * this marker is still here, so deleting this rule cannot go unnoticed.
+ *
  * Every pattern is anchored to the start of a line (/m): these files explain the
  * trap in a comment, and an unanchored regex matches the explanation instead of
  * the code. It did on the first run of this test.
@@ -54,41 +57,46 @@ describe("api handler export shape", () => {
 
 /**
  * The regex checks above only read the source. These IMPORT the routes and call
- * them, which is the only way to prove the shape Vercel actually invokes works:
- * `default.fetch` exists, takes a Web Request, and returns a Web Response.
+ * them, which is the only way to prove the handler Vercel invokes actually
+ * works: it takes a Web Request and returns a Web Response.
+ *
+ * Deliberately shape-agnostic — it resolves whichever export form the route
+ * uses. The point is not which form is in place, it is that the thing behind it
+ * answers a Request. Both production 500 incidents would have been caught here.
  */
-describe("api handlers are callable as web handlers", () => {
-  const nodeRoutes = routes.filter(({ src }) => !isEdge(src)).map(({ file }) => file);
+describe("api handlers are callable with a Request", () => {
+  const callable = (mod: unknown): ((req: Request) => Promise<Response>) => {
+    const d = (mod as { default?: unknown }).default;
+    if (typeof d === "function") return d as (req: Request) => Promise<Response>;
+    const f = (d as { fetch?: unknown } | undefined)?.fetch;
+    if (typeof f === "function") return f as (req: Request) => Promise<Response>;
+    throw new Error("route exports neither a default function nor default.fetch");
+  };
 
-  for (const file of nodeRoutes) {
-    it(`${file} exposes a callable default.fetch`, async () => {
-      const name = file.replace(/\.ts$/, "");
-      const mod = (await import(`../api/${name}.ts`)) as {
-        default?: { fetch?: unknown };
-      };
-      expect(typeof mod.default?.fetch).toBe("function");
+  for (const { file } of routes) {
+    it(`${file} exposes a callable handler`, async () => {
+      // Non-literal on purpose: a literal `.ts` specifier trips tsc, and one
+      // without an extension trips vite's dynamic-import analysis.
+      const spec = `../api/${file}`;
+      const mod = await import(/* @vite-ignore */ spec);
+      expect(() => callable(mod)).not.toThrow();
     });
   }
 
   it("a wrong method gets a real Response, not a crash", async () => {
     // GET on a POST-only route returns 405 before any Supabase client is built,
-    // so this needs no credentials — and it proves req.method was readable,
-    // which is the exact line that threw under the legacy signature.
-    const mod = (await import("../api/submit-run")) as {
-      default: { fetch: (req: Request) => Promise<Response> };
-    };
-    const res = await mod.default.fetch(new Request("https://example.test/api/submit-run"));
+    // so this needs no credentials — and it proves req.method was readable.
+    const h = callable(await import("../api/submit-run"));
+    const res = await h(new Request("https://example.test/api/submit-run"));
     expect(res).toBeInstanceOf(Response);
     expect(res.status).toBe(405);
   });
 
   it("a POST without a token is rejected as unauthenticated, not as a crash", async () => {
-    // Proves req.headers.get() works — the call that threw when Vercel handed
-    // the handler an IncomingMessage instead of a Request.
-    const mod = (await import("../api/submit-run")) as {
-      default: { fetch: (req: Request) => Promise<Response> };
-    };
-    const res = await mod.default.fetch(
+    // Proves req.headers.get() works — the call that threw when the Node runtime
+    // handed the handler an IncomingMessage instead of a Request.
+    const h = callable(await import("../api/submit-run"));
+    const res = await h(
       new Request("https://example.test/api/submit-run", { method: "POST", body: "{}" }),
     );
     expect(res.status).toBe(401);

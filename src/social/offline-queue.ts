@@ -4,11 +4,26 @@ import { authState, subscribeAuth } from "./auth";
 
 const KEY = "pflug.queue.v1";
 const MAX_QUEUE = 32;
-// A run that keeps getting HTTP-rejected (a permanent 400/403 — malformed,
-// forbidden) is poison: retrying it forever would block every run behind it.
-// Pure network failures (fetch throws / no result) are NOT counted here, so a
-// genuinely-offline device never burns attempts on a good run.
+// A run the server keeps REFUSING (a permanent 4xx — malformed, forbidden) is
+// poison: retrying it forever would block every run behind it. Pure network
+// failures (fetch throws / no result) are NOT counted, so a genuinely-offline
+// device never burns attempts on a good run.
+//
+// 5xx does not count either, and that is not a detail: a 500 means OUR server
+// broke, not that the run is bad. Counting it meant a server-side outage quietly
+// deleted players' runs six app-opens later — which is exactly what started
+// happening when every API route began answering 500. The run is fine; the
+// server has to be fixed, and then it sends.
 const MAX_ATTEMPTS = 6;
+
+/** 4xx — the server understood the run and refuses it. Retrying won't help. */
+function isPermanentReject(reason: string | undefined): boolean {
+  const m = reason && /^http_(\d{3})$/.exec(reason);
+  if (!m) return false;
+  const status = Number(m[1]);
+  // 408 and 429 are explicitly retriable, so they are not permanent.
+  return status >= 400 && status < 500 && status !== 408 && status !== 429;
+}
 
 interface Queued extends SubmitPayload {
   ts: number;
@@ -79,6 +94,7 @@ export async function flushQueued(): Promise<{ flushed: number; remaining: numbe
 
       const networkFail = threw || !result;
       const httpReject = !!result?.reason && result.reason.startsWith("http_");
+      const permanent = isPermanentReject(result?.reason);
 
       if (networkFail) {
         // Server unreachable — stop; retry on the next online/visibility tick.
@@ -87,19 +103,22 @@ export async function flushQueued(): Promise<{ flushed: number; remaining: numbe
       }
 
       if (httpReject) {
-        // Server answered with an error. Could be transient (429/500) or
-        // permanent (400/403). Count it; drop as poison past the cap so it
-        // stops blocking everything behind it, then keep draining.
-        if (idx >= 0) {
+        // Server answered with an error. Only a PERMANENT refusal (4xx) counts
+        // towards the cap: a 5xx is the server's fault and the run must survive
+        // it, however long it takes to fix. Stop either way and retry on the
+        // next online/visibility tick.
+        if (idx >= 0 && permanent) {
           const attempts = (cur[idx].attempts ?? 0) + 1;
           if (attempts >= MAX_ATTEMPTS) {
-            console.warn("[queue] dropping run after", attempts, "HTTP rejects:", result?.reason);
+            console.warn("[queue] dropping run after", attempts, "refusals:", result?.reason);
             cur.splice(idx, 1);
             write(cur);
             continue;
           }
           cur[idx] = { ...cur[idx], attempts };
           write(cur);
+        } else if (!permanent) {
+          console.warn("[queue] server error, keeping the run:", result?.reason);
         }
         break;
       }

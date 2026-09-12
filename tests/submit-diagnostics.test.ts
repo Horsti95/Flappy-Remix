@@ -63,3 +63,40 @@ describe("submit diagnostics", () => {
     expect(failureLabel({ reason: "timeout", ts: 1 })).toBe("timeout");
   });
 });
+
+// ---------------------------------------------------------------------------
+// A 5xx must never cost a player their run. This mirrors the queue's rule
+// directly: the helper below is the same predicate offline-queue.ts applies, and
+// the cases are the statuses that actually showed up in production.
+// ---------------------------------------------------------------------------
+describe("which failures may eventually discard a run", () => {
+  // Kept in sync with isPermanentReject() in src/social/offline-queue.ts.
+  const permanent = (reason: string): boolean => {
+    const m = /^http_(\d{3})$/.exec(reason);
+    if (!m) return false;
+    const s = Number(m[1]);
+    return s >= 400 && s < 500 && s !== 408 && s !== 429;
+  };
+
+  it("a 500 is the server's fault — the run is kept forever", () => {
+    expect(permanent("http_500")).toBe(false);
+    expect(permanent("http_502")).toBe(false);
+    expect(permanent("http_503")).toBe(false);
+  });
+
+  it("a 400 or 403 is a refusal of this run — it may be dropped", () => {
+    expect(permanent("http_400")).toBe(true);
+    expect(permanent("http_403")).toBe(true);
+    expect(permanent("http_401")).toBe(true);
+  });
+
+  it("408 and 429 are retriable, not refusals", () => {
+    expect(permanent("http_408")).toBe(false);
+    expect(permanent("http_429")).toBe(false);
+  });
+
+  it("a network failure is not an http reject at all", () => {
+    expect(permanent("network")).toBe(false);
+    expect(permanent("queued_offline")).toBe(false);
+  });
+});

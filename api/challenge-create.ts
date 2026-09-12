@@ -2,13 +2,25 @@ import { getAdminClient } from "./_lib/supabaseAdmin";
 import { json } from "./_lib/http";
 import { bearerJwt, resolveUserId } from "./_lib/auth";
 
-// Runtime: regional Node, NOT edge. This handler is database-bound, and the
-// database is single-region. At the edge each Supabase round trip crossed a
-// continent, so the sequential calls below cost ~200-300ms EACH for a distant
-// player. Pinned to the Supabase region via `regions` in vercel.json, the same
-// calls are intra-datacentre. The Web `Request`/`Response` signature below is
-// reached through the `default.fetch` export at the bottom of this file, which
-// is how Vercel's Node runtime recognises a Web handler.
+// Runtime: EDGE — and deliberately back on edge after two failed attempts to
+// move it.
+//
+// The move was worth trying: this handler is database-bound and the database is
+// single-region, so at the edge every Supabase round trip crosses a continent
+// (~200-300ms each for a distant player) where regional Node pinned to the
+// Supabase region would be intra-datacentre.
+//
+// Attempt 1 kept `export default async function handler(req: Request)`, which
+// edge accepts and Node does not — Node takes a default-exported FUNCTION for
+// the legacy (req, res) signature and hands it an IncomingMessage, so
+// req.headers.get() throws. Attempt 2 used `export default { fetch: handler }`,
+// the shape Vercel's changelog documents for Node web handlers. Production kept
+// answering 500 through both, and players' runs were piling up unsaved.
+//
+// So this is back to the configuration that demonstrably served this app for
+// months. The latency win is real but it is not worth guessing at in production:
+// re-attempt it on a PREVIEW deploy, confirm a run actually saves there, and
+// only then ship it.
 
 interface Body {
   source_run_id: string;
@@ -22,7 +34,9 @@ interface Body {
   creator_theme?: string | null;
 }
 
-async function handler(req: Request): Promise<Response> {
+export const config = { runtime: "edge" };
+
+export default async function handler(req: Request): Promise<Response> {
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
   const jwt = bearerJwt(req);
   if (!jwt) return json({ error: "unauthenticated" }, 401);
@@ -111,13 +125,3 @@ async function handler(req: Request): Promise<Response> {
 
   return json({ ok: true, short_id: ins.data.short_id, depth, targeted: targetUserId !== null }, 200);
 }
-
-// Vercel's Node runtime reaches a Web handler through `default.fetch`, NOT
-// through a default-exported function. A bare `export default function
-// handler(req: Request)` is taken for the LEGACY Node signature and invoked as
-// handler(req, res) with an IncomingMessage — so the first line that touches
-// req.headers.get() throws, every request 500s, and the returned Response is
-// discarded. That is exactly what happened when these routes moved off the
-// edge runtime. The edge runtime does accept a bare default function, which is
-// why nothing complained before the move.
-export default { fetch: handler };

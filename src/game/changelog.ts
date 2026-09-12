@@ -8,7 +8,7 @@
  * Bump APP_VERSION + prepend an entry when shipping notable changes.
  */
 
-export const APP_VERSION = "0.25.2";
+export const APP_VERSION = "0.25.3";
 
 export interface ChangeEntry {
   version: string;
@@ -19,6 +19,16 @@ export interface ChangeEntry {
 
 // Newest first.
 export const CHANGELOG: ChangeEntry[] = [
+  {
+    version: "0.25.3",
+    date: "2026-09-12",
+    title: "Saving: back on the setup that works",
+    notes: [
+      "💾 Saving is back on the server setup this game ran on for months. I moved it to make scores save faster and it broke twice instead — so it's reverted until the faster version is proven on a test copy first, not on you.",
+      "🛡️ Your queued runs are safe now no matter how long this takes. Before, a run could be thrown away after a few failed attempts even when the fault was entirely on the server's side. A server error now keeps the run forever; only a run the server genuinely refuses can be dropped.",
+      "🔍 Tap the “queued” badge in the menu to see exactly what the server said, with a copy button. If runs still aren't saving, that text is the fastest way to tell me why.",
+    ],
+  },
   {
     version: "0.25.2",
     date: "2026-09-12",

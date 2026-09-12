@@ -46,14 +46,14 @@ describe("pre-deploy checklist", () => {
 describe("README accuracy", () => {
   const readme = read("README.md");
 
-  it("does not claim the database-bound API runs on the edge", () => {
-    // Only og.ts / og-meta.ts are edge; everything else moved to regional
-    // Node so its Supabase queries stay in-region.
-    const edgeClaims = readme
+  it("does not claim a runtime the api files do not declare", () => {
+    // The README must not get ahead of the code. It may DISCUSS regional Node —
+    // the failed move is worth recording — but it must not assert the routes
+    // run on it while every api file declares edge.
+    const claims = readme
       .split("\n")
-      .filter((l) => /edge function/i.test(l))
-      .filter((l) => !/og\b|og-meta|@vercel\/og|crawler/i.test(l));
-    expect(edgeClaims).toEqual([]);
+      .filter((l) => /\brun on\b[^.]*\bnode\b/i.test(l));
+    expect(claims).toEqual([]);
   });
 
   it("does not hard-code a migration count", () => {
@@ -63,11 +63,13 @@ describe("README accuracy", () => {
 });
 
 describe("runtime declarations match the docs", () => {
-  it("exactly the two OG renderers are on the edge runtime", () => {
-    const edge = readdirSync(join(root, "api"))
-      .filter((f) => f.endsWith(".ts"))
-      .filter((f) => /runtime:\s*"edge"/.test(read(join("api", f))))
-      .sort();
-    expect(edge).toEqual(["og-meta.ts", "og.ts"]);
+  it("every api route declares its runtime in-file", () => {
+    // vercel.json cannot carry a `functions.runtime` of "edge" (it must be a
+    // semver-versioned package — that mistake failed a deploy), so the runtime
+    // lives in each file. All of them are edge again after the move to regional
+    // Node 500'd in production.
+    const files = readdirSync(join(root, "api")).filter((f) => f.endsWith(".ts"));
+    const undeclared = files.filter((f) => !/runtime:\s*"edge"/.test(read(join("api", f))));
+    expect(undeclared).toEqual([]);
   });
 });

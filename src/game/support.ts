@@ -62,10 +62,10 @@ export const SUPPORT_ENABLED = true;
  * main.ts for the AdSense <ins> element plus its loader, and feed the client
  * id from an env var the way the values below already are.
  *
- * Until then the default is a neutral house message — never a placeholder
- * joke. The previous default shipped the literal string "100,000 EUR to
- * advertise to his friends and family only" to every player, because
- * `enabled` defaults to true and nothing in the deploy path overrode it.
+ * Until then the default label is a deliberate in-joke placeholder, kept by
+ * the owner's choice: it reads as an obviously-fake ad slot, which is the
+ * point — it shows where the real banner will go without pretending to be
+ * real advertising. Override it per-deploy with VITE_BANNER_LABEL.
  */
 export interface BannerConfig {
   enabled: boolean;
@@ -73,11 +73,37 @@ export interface BannerConfig {
   href?: string;
 }
 
+/**
+ * Only http(s) may reach the banner's href.
+ *
+ * main.ts renders the link with escapeHtmlAttr(), which prevents breaking out
+ * of the attribute — but an href is a URL context, not a text one, and
+ * `javascript:alert(1)` passes through HTML-escaping completely unharmed and
+ * runs on click. Harmless while this was a hand-set env var; not something to
+ * leave in place now that the slot is meant to carry third-party ad URLs.
+ *
+ * Returns undefined for anything that isn't an absolute http(s) URL, which
+ * makes the banner render as plain text instead of a link.
+ */
+function safeHref(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  try {
+    const u = new URL(raw);
+    return u.protocol === "https:" || u.protocol === "http:" ? u.toString() : undefined;
+  } catch {
+    // Not an absolute URL (relative paths included) — don't guess.
+    return undefined;
+  }
+}
+
 export const BANNER: BannerConfig = {
   // Default-on so the placement stays visible on preview deploys (that is the
   // point of keeping the slot). Set VITE_BANNER_ENABLED=false to hide it.
   enabled: env.VITE_BANNER_ENABLED !== "false",
-  // Neutral and true as-written: safe to ship as-is to real players.
-  label: env.VITE_BANNER_LABEL ?? "Glide — made by one person. Thanks for playing.",
-  href: env.VITE_BANNER_HREF,
+  // Placeholder in-joke by design (see the note above) — the dashed "fake
+  // ad slot" styling in style.css is what sells it as not-real-advertising.
+  label:
+    env.VITE_BANNER_LABEL ??
+    "100,000 EUR to advertise to his friends and family only",
+  href: safeHref(env.VITE_BANNER_HREF),
 };

@@ -72,6 +72,7 @@ declare
     'leaderboard_by',
     -- src/social/profile.ts
     'public_profile',
+    'best_run_ghost',           -- added in 0036 (scoped ghost inputs)
     -- src/social/ranked.ts (season lookup)
     'current_season'
   ];
@@ -80,6 +81,7 @@ declare
   anon_rpcs constant text[] := array[
     'leaderboard_by',
     'public_profile',
+    'best_run_ghost',
     'current_season'
   ];
   fn        record;
@@ -163,7 +165,7 @@ alter default privileges in schema public revoke execute on functions from publi
 --       'inbox_incoming','inbox_outgoing','inbox_unseen_count',
 --       'inbox_mark_seen','decline_challenge',
 --       'friends_leaderboard','leaderboard_by','public_profile',
---       'current_season'
+--       'best_run_ghost','current_season'
 --     )
 --   order by 1, 3;
 --

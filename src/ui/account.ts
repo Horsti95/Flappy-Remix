@@ -1,4 +1,5 @@
-import { authState, claimUsername, createLinkCode, redeemLinkCode, signOut, subscribeAuth } from "../social/auth";
+import { authState, claimUsername, createLinkCode, redeemLinkCode, signOut, subscribeAuth,
+  signInWithEmail, signInWithGoogle, signInWithDiscord } from "../social/auth";
 import { validateUsername } from "../social/profanity";
 import { refreshGrantedShapes } from "../social/grants";
 import { levelFromTotalXp, loadTotalXp } from "../game/xp";
@@ -56,10 +57,37 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void, onVie
             ${
               linked
                 ? `<div class="text-[12px] opacity-70">✓ signed in with ${providerLabel}</div>`
-                : `<p class="text-xs opacity-70">anonymous — claim a username, then use a device link code below to keep your runs across devices.</p>`
+                : `<p class="text-xs opacity-70">This account is anonymous — it exists only in this browser's storage on this device.</p>`
             }
           </div>
         </div>
+
+        ${linked ? "" : `
+        <div class="panel-group-label">Secure this account</div>
+        <div class="rounded-2xl bg-white/5 p-3 space-y-3" data-secure>
+          <p class="text-[12px] opacity-75 leading-relaxed">
+            Right now your progress lives in this browser's storage and nowhere
+            else. Clearing site data, a browser storage cleanup, or switching
+            device loses it for good — there's no password to sign back in with.
+            Attach an email or account and it's recoverable from anywhere.
+          </p>
+          <form data-email-form class="flex gap-2 items-stretch">
+            <input data-email-input name="email" type="email" autocomplete="email" spellcheck="false"
+                   class="flex-1 min-w-0 rounded-xl bg-white/10 px-3 py-2 text-base outline-none focus:bg-white/20"
+                   placeholder="you@example.com" />
+            <button class="btn-primary shrink-0 px-4 py-2 text-sm">send link</button>
+          </form>
+          <div data-email-status class="text-[12px] min-h-[1em] opacity-75"></div>
+          <div class="flex gap-2">
+            <button data-oauth="google" class="btn-secondary flex-1 py-2 text-sm">Google</button>
+            <button data-oauth="discord" class="btn-secondary flex-1 py-2 text-sm">Discord</button>
+          </div>
+          <p class="text-[11px] opacity-50 leading-relaxed">
+            Your runs, skins and streak carry over — this upgrades the account
+            you already have, it doesn't start a new one.
+          </p>
+        </div>
+        `}
 
         <div class="panel-group-label">Sync across devices</div>
         <div class="rounded-2xl bg-white/5 p-3 space-y-3">
@@ -90,7 +118,7 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void, onVie
             <div><div class="opacity-60">level</div><div class="font-bold text-base">${levelFromTotalXp(loadTotalXp()).level}</div></div>
             <div><div class="opacity-60">games</div><div class="font-bold text-base">${s.profile?.total_games ?? 0}</div></div>
             <div><div class="opacity-60">streak</div><div class="font-bold text-base">${s.profile?.streak_days ?? 0}</div></div>
-            <div><div class="opacity-60">id</div><div class="font-mono text-[10px] truncate opacity-70">${s.user?.id?.slice(0, 8) ?? "—"}</div></div>
+            <div><div class="opacity-60">ref</div><div class="font-mono text-[10px] truncate opacity-70 select-all" data-account-ref title="Recovery reference — quote this if you ever need help finding this account">${s.user?.id?.slice(0, 8) ?? "—"}</div></div>
           </div>
         </div>
 
@@ -124,6 +152,61 @@ export function renderAccountPanel(host: HTMLElement, onClose: () => void, onVie
       </div>
     `;
     bindCloseButtons(wrap, onClose);
+
+    // ---- Secure an anonymous account ------------------------------------
+    // These paths existed in social/auth.ts from the start but were never
+    // wired to any UI, so in practice EVERY player was a permanently
+    // anonymous account whose only copy of its identity was one localStorage
+    // entry. Losing that storage lost the account with no way back.
+    //
+    // Both providers need setup on the Supabase side (email needs SMTP; OAuth
+    // needs the provider configured in Supabase AND its developer console).
+    // When that setup is missing Supabase returns a descriptive error, so we
+    // surface the real reason rather than failing silently.
+    const emailStatus = wrap.querySelector("[data-email-status]") as HTMLDivElement | null;
+    wrap.querySelector("[data-email-form]")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const input = wrap.querySelector("[data-email-input]") as HTMLInputElement | null;
+      const btn = (e.currentTarget as HTMLFormElement).querySelector("button");
+      const email = (input?.value ?? "").trim();
+      if (!email) return;
+      if (btn) btn.disabled = true;
+      if (emailStatus) emailStatus.textContent = "sending…";
+      const res = await signInWithEmail(email);
+      if (btn) btn.disabled = false;
+      if (!emailStatus) return;
+      emailStatus.textContent = res.ok
+        ? `Check ${email} — open the link on this device to finish.`
+        : `Couldn't send: ${res.reason}`;
+      emailStatus.classList.toggle("text-accent-danger", !res.ok);
+    });
+
+    wrap.querySelectorAll("[data-oauth]").forEach((el) => {
+      el.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const btn = e.currentTarget as HTMLButtonElement;
+        const which = btn.dataset.oauth;
+        btn.disabled = true;
+        const prev = btn.textContent;
+        btn.textContent = "opening…";
+        try {
+          if (which === "google") await signInWithGoogle();
+          else if (which === "discord") await signInWithDiscord();
+          // On success the browser is already navigating to the provider, so
+          // nothing after this runs. If we're still here, it didn't start.
+          if (emailStatus) {
+            emailStatus.textContent =
+              `${which} sign-in didn't open — it may not be enabled for this app yet.`;
+            emailStatus.classList.add("text-accent-danger");
+          }
+        } finally {
+          btn.disabled = false;
+          btn.textContent = prev;
+        }
+      });
+    });
+
     // Generate a device link code for this account.
     wrap.querySelector("[data-make-link]")?.addEventListener("click", async (e) => {
       e.stopPropagation();

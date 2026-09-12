@@ -14,6 +14,8 @@ Paste each into the Supabase SQL Editor in order and Run:
 | `0032_runs_hash_unique.sql` | Makes `runs.inputs_hash` UNIQUE, so duplicate-replay detection is enforced by the database rather than a raceable application check. Reports and de-duplicates any existing collisions first. |
 | `0033_atomic_counters.sql` | Atomic RPCs for profile totals/XP, ranked ELO, and promo-code uses. Removes the lost-update races. |
 | `0034_friends_symmetry_and_hygiene.sql` | Symmetric friend removal, run-cosmetic ownership trigger, link-code purge, durable feedback rate limit. |
+| `0035_account_durability.sql` | Stops `cleanup_stale_anonymous_users()` deleting an account that has content but a stale `total_games` counter. Adds `find_account_by_reference()` for support-side recovery. |
+| `0036_run_inputs_privacy.sql` | Revokes client `SELECT` on `runs.inputs` (it allowed bulk-harvesting every player's per-tick tap trace) and serves the one legitimate ghost read through `best_run_ghost()`. |
 
 Then run 0031's **step 5 verification query** — it must return zero rows.
 
@@ -55,19 +57,39 @@ If you are switching it to real Google ads, read the block comment in
 Google-certified consent CMP for EEA/UK traffic, and a CSP change. None of
 those are optional.
 
+## 4b. Enable an auth provider — the biggest remaining risk
+
+**Every account is anonymous, and an anonymous account lives only in one
+browser's `localStorage`.** Clearing site data, browser storage eviction, or a
+new phone loses it permanently — there is no credential to sign back in with.
+
+The UI to fix this now exists (Account → "Secure this account"), but it cannot
+work until you enable at least one provider in Supabase:
+
+- **Email** (most universal) — Authentication → Providers → Email, and
+  configure SMTP under Project Settings → Auth. Without SMTP, magic links
+  don't send.
+- **Google / Discord** — enable in Supabase *and* set up OAuth credentials in
+  that provider's console, with your Vercel URL as the redirect.
+
+Until then the buttons surface Supabase's real error instead of failing
+silently, but players still have no way to make an account durable. See
+[`account-durability.md`](./account-durability.md) for the full scenario table.
+
 ## 5. Verify locally
 
 ```bash
 npm run typecheck                 # clean
-npm test                          # 239 tests
+npm test                          # 252 tests
 npm run build                     # precache should be ~1.2MB, not 6.4MB
 ./scripts/test-migrations.sh      # migrations + privilege + race assertions
 ```
 
-`test-migrations.sh` spins up a throwaway Postgres, applies all 34 migrations,
-and asserts the security and concurrency invariants (including that 40 parallel
-claims on a 5-use promo code consume exactly 5). It needs a local
-`postgresql-16` install and is not wired into CI yet.
+`test-migrations.sh` spins up a throwaway Postgres, applies all 36 migrations,
+and asserts the security, privacy and concurrency invariants (including that 40
+parallel claims on a 5-use promo code consume exactly 5, and that the reaper
+spares an account with a stale counter but real runs). It needs a local
+`postgresql-16` install, and **now runs in CI** as a second job.
 
 ## 6. Smoke-test after deploying
 
@@ -84,12 +106,12 @@ supports unchanged — but verify rather than assume:
 
 ## 7. Known gaps (accepted, not fixed)
 
-- **Run inputs are world-readable.** `runs_select_all using (true)` (0001)
-  exposes the per-tick input trace, which is what makes ghost duels work and
-  also what makes replay copying possible at all. The unique canonical hash
-  (0032) means a copied replay cannot be *submitted*, but the traces are still
-  readable. This sits awkwardly with `PRIVACY.md`; tighten the policy or
-  soften the wording.
+- **Anonymous accounts depend on one browser's storage.** Fixed as far as code
+  can (see 4b) — but until a provider is enabled, a storage wipe still loses an
+  account permanently. This is the top remaining risk in the project.
+- **One run's inputs are still exposed per named player** via
+  `best_run_ghost()` — that is the "duel their best" feature working as
+  intended. Bulk harvesting is closed (0036).
 - **Device link codes share one refresh-token lineage.** When a second device
   redeems a code, the originating device's stored token is rotated away. It no
   longer silently becomes a new guest account (that was the account-loss bug),
@@ -99,8 +121,9 @@ supports unchanged — but verify rather than assume:
   races are fixed via atomic RPCs, but collapsing the whole write path into a
   single `submit_run_tx()` transaction would cut it to one. Worth doing before
   a public ranked launch.
-- **No API-level integration tests.** `test-migrations.sh` covers SQL;
-  the HTTP handlers are still only covered indirectly.
+- **No API-level integration tests.** `test-migrations.sh` covers SQL (and now
+  runs in CI); the HTTP handlers are still only covered indirectly. The
+  Playwright spec in `tests/e2e/` remains a scaffold.
 - **`pflug.*` localStorage keys and `supabase/config.toml`'s `project_id`
   deliberately keep the old name** — see `README.md`. Renaming the keys would
   wipe every existing player's local save.

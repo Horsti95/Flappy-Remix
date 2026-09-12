@@ -416,8 +416,18 @@ a:focus-visible {
   height: var(--banner-reserve);
   /* Push the text below the status bar rather than under it. */
   padding-top: var(--safe-top);
-  border-color: rgba(244, 234, 213, 0.18);
-  background: rgba(0, 0, 0, 0.35);
+  /* Dashed + hatched on purpose: the default label is a placeholder in-joke,
+     and this styling makes it read as a mock ad slot rather than as real
+     advertising. Swap both when a real sponsor/AdSense unit goes in. */
+  border-style: dashed;
+  border-color: rgba(244, 234, 213, 0.25);
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.03),
+    rgba(255, 255, 255, 0.03) 8px,
+    rgba(255, 255, 255, 0.06) 8px,
+    rgba(255, 255, 255, 0.06) 16px
+  );
 }
 
 /* Reserve the banner's space on the app shell for the whole session.

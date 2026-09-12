@@ -68,23 +68,32 @@ export async function fetchBestRunChallenge(username: string): Promise<FetchedCh
   // Usernames are stored lowercased; match case-insensitively so a display-case
   // name (e.g. from a profile card) still resolves.
   const uname = username.toLowerCase();
-  const prof = await withRetry("profile lookup", () =>
-    sb.from("profiles").select("user_id, equipped_shape").eq("username", uname).maybeSingle(),
+  // One RPC instead of a profile lookup plus a `select inputs from runs`.
+  //
+  // runs.inputs is no longer selectable by client roles (migration 0036): the
+  // old query pattern also allowed `?select=user_id,inputs&order=score.desc`,
+  // i.e. harvesting the per-tick tap trace of every player who has ever
+  // played. best_run_ghost() is SECURITY DEFINER and returns exactly one run
+  // for one named player — the duel-their-best feature — instead of opening
+  // the whole column. It also collapses two round trips into one.
+  const ghost = await withRetry("best run lookup", () =>
+    sb.rpc("best_run_ghost", { p_username: uname }),
   );
-  if (!prof) return null;
-  const p = prof as { user_id: string; equipped_shape: string | null };
-  const run = await withRetry("best run lookup", () =>
-    sb
-      .from("runs")
-      .select("seed, score, inputs, equipped_skin_id, mode, daily_date")
-      .eq("user_id", p.user_id)
-      .order("score", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-  );
-  if (!run) return null;
-  const r = run as { seed: number; score: number; inputs: InputEvent[]; equipped_skin_id: string | null; mode: string | null; daily_date: string | null };
+  const row = (Array.isArray(ghost) ? ghost[0] : ghost) as
+    | {
+        seed: number;
+        score: number;
+        inputs: InputEvent[];
+        equipped_skin_id: string | null;
+        mode: string | null;
+        daily_date: string | null;
+        equipped_shape: string | null;
+      }
+    | null
+    | undefined;
+  if (!row) return null;
+  const p = { equipped_shape: row.equipped_shape };
+  const r = row;
   if (!r.score || r.score <= 0) return null;
 
   let creator_skin: FetchedChallenge["creator_skin"] = null;

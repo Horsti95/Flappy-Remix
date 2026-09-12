@@ -21,6 +21,7 @@ import { setGateSoundLabMode } from "./game/gate-sounds";
 import { initAuth, authState, subscribeAuth } from "./social/auth";
 import { syncSessionLostNotice } from "./ui/session-lost";
 import { renderAccountPanel } from "./ui/account";
+import { syncSecureAccountNudge } from "./ui/secure-account-nudge";
 import { renderGallery } from "./ui/gallery";
 import { renderLeaderboard } from "./ui/leaderboard";
 import {
@@ -615,6 +616,13 @@ function showMenu(): void {
       inboxUnseen,
     },
   );
+  // Anonymous accounts live only in this browser's storage; warn once there's
+  // real progress at stake. Menu-only and dismissible — see ui/secure-account-nudge.
+  syncSecureAccountNudge(overlays, () => {
+    pushSubView();
+    panelOpen = true;
+    renderAccountPanel(overlays, () => showMenu(), (username) => openProfile(username));
+  });
   // Offer any pending "pick 1 of 3" milestone colour once we're on the menu.
   maybeShowColorChoice();
 }

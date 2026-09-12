@@ -27,3 +27,18 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  # The SQL half of the suite: vitest never touches the database, so migration
+  # regressions (a privilege that quietly re-opens, a race that comes back)
+  # were invisible to CI. This applies every migration to a throwaway Postgres
+  # and asserts the security + concurrency invariants.
+  migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql postgresql-client
+      - name: Apply migrations and assert invariants
+        run: sudo -E ./scripts/test-migrations.sh

@@ -46,12 +46,11 @@ for f in "$HERE"/supabase/migrations/0*.sql; do
   fi
 done
 
-# Supabase grants table DML to anon/authenticated by default and relies on RLS
-# as the gate. Mirror that, so the RPC assertions below exercise privileges the
-# same way production does.
-"${PSQL[@]}" -c "
-  grant select, insert, update, delete on all tables in schema public to anon, authenticated;
-  grant usage, select on all sequences in schema public to anon, authenticated;"
+# NOTE: the client-role table grants are set up in scripts/sql/test-harness.sql
+# via ALTER DEFAULT PRIVILEGES, BEFORE the migrations run — the way Supabase
+# actually does it. Do not re-grant them here: a blanket grant after the
+# migrations would undo any column-level revoke a migration performs (0036),
+# and the privacy assertions would pass or fail for the wrong reason.
 
 echo "==> asserting function privileges (migration 0031)"
 
@@ -68,7 +67,8 @@ leaks=$("${PSQL[@]}" -tAc "
       'add_friend_by_username','incoming_friend_requests','accept_friend_request',
       'decline_friend_request','remove_friend','inbox_incoming','inbox_outgoing',
       'inbox_unseen_count','inbox_mark_seen','decline_challenge',
-      'friends_leaderboard','leaderboard_by','public_profile','current_season')
+      'friends_leaderboard','leaderboard_by','public_profile','best_run_ghost',
+      'current_season')
   order by 1;")
 if [ -n "$leaks" ]; then
   echo "    FAIL client-executable functions leaked:"; echo "$leaks" | sed 's/^/      /'
@@ -287,6 +287,98 @@ if [ "$rating" = "1235" ] && [ "$gp" = "2" ]; then
   echo "    ok   two concurrent settlements applied both deltas (1200+10+25=1235, 2 games)"
 else
   echo "    FAIL expected rating=1235 games=2, got rating=$rating games=$gp"; fails=$((fails+1))
+fi
+
+echo "==> asserting run-input privacy (migration 0036)"
+
+# Bulk harvesting the per-tick trace must be denied for both client roles...
+for role in anon authenticated; do
+  if "${PSQL[@]}" -c "set role $role; select inputs from public.runs limit 1;" >/dev/null 2>&1; then
+    echo "    FAIL $role can still bulk-read runs.inputs"; fails=$((fails+1))
+  else
+    echo "    ok   $role denied bulk access to runs.inputs"
+  fi
+done
+
+# ...while everything leaderboards and profiles actually select stays readable.
+for role in anon authenticated; do
+  if "${PSQL[@]}" -c "set role $role; select id, user_id, seed, score, ticks, mode, daily_date, created_at, equipped_skin_id, shape from public.runs limit 1;" >/dev/null 2>&1; then
+    echo "    ok   $role can still read run scores/metadata"
+  else
+    echo "    FAIL $role lost access to run columns leaderboards need"; fails=$((fails+1))
+  fi
+done
+
+# The one legitimate ghost path still returns inputs, for one named player.
+"${PSQL[@]}" -c "
+  update public.profiles set username = 'ghosty' where user_id = '$UA';
+  insert into public.runs (user_id, seed, score, ticks, inputs, inputs_count, mode)
+    values ('$UA', 555, 99, 1200, '[{\"tick\":5,\"action\":\"flap\"}]'::jsonb, 1, 'casual');" >/dev/null 2>&1
+ghost=$("${PSQL[@]}" -tAc "set role anon; select score from public.best_run_ghost('ghosty');")
+if [ "$ghost" = "99" ]; then
+  echo "    ok   best_run_ghost still serves the duel-their-best feature"
+else
+  echo "    FAIL best_run_ghost returned '$ghost' (expected 99)"; fails=$((fails+1))
+fi
+ghostin=$("${PSQL[@]}" -tAc "set role anon; select jsonb_array_length(inputs) from public.best_run_ghost('ghosty');")
+if [ "$ghostin" = "1" ]; then
+  echo "    ok   best_run_ghost returns the inputs the ghost needs"
+else
+  echo "    FAIL best_run_ghost inputs length '$ghostin' (expected 1)"; fails=$((fails+1))
+fi
+
+echo "==> asserting account durability (migration 0035)"
+
+# An anonymous account >30d old with a STALE zero counter but real runs must
+# survive the reaper. This is the pre-0033 lost-update scenario, and the old
+# predicate would have deleted it (cascading away runs, skins and ratings).
+UC=33333333-3333-3333-3333-333333333333
+UD=44444444-4444-4444-4444-444444444444
+"${PSQL[@]}" -c "
+  insert into auth.users (id, is_anonymous, created_at)
+    values ('$UC', true, now() - interval '90 days'),
+           ('$UD', true, now() - interval '90 days')
+    on conflict (id) do nothing;
+  insert into public.profiles (user_id) values ('$UC'),('$UD')
+    on conflict (user_id) do nothing;
+  -- UC: counters say empty, but it HAS a run (the dangerous case).
+  update public.profiles set total_games = 0, xp = 0, streak_days = 0,
+                             username = null, last_play_at = null
+    where user_id in ('$UC','$UD');
+  insert into public.runs (user_id, seed, score, ticks, inputs, inputs_count, mode)
+    values ('$UC', 777, 42, 900, '[]'::jsonb, 0, 'casual');"
+
+reaped=$("${PSQL[@]}" -tAc "select public.cleanup_stale_anonymous_users('30 days');")
+
+uc_alive=$("${PSQL[@]}" -tAc "select count(*) from auth.users where id='$UC';")
+ud_alive=$("${PSQL[@]}" -tAc "select count(*) from auth.users where id='$UD';")
+
+if [ "$uc_alive" = "1" ]; then
+  echo "    ok   account with a stale zero counter but real runs SURVIVED the reaper"
+else
+  echo "    FAIL reaper deleted an account that had runs (counter was stale)"; fails=$((fails+1))
+fi
+
+# UD is genuinely empty — it should still be reaped, or the reaper is useless.
+if [ "$ud_alive" = "0" ]; then
+  echo "    ok   genuinely empty anonymous account still reaped (returned $reaped)"
+else
+  echo "    FAIL reaper left a genuinely empty account behind"; fails=$((fails+1))
+fi
+
+# Recovery lookup: finds an account by its short reference, and refuses a
+# too-short prefix (which would otherwise dump the whole table).
+found=$("${PSQL[@]}" -tAc "select count(*) from public.find_account_by_reference('33333333');")
+if [ "$found" = "1" ]; then
+  echo "    ok   find_account_by_reference locates an account by its reference"
+else
+  echo "    FAIL recovery lookup returned $found rows (expected 1)"; fails=$((fails+1))
+fi
+short=$("${PSQL[@]}" -tAc "select count(*) from public.find_account_by_reference('33');")
+if [ "$short" = "0" ]; then
+  echo "    ok   recovery lookup refuses a too-short reference"
+else
+  echo "    FAIL a 2-char reference returned $short rows"; fails=$((fails+1))
 fi
 
 echo

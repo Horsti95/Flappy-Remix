@@ -26,6 +26,8 @@ export interface DailyLandingMeta {
 
 export interface DailyLandingCallbacks {
   onPlay(): void;
+  /** Open the day's results screen — offered once attempts run out. */
+  onSeeResults?: () => void;
   /** Play a casual (non-daily) run instead — offered once attempts run out. */
   onPlayCasual?(): void;
   onClose(): void;
@@ -129,7 +131,8 @@ export function renderDailyLanding(
     <div class="px-5 pb-6">
       ${
         exhausted
-          ? `<div class="w-full rounded-2xl bg-white/10 py-4 text-center text-sm opacity-80">${meta.maxAttempts} attempts used — come back tomorrow</div>
+          ? `<button data-results class="w-full rounded-2xl bg-paper text-ink font-bold py-4 text-lg active:scale-95 transition">see your results</button>
+             <div class="mt-1.5 text-[11px] opacity-60 text-center">${meta.maxAttempts} attempts used — new daily tomorrow</div>
              <button data-casual class="mt-2 w-full text-[12px] underline opacity-60">play a casual run instead</button>`
           : `<button data-play class="w-full rounded-2xl bg-paper text-ink font-bold py-4 text-lg active:scale-95 transition"
                   style="${isSuperHard ? `box-shadow: inset 0 0 0 2px ${tierColor}` : ""}">
@@ -158,6 +161,11 @@ export function renderDailyLanding(
     e.stopPropagation();
     wrap.remove();
     cbs.onPlayCasual?.();
+  });
+  wrap.querySelector("[data-results]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    wrap.remove();
+    cbs.onSeeResults?.();
   });
 
   return () => wrap.remove();

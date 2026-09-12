@@ -21,6 +21,12 @@ import { setGateSoundLabMode } from "./game/gate-sounds";
 import { initAuth, authState, subscribeAuth } from "./social/auth";
 import { syncSessionLostNotice } from "./ui/session-lost";
 import { renderAccountPanel } from "./ui/account";
+import { renderDailyAftermath } from "./ui/daily-aftermath";
+import {
+  recordDailyAttempt,
+  dailyAttempts,
+  dailyAttemptsUsed as dailyAttemptsUsedStored,
+} from "./game/daily-history";
 import { syncSecureAccountNudge } from "./ui/secure-account-nudge";
 import { renderGallery } from "./ui/gallery";
 import { renderLeaderboard } from "./ui/leaderboard";
@@ -648,6 +654,44 @@ function maybeShowColorChoice(): void {
   });
 }
 
+/**
+ * The daily results screen, shown once the day's three attempts are spent.
+ *
+ * Deliberately not an interruption: the game-over screen still runs its full
+ * course (XP, unlocks, achievements), and this is reached from its "see your
+ * results" button or from the daily landing. Its purpose is the shareable
+ * emoji block — see game/daily-share.ts.
+ */
+function openDailyAftermath(): void {
+  if (!dailyInfo) {
+    showMenu();
+    return;
+  }
+  pushSubView();
+  panelOpen = true;
+  const twist = dailyInfo.pick.modifiers.map((m) => m.name).join(" + ") || null;
+  renderDailyAftermath(
+    overlays,
+    {
+      date: dailyInfo.date,
+      attempts: dailyAttempts(dailyInfo.date),
+      tier: dailyInfo.pick.tier,
+      twist,
+      streakDays: authState().profile?.streak_days ?? 0,
+      playsCount: dailyInfo.plays_count,
+    },
+    {
+      onClose: () => showMenu(),
+      onPlayCasual: () => startRun("casual"),
+      onOpenLeaderboard: () => {
+        pushSubView();
+        panelOpen = true;
+        renderLeaderboard(overlays, () => showMenu(), (username) => openProfile(username));
+      },
+    },
+  );
+}
+
 function openDailyLanding(): void {
   if (!dailyInfo) {
     // No daily seed available (offline / fetch race). Never silently start
@@ -681,6 +725,7 @@ function openDailyLanding(): void {
     {
       onPlay: () => startRun("daily"),
       onPlayCasual: () => startRun("casual"),
+      onSeeResults: () => openDailyAftermath(),
       onClose: () => showMenu(),
     },
   );
@@ -701,12 +746,11 @@ function recordDailyBest(date: string, score: number): void {
 // casual so they get no daily-leaderboard credit).
 const DAILY_MAX_ATTEMPTS = 3;
 
+// Delegates to the history store, which returns the greater of the recorded
+// attempt count and the legacy per-day counter — so shipping the history
+// can't hand a mid-day player extra attempts. (game/daily-history.ts)
 function dailyAttemptsUsed(date: string): number {
-  try {
-    return Number(localStorage.getItem(`pflug.dailyAttempts.${date}`) ?? "0") || 0;
-  } catch {
-    return 0;
-  }
+  return dailyAttemptsUsedStored(date);
 }
 
 function bumpDailyAttempt(date: string): void {
@@ -927,6 +971,10 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
         if (currentRunMode === "daily" && dailyInfo) {
           recordDailyBest(dailyInfo.date, score);
           bumpDailyAttempt(dailyInfo.date);
+          // Also record the individual score. The two legacy keys above only
+          // track best + count, which can't reconstruct the day — the results
+          // screen needs each attempt in order.
+          recordDailyAttempt(dailyInfo.date, score);
         }
         if (score > bestScoreSeen) {
           bestScoreSeen = score;
@@ -1034,11 +1082,21 @@ function startRun(runMode: RunMode = "casual", opts: { resume?: SavedRun } = {})
         //  - a ranked round must NOT be replayed (the round is already
         //    submitted; the server rejects a re-submit). Route back to the
         //    ranked panel, which shows the correct "play round N of 3".
+        // A spent daily routes to the RESULTS screen rather than back to the
+        // landing, which would only say "come back tomorrow". That third
+        // attempt ending is the moment the day is finished and the moment the
+        // shareable block exists, so it's where the offer belongs.
+        const dailySpent =
+          currentRunMode === "daily" &&
+          dailyInfo != null &&
+          dailyAttemptsUsed(dailyInfo.date) >= DAILY_MAX_ATTEMPTS;
         const onPlayAgain =
           currentRunMode === "ranked"
             ? () => { activeRanked = null; openRankedPanel(); }
             : currentRunMode === "daily"
-              ? () => openDailyLanding()
+              ? dailySpent
+                ? () => openDailyAftermath()
+                : () => openDailyLanding()
               : () => startRun(currentRunMode);
         renderGameOver(overlays, score, onPlayAgain, showMenu, {
           rankedRound: currentRunMode === "ranked" && activeRanked

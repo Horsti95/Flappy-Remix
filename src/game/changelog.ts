@@ -8,7 +8,7 @@
  * Bump APP_VERSION + prepend an entry when shipping notable changes.
  */
 
-export const APP_VERSION = "0.22.0";
+export const APP_VERSION = "0.23.0";
 
 export interface ChangeEntry {
   version: string;
@@ -19,6 +19,17 @@ export interface ChangeEntry {
 
 // Newest first.
 export const CHANGELOG: ChangeEntry[] = [
+  {
+    version: "0.23.0",
+    date: "2026-09-12",
+    title: "Daily results you can send to someone",
+    notes: [
+      "📊 New: when your three daily attempts are done, you get a results screen — all three scores side by side, the day's difficulty and twist, and your streak.",
+      "📋 It comes with a little emoji block you can copy and paste into any chat. It shows the shape of your day without giving away the level, so it's safe to send to someone who hasn't played yet.",
+      "🗂️ Your three daily scores are now remembered, not just your best — that's what the new screen shows. Old days are kept for two weeks and then tidied away.",
+      "🔗 The finished daily also links straight to today's leaderboard.",
+    ],
+  },
   {
     version: "0.22.0",
     date: "2026-09-12",

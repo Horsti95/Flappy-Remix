@@ -30,6 +30,20 @@
 --
 -- public_profile, leaderboard_by, best_run_ghost and current_season keep anon
 -- deliberately: they serve world-readable data and feed the OG/share renderer.
+--
+-- ONE THING `authenticated` DOES NOT MEAN. A Supabase ANONYMOUS SIGN-IN also
+-- gets the `authenticated` role (with an is_anonymous claim in the JWT); the
+-- `anon` role means "no user at all, just the publishable key". So granting to
+-- `authenticated` does NOT distinguish a registered account from a guest one.
+--
+-- That is correct for everything here: guest accounts are first-class players
+-- in this game — they claim usernames, add friends, use the inbox. Nothing is
+-- meant to be registered-only. But if a future feature ever should be, the
+-- grant is the wrong place for it: gate it inside the function on
+--
+--     (auth.jwt() ->> 'is_anonymous')::boolean is not true
+--
+-- rather than assuming `authenticated` implies registered.
 
 do $$
 declare

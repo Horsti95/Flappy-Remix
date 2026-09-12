@@ -8,6 +8,18 @@
  * the server stops persisting progress while still returning correct-looking
  * numbers to the client.
  *
+ * PREFER `supabase db push --linked` WHEN THE CLI IS LINKED. It is the tool
+ * that owns the migration ledger, and it applies exactly what is missing. Use
+ * this script when the CLI is not set up, when you want the invariant checks,
+ * or to verify a database somebody already migrated by hand.
+ *
+ * This script now READS and WRITES the same ledger
+ * (supabase_migrations.schema_migrations), so the two no longer disagree:
+ * versions already recorded there are skipped, and versions it applies are
+ * recorded. It does NOT create the ledger — if the table is absent it says so
+ * and applies anyway, because inventing a table the CLI owns is how you break
+ * the CLI.
+ *
  *   # PowerShell
  *   $env:SUPABASE_DB_URL="postgresql://postgres:PW@db.REF.supabase.co:5432/postgres"
  *   node scripts/apply-migrations.mjs
@@ -17,6 +29,8 @@
  *   --to N        last migration to apply (default: all)
  *   --dry-run     list what would run, touch nothing
  *   --verify-only skip applying, just run the checks
+ *   --force       re-apply versions the ledger already records (they are
+ *                 idempotent; useful if you suspect the ledger is wrong)
  *
  * WHY --from DEFAULTS TO 31: migrations 0001-0030 are NOT re-runnable (0001
  * does a bare `create table`), and on any project where the app has ever
@@ -44,6 +58,7 @@ const FROM = Number(val("--from", "31"));
 const TO = Number(val("--to", "9999"));
 const DRY = flag("--dry-run");
 const VERIFY_ONLY = flag("--verify-only");
+const FORCE = flag("--force");
 
 const C = {
   ok: (s) => `\x1b[32m${s}\x1b[0m`,
@@ -122,15 +137,92 @@ try {
     console.log(`  baseline present ${C.dim("(public.profiles exists)")}`);
   }
 
+  // -------------------------------------------------------------------------
+  // The Supabase CLI's migration ledger.
+  //
+  // `supabase db push` records every applied version in
+  // supabase_migrations.schema_migrations. Applying SQL directly without
+  // touching it makes the CLI's view of the database wrong — it will offer to
+  // re-apply what is already there, and a later `db push` can report a history
+  // mismatch. So read it (skip what is recorded) and write it (record what we
+  // apply).
+  //
+  // The table is NOT created here if absent. Its shape belongs to the CLI, and
+  // guessing it is how you break `db push`. Columns are detected rather than
+  // assumed, because the CLI has changed them across versions (`version` only
+  // in older releases; `version`, `name`, `statements` now).
+  // -------------------------------------------------------------------------
+  let ledger = null;
+  {
+    const { rows: [t] } = await client.query(
+      `select to_regclass('supabase_migrations.schema_migrations') is not null as present`,
+    );
+    if (t.present) {
+      const { rows: cols } = await client.query(
+        `select column_name from information_schema.columns
+          where table_schema = 'supabase_migrations'
+            and table_name = 'schema_migrations'`,
+      );
+      ledger = { columns: new Set(cols.map((c) => c.column_name)) };
+      const { rows: have } = await client.query(
+        `select version from supabase_migrations.schema_migrations order by version`,
+      );
+      ledger.applied = new Set(have.map((r) => String(r.version)));
+      console.log(
+        `  migration ledger present ${C.dim(`(${ledger.applied.size} version(s) recorded, latest ${[...ledger.applied].pop() ?? "none"})`)}`,
+      );
+    } else {
+      console.log(
+        `  ${C.warn("no migration ledger")} ${C.dim("(supabase_migrations.schema_migrations absent — CLI not used here)")}`,
+      );
+    }
+  }
+
   if (!VERIFY_ONLY) {
-    console.log(C.b(`\n=== Applying ${files.length} migration(s) ${DRY ? "(DRY RUN)" : ""} ===`));
-    for (const f of files) {
+    // A version is the leading digits of the filename, which is what the CLI
+    // stores — `0041_client_rpc_anon_lockdown.sql` is version `0041`.
+    const versionOf = (f) => f.slice(0, 4);
+    const todoFiles = files.filter((f) => {
+      if (FORCE || !ledger) return true;
+      return !ledger.applied.has(versionOf(f));
+    });
+    const skipped = files.length - todoFiles.length;
+
+    console.log(
+      C.b(`\n=== Applying ${todoFiles.length} migration(s)${skipped > 0 ? ` (${skipped} already recorded)` : ""} ${DRY ? "(DRY RUN)" : ""} ===`),
+    );
+    if (skipped > 0 && !FORCE) {
+      console.log(C.dim(`  Skipping what the ledger already records. Use --force to re-apply anyway.`));
+    }
+    if (todoFiles.length === 0) {
+      console.log(C.dim("  Nothing to do — the database is already at the newest migration."));
+    }
+
+    for (const f of todoFiles) {
       if (DRY) { console.log(`  ${C.dim("would apply")} ${f}`); continue; }
       const sql = readFileSync(join(migDir, f), "utf8");
       try {
         // One query per file => one implicit transaction => all-or-nothing.
         await client.query(sql);
-        console.log(`  ${C.ok("ok")}    ${f}`);
+
+        // Record it, so the CLI and this script agree from here on.
+        if (ledger) {
+          const cols = ["version"];
+          const vals = [versionOf(f)];
+          if (ledger.columns.has("name")) { cols.push("name"); vals.push(f.replace(/\.sql$/, "")); }
+          // `statements` is text[] and the CLI fills it with the split-up SQL.
+          // A single-element array is honest (we ran it as one statement) and
+          // keeps a NOT NULL constraint happy if one exists.
+          if (ledger.columns.has("statements")) { cols.push("statements"); vals.push([sql]); }
+          await client.query(
+            `insert into supabase_migrations.schema_migrations (${cols.join(", ")})
+             values (${cols.map((_, i) => `$${i + 1}`).join(", ")})
+             on conflict (version) do nothing`,
+            vals,
+          );
+        }
+
+        console.log(`  ${C.ok("ok")}    ${f}${ledger ? C.dim(" (recorded)") : ""}`);
         applied++;
       } catch (e) {
         console.log(`  ${C.bad("FAIL")}  ${f}`);

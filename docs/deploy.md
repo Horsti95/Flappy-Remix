@@ -152,14 +152,16 @@ They now run on regional Node, pinned next to the database:
 
 ```jsonc
 // vercel.json
-"regions": ["fra1"],                          // <- must match your Supabase region
+"regions": ["lhr1"],                          // <- must match your Supabase region (eu-west-2 = London)
 "functions": {
   "api/og.ts":      { "runtime": "edge" },    // @vercel/og needs edge
   "api/og-meta.ts": { "runtime": "edge" }     // crawler-facing, no heavy DB work
 }
 ```
 
-**Set `regions` to your own Supabase region.** Check it in the Supabase
+**Set `regions` to your own Supabase region.** This project's Supabase
+instance is in **`eu-west-2` (London)**, so `vercel.json` pins **`lhr1`**. If
+you move the database, change this with it. Check the region in the Supabase
 dashboard under Project Settings → General → Region, then map it to the nearest
 Vercel region:
 

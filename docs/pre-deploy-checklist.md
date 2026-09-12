@@ -26,7 +26,17 @@ deploy is not safe until they are done.
 
 ## 1. Apply the security migrations
 
-**One command. It applies them and then proves it worked.**
+**If the Supabase CLI is linked, use it — it owns the migration ledger:**
+
+```bash
+supabase db push --linked
+npm run migrate:verify        # then prove the invariants actually hold
+```
+
+`db push` applies exactly what is missing and records it. `migrate:verify`
+adds the 27 read-only checks that prove the effect, which `db push` does not do.
+
+**If the CLI is not set up**, or you want apply-and-verify in one step:
 
 Get the connection string from Supabase → your project → **Connect** →
 *Connection string*. Take the **direct** connection on port **5432** — not the
@@ -66,6 +76,15 @@ to 31 because 0001-0030 are **not** re-runnable (0001 does a bare
 `create table`) and are already applied on any project where the app has ever
 worked; the script refuses to continue if that baseline is missing and tells
 you to use `--from 1`.
+
+It also **reads and writes the CLI's migration ledger**
+(`supabase_migrations.schema_migrations`): versions already recorded there are
+skipped, and versions it applies are recorded, so `supabase db push` and this
+script agree afterwards instead of each thinking the other's work is missing.
+Pass `--force` to re-apply recorded versions anyway. If the ledger table is
+absent it says so and applies anyway — it deliberately does **not** create that
+table, because its shape belongs to the CLI and guessing it is how you break
+`db push`.
 
 Promo-code rotation is reported separately, under **STILL TO DO** — it is an
 owner action, not a migration, because the new codes have to be secrets.

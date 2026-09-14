@@ -10,7 +10,11 @@
  * Cosmetic only — the sim never reads any of this, so determinism is intact.
  */
 
+import { PAPER_PACKS } from "./paper-packs";
+
 const sources: Record<string, string> = {
+  "studio-meadow": "/backgrounds/studio-meadow.webp",
+  ...Object.fromEntries(PAPER_PACKS.map((p) => [p.id, `/backgrounds/${p.id}.webp`])),
   "neo-city": "/backgrounds/neo-city.png",
   "fairy-spires": "/backgrounds/fairy-spires.png",
   "stadium": "/backgrounds/stadium.png",
@@ -55,7 +59,7 @@ export function preloadBackgrounds(): void {
   // Eager-load only the always-static backdrops. The ascent stages are
   // lazy-loaded on demand (see getBackgroundImage) to save bandwidth.
   for (const id of Object.keys(sources)) {
-    if (id.startsWith("ascent-")) continue;
+    if (id.startsWith("ascent-") || id.startsWith("paper-")) continue;
     load(id);
   }
 }
@@ -70,6 +74,10 @@ export function preloadBackgroundStages(ids: string[]): void {
 
 export function hasBackgroundImage(id: string): boolean {
   return id in sources;
+}
+
+export function getBackgroundSource(id: string): string | undefined {
+  return sources[id];
 }
 
 /** The loaded image element, or null if not (yet) available. Lazily kicks off

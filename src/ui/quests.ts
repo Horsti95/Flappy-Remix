@@ -14,10 +14,11 @@ export function renderQuests(host: HTMLElement, cbs: QuestsCallbacks): () => voi
   wrap.dataset.noFlap = "true";
   wrap.className =
     "pointer-events-auto absolute inset-0 z-30 bg-black/85 backdrop-blur-sm font-display text-paper flex flex-col";
+  wrap.classList.add("studio-panel");
   wrap.innerHTML = `
     <div class="px-5 pt-5 pb-3 flex items-center justify-between">
       <div>
-        <h2 class="text-2xl font-bold font-hand">quests</h2>
+        <h2 class="text-2xl font-bold font-hand">Journey</h2>
         <div class="text-[11px] opacity-70 mt-0.5">multi-step chains that unlock content as you play.</div>
       </div>
       <button data-close class="text-sm underline opacity-70">close</button>

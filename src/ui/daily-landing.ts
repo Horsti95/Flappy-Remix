@@ -1,11 +1,9 @@
 import {
-  TIER_COLOR,
   TIER_LABEL,
   computeIntensity,
   visualEffectIntensity,
   intensityBand,
   intensityPercentLabel,
-  INTENSITY_BAND_COLOR,
   type DailyPick,
 } from "../game/daily-twist";
 
@@ -41,7 +39,7 @@ export function renderDailyLanding(
   wrap.className =
     "hangar-surface pointer-events-auto absolute inset-0 z-30 backdrop-blur-sm font-display flex flex-col";
 
-  const tierColor = TIER_COLOR[meta.pick.tier];
+  const tierColor = ({ easy: "#326447", medium: "#2c6185", hard: "#875323", super_hard: "#983d39", extreme: "#752f53" })[meta.pick.tier];
   const tierLabel = TIER_LABEL[meta.pick.tier];
   const isSuperHard = meta.pick.tier === "super_hard";
   const modifierList = meta.pick.modifiers.map((m) => m.name).join(" + ");
@@ -53,7 +51,7 @@ export function renderDailyLanding(
     (meta.glassHandicap ? 1.15 : 1) * visualEffectIntensity(meta.pick.visualEffect),
   );
   const band = intensityBand(intensity);
-  const bandColor = INTENSITY_BAND_COLOR[band];
+  const bandColor = "#805329";
 
   // Combined tier + intensity header line: one row carries the tier label, the
   // named intensity band and its percent — no separate tier chip / band chip.
@@ -105,15 +103,18 @@ export function renderDailyLanding(
     </div>`;
   const statsGrid = `
     <div class="mt-2 grid grid-cols-3 gap-2 text-center w-full max-w-[280px]">
-      ${statCell("difficulty", band, bandColor)}
+      ${statCell("intensity", band, bandColor)}
       ${statCell("daily best", bestValue)}
       ${statCell("attempts left", attemptsValue)}
     </div>`;
 
+  wrap.classList.add("studio-panel");
+  wrap.classList.add("studio-daily-screen");
+  wrap.setAttribute("aria-label", "Daily flight");
   wrap.innerHTML = `
     <div class="px-5 pt-5 pb-3 flex items-center justify-between">
       <button data-back class="text-sm underline opacity-70">back</button>
-      <div class="text-[11px] opacity-60 uppercase tracking-wider">today's daily</div>
+      <h2 class="text-[11px] opacity-60 uppercase tracking-wider">Daily flight</h2>
       <div style="width: 40px;"></div>
     </div>
     <div class="flex-1 flex flex-col items-center justify-center px-6 text-center gap-3">

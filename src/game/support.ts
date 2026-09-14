@@ -26,9 +26,8 @@ export const SUPPORT_ENABLED = true;
 
 /**
  * Non-tracking banner slot. A single static message + optional link that you
- * place yourself — no ad network, no tracking, no SDK. Default-on so the
- * placement is visible on preview deploys; set VITE_BANNER_ENABLED=false to
- * hide it, or point it at a real sponsor with the other VITE_BANNER_* vars.
+ * place yourself — no ad network, no tracking, no SDK. Opt-in only and requires
+ * an explicit label; the placeholder is not part of the Studio interface.
  */
 export interface BannerConfig {
   enabled: boolean;
@@ -37,7 +36,7 @@ export interface BannerConfig {
 }
 
 export const BANNER: BannerConfig = {
-  enabled: env.VITE_BANNER_ENABLED !== "false",
-  label: env.VITE_BANNER_LABEL ?? "100,000 EUR to advertise to his friends and family only",
+  enabled: env.VITE_BANNER_ENABLED === "true" && !!env.VITE_BANNER_LABEL?.trim(),
+  label: env.VITE_BANNER_LABEL ?? "",
   href: env.VITE_BANNER_HREF,
 };

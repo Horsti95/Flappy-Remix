@@ -13,9 +13,10 @@ export function renderLeaderboard(
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
   wrap.className = "pointer-events-auto absolute inset-0 z-30 bg-black/80 backdrop-blur-sm font-display text-paper flex flex-col";
+  wrap.classList.add("studio-panel");
   wrap.innerHTML = `
     <div class="px-5 pt-5 pb-3 flex items-center justify-between">
-      <h2 class="text-2xl font-bold font-hand">leaderboard</h2>
+      <h2 class="text-2xl font-bold font-hand">Leaderboard</h2>
       <button data-close class="text-sm underline opacity-70">close</button>
     </div>
     <div data-scopes class="px-5 grid grid-cols-2 gap-2 text-[12px]">
@@ -61,6 +62,7 @@ export function renderLeaderboard(
   const setActive = (sel: string, active: HTMLButtonElement): void => {
     wrap.querySelectorAll<HTMLButtonElement>(sel).forEach((b) => {
       const on = b === active;
+      b.setAttribute("aria-pressed", String(on));
       // Active: cream pill + dark text. Inactive: faint pill + light text.
       // (Previously inactive buttons lost text-ink but kept dark text on the
       // dark backdrop → unreadable.)
@@ -207,9 +209,9 @@ function rankBadge(rank: number): string {
 function modeChip(mode: string | null): string {
   if (!mode) return "";
   const styles: Record<string, string> = {
-    casual: "background:rgba(255,255,255,0.12);color:#e5e7eb",
-    daily: "background:rgba(245,197,66,0.20);color:#f5c542",
-    ranked: "background:rgba(124,160,255,0.20);color:#9db4ff",
+    casual: "background:#dde6d8;color:#3c6048",
+    daily: "background:#ece0bf;color:#795820",
+    ranked: "background:#dce4ed;color:#36597f",
   };
   const style = styles[mode];
   if (!style) return "";
@@ -218,7 +220,7 @@ function modeChip(mode: string | null): string {
 
 function seg(attr: "scope" | "period" | "mode", id: string, label: string, active: boolean): string {
   // Full-width segmented control: each button stretches to fill its grid cell.
-  return `<button data-${attr}="${id}" class="w-full text-center rounded-full px-2 py-1 whitespace-nowrap ${
+  return `<button data-${attr}="${id}" aria-pressed="${active}" class="w-full text-center rounded-full px-2 py-1 whitespace-nowrap ${
     active ? "bg-paper text-ink" : "bg-white/5 text-paper opacity-60"
   }">${label}</button>`;
 }

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Glide — Papierwelt & Hitbox</title>
+  <style>
+    :root { color-scheme: light; font: 16px/1.5 system-ui, sans-serif; color: #233b35; background: #f5f0e4; }
+    * { box-sizing: border-box; }
+    body { margin: 0 auto; padding: 32px 24px 64px; max-width: 1120px; }
+    h1 { font-size: clamp(28px, 5vw, 44px); line-height: 1.1; margin: 12px 0; }
+    h2 { margin: 0 0 12px; font-size: 23px; }
+    p { max-width: 78ch; }
+    .eyebrow { text-transform: uppercase; letter-spacing: .16em; font-size: 12px; }
+    .note { color: #5d6c64; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
+    section { margin-top: 36px; }
+    figure { background: #fffcf4; border: 1px solid #d5ddcf; margin: 0; padding: 18px; border-radius: 12px; }
+    figcaption { padding-top: 10px; font-weight: 600; }
+    .art img { width: 100%; height: 540px; object-fit: contain; background: #f5f0e4; }
+    canvas { width: 100%; max-width: 300px; height: auto; display: block; margin: auto; }
+    label { display: inline-flex; gap: 8px; align-items: center; margin: 8px 24px 16px 0; }
+    input[type="range"] { max-width: 130px; accent-color: #29745c; }
+    a { color: #185d48; }
+    .status { min-height: 24px; font-size: 14px; }
+    @media (max-width: 600px) { body { padding: 22px 16px; } .art img { height: 440px; } }
+  </style>
+</head>
+<body>
+  <div class="eyebrow">Glide / lokales Art-Review</div>
+  <h1>Ein Vogel aus Papier.<br>Eine Welt aus Papier.</h1>
+  <p>Die Tukan-Größe nutzt dieselbe Berechnung wie die anderen Origami-Sprites.
+    Die beiden Welt-Entwürfe sind Vergleichsbilder, keine bereits aktivierten Spiel-Themes.</p>
+  <a href="/">Zurück zum spielbaren Glide</a>
+  <p><a href="/design/paper-packs/"><strong>Neu: Acht spielbare Paper Worlds ansehen →</strong></a></p>
+
+  <section aria-labelledby="fit-title">
+    <h2 id="fit-title">Gleiche Hitbox, gleiche Größenregel</h2>
+    <p>Rot = Kollisionskreis mit Radius 14. Links jeweils Spielgröße in Weltpixeln,
+      rechts vierfach vergrößert. Jede längste Bildkante misst 35 Weltpixel.
+      Die Silhouette ist kein Kollisionsmodell: einzelne Flügel- und Schnabelspitzen stehen über.</p>
+    <label><input id="hitbox" type="checkbox" checked> Hitbox anzeigen</label>
+    <label for="tilt">Neigung <input id="tilt" type="range" min="-35" max="65" value="0"> <output id="angle">0°</output></label>
+    <div class="grid">
+      <figure><canvas id="toucan" width="300" height="190" aria-label="Tukan mit gemeinsamer Hitbox"></canvas><figcaption>Tukan · 35 × 22,5</figcaption></figure>
+      <figure><canvas id="sparrow" width="300" height="190" aria-label="Spatz mit gemeinsamer Hitbox"></canvas><figcaption>Spatz · 35 × 26,4</figcaption></figure>
+      <figure><canvas id="eagle" width="300" height="190" aria-label="Adler mit gemeinsamer Hitbox"></canvas><figcaption>Adler · 34,5 × 35</figcaption></figure>
+    </div>
+    <p class="status" id="status" role="status">Sprites werden geladen…</p>
+  </section>
+
+  <section aria-labelledby="world-title">
+    <h2 id="world-title">Zwei Entwürfe für dieselbe Papierwelt</h2>
+    <div class="grid art">
+      <figure>
+        <a href="./paper-rainforest-v1.webp"><img src="./paper-rainforest-v1.webp" alt="Heller Papierhimmel mit gefalteten Wolken und dezentem Regenwald am unteren Rand"></a>
+        <figcaption>01 / Paper Rainforest</figcaption>
+        <p class="note">Helle, ruhige Flugbahn; matte Papierschichten statt leuchtender Pixelkulisse. Die Details bleiben an den Rändern.</p>
+      </figure>
+      <figure>
+        <a href="./folded-paper-pillars-v1.webp"><img src="./folded-paper-pillars-v1.webp" alt="Zwei grüne Papiersäulen mit kantigen Falten und klarer horizontaler Fluglücke auf hellem Grund"></a>
+        <figcaption>02 / Folded Paper Columns</figcaption>
+        <p class="note">Kantige Faltflächen statt glänzender Röhren. Präsentationsbild auf hellem Grund, noch keine transparente Laufzeit-Textur.</p>
+      </figure>
+    </div>
+    <p class="note">Bei einer Umsetzung bleiben Säulenbreite, Fluglücke und Kollision unverändert.
+      Die Papierfalten gehören innerhalb der bestehenden Rechtecke. Keine Blätter oder Schatten in der Fluglücke.</p>
+    <a href="./README.md">Review, Freischaltideen und Bild-Prompts</a>
+  </section>
+  <script type="module">
+    import { preloadSprites, getTintedSprite, getSpriteContentBox } from "/src/game/sprites.ts";
+    import { getSpriteFrame } from "/src/game/sprite-layout.ts";
+    const ids = ["toucan", "sparrow", "eagle"];
+    const skin = { body: [32, 164, 92], accent: [255, 211, 48] };
+    const hitbox = document.querySelector("#hitbox");
+    const tilt = document.querySelector("#tilt");
+    function draw() {
+      document.querySelector("#angle").textContent = `${tilt.value}°`;
+      for (const id of ids) {
+        const sprite = getTintedSprite(id, skin), box = getSpriteContentBox(id);
+        if (!sprite || !box) return false;
+        const ctx = document.getElementById(id).getContext("2d");
+        ctx.clearRect(0, 0, 300, 190);
+        ctx.fillStyle = "#5d6c64";
+        ctx.font = "12px system-ui";
+        ctx.fillText("1×", 28, 27); ctx.fillText("4×", 184, 27);
+        for (const [scale, x] of [[1, 38], [4, 200]]) {
+          ctx.save(); ctx.translate(x, 105); ctx.scale(scale, scale);
+          ctx.rotate(Number(tilt.value) * Math.PI / 180);
+          const f = getSpriteFrame(sprite.width, sprite.height, box, 14);
+          ctx.drawImage(sprite, f.sx, f.sy, f.sw, f.sh, f.dx, f.dy, f.dw, f.dh);
+          if (hitbox.checked) {
+            ctx.strokeStyle = "#dd4553"; ctx.lineWidth = 1 / scale;
+            ctx.setLineDash([3 / scale, 2 / scale]);
+            ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.stroke();
+          }
+          ctx.restore();
+        }
+      }
+      return true;
+    }
+    preloadSprites();
+    const deadline = performance.now() + 10000;
+    function load() {
+      if (draw()) document.querySelector("#status").textContent = "Live-Vergleich aus den echten Sprite-Dateien und der gemeinsamen Größenberechnung. Spielstände werden nicht verändert.";
+      else if (performance.now() < deadline) requestAnimationFrame(load);
+      else document.querySelector("#status").textContent = "Sprites konnten nicht geladen werden. Bitte den lokalen Vite-Server prüfen.";
+    }
+    load(); hitbox.addEventListener("change", draw); tilt.addEventListener("input", draw);
+  </script>
+</body>
+</html>

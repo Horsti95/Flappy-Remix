@@ -1,4 +1,5 @@
 import type { ShapeId } from "../game/shapes";
+import { getPaperPackForShape } from "../game/paper-packs";
 
 /**
  * Standalone SVG inner-content for a shape, painted with the given
@@ -14,9 +15,13 @@ export function shapeSvgInner(
   body: [number, number, number],
   accent: [number, number, number],
 ): string {
+  const pack = getPaperPackForShape(shapeId);
+  if (pack) return spritePreview(pack.shapeId, body, accent, true);
   const b = `rgb(${body.join(",")})`;
   const a = `rgb(${accent.join(",")})`;
   switch (shapeId) {
+    case "studio-swift":
+      return spritePreview("studio-swift", body, accent, true);
     case "paper-plane":
       return `<polygon points="-14,6 14,-6 1,0 14,-6 -1,11" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
               <polygon points="1,0 -14,6 -1,11" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>`;
@@ -83,6 +88,8 @@ export function shapeSvgInner(
       return `<path d="M -10 12 L -10 -2 A 10 10 0 0 1 10 -2 L 10 12 L 6 8 L 2 12 L -2 8 L -6 12 Z" fill="${b}" stroke="#1a1a1a" stroke-width="0.8" stroke-linejoin="round"/>
               <ellipse cx="-4" cy="-2" rx="1.8" ry="2.4" fill="${a}"/>
               <ellipse cx="4" cy="-2" rx="1.8" ry="2.4" fill="${a}"/>`;
+    case "toucan":
+      return spritePreview("toucan", body, accent, true);
     case "crane":
       return spritePreview("crane", body);
     // Two-colour origami sprites — accent layer beneath, base on top.

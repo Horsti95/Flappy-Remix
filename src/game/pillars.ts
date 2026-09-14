@@ -1,5 +1,7 @@
 import type { AchievementStats } from "./achievements";
 import type { UnlockResult } from "./unlockables";
+import { PAPER_PACKS, type PaperPackId } from "./paper-packs";
+import { drawPaperPillars } from "./paper-pillars";
 
 /**
  * Pillar (pipe) styles — a player-pickable cosmetic axis, like shapes/themes.
@@ -11,7 +13,7 @@ import type { UnlockResult } from "./unlockables";
  * only, never the hitbox).
  */
 
-export type PillarStyleId = "solid" | "og" | "glass" | "neon" | "stone" | "stadium" | "bamboo" | "brick" | "candy" | "ice";
+export type PillarStyleId = "studio-fold" | PaperPackId | "solid" | "og" | "glass" | "neon" | "stone" | "stadium" | "bamboo" | "brick" | "candy" | "ice";
 
 export interface PillarDrawCtx {
   ctx: CanvasRenderingContext2D;
@@ -300,6 +302,22 @@ const drawIce = (p: PillarDrawCtx): void => {
 };
 
 export const PILLAR_STYLES: PillarStyle[] = [
+  { id: "studio-fold", name: "Studio folds", blurb: "Three matte paper planes. Clear edges.",
+    hardensDaily: false, unlock: () => ({ unlocked: true }), draw: (p) => {
+      drawOg(p);
+      if (p.highContrast) return;
+      const {ctx,x,pipeWidth:w,gapY,gapH,worldHeight,over}=p;
+      for (const [y,h] of [[-over,gapY+over],[gapY+gapH,worldHeight-gapY-gapH+over]]) {
+        ctx.fillStyle="rgba(255,255,255,.13)";ctx.fillRect(x,y,w*.28,h);
+        ctx.fillStyle="rgba(0,0,0,.10)";ctx.fillRect(x+w*.8,y,w*.2,h);
+      }
+      ctx.fillStyle=p.capColor;caps(p);
+    } },
+  ...PAPER_PACKS.map((pack): PillarStyle => ({
+    id: pack.id, name: pack.name, blurb: "Folded paper pillars — local art draft.",
+    hardensDaily: false, unlock: () => ({ unlocked: true }),
+    draw: (p) => drawPaperPillars(p, pack.id),
+  })),
   {
     id: "solid",
     name: "solid",
@@ -387,7 +405,7 @@ export const PILLAR_STYLES: PillarStyle[] = [
 
 const BY_ID = new Map<PillarStyleId, PillarStyle>(PILLAR_STYLES.map((s) => [s.id, s]));
 
-export const DEFAULT_PILLAR_STYLE: PillarStyleId = "solid";
+export const DEFAULT_PILLAR_STYLE: PillarStyleId = "studio-fold";
 
 export function getPillarStyle(id: PillarStyleId | string | null | undefined): PillarStyle {
   return BY_ID.get(id as PillarStyleId) ?? BY_ID.get(DEFAULT_PILLAR_STYLE)!;

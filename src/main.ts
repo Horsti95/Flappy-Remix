@@ -1,4 +1,6 @@
 import "./style.css";
+import "./studio.css";
+import { installStudioNavigation } from "./ui/studio-navigation";
 import { setupPWA } from "./pwa";
 import { DEFAULT_CONFIG } from "./game/config";
 import { applyModifiers, pickDaily } from "./game/daily-twist";
@@ -149,6 +151,8 @@ const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const pauseBtn = document.getElementById("pause-btn") as HTMLButtonElement;
 const overlays = document.getElementById("overlays") as HTMLDivElement;
 const liveRegion = document.getElementById("live-region") as HTMLDivElement;
+const disposeStudioNavigation = installStudioNavigation(overlays);
+if (import.meta.hot) import.meta.hot.dispose(disposeStudioNavigation);
 
 function announce(msg: string): void {
   if (liveRegion) liveRegion.textContent = msg;
@@ -226,7 +230,12 @@ const renderer = new Renderer(canvas, DEFAULT_CONFIG, {
   ghostOpacity: settings.ghostOpacity,
   showHitbox: settings.showHitbox,
 });
-const observer = new ResizeObserver(() => renderer.resize());
+const observer = new ResizeObserver(() => {
+  renderer.resize();
+  // Changing the canvas dimensions clears its pixels, even after a run ends.
+  // Repaint the existing state without stepping the simulation.
+  if (loop) renderer.draw(loop.sim, 0, loop.ghost);
+});
 observer.observe(stage);
 
 const input = new InputController(stage, {
@@ -494,6 +503,7 @@ function showMenu(): void {
       onTraining: () => { pushSubView(); startRun("training"); },
       onPlayDaily: () => withCasualGuard(() => { pushSubView(); openDailyLanding(); }, "go to daily"),
       onToggleSetting,
+      onSettingsOpenChange: (open) => { panelOpen = open; },
       onSetGhostOpacity: (pct: number) => {
         settings.ghostOpacity = pct;
         saveSettings(settings);
@@ -783,7 +793,8 @@ function onToggleSetting(key: keyof Settings): void {
   const btn = overlays.querySelector<HTMLButtonElement>(`[data-toggle="${k}"]`);
   if (btn) {
     const on = settings[k];
-    btn.className = `rounded-xl border ${on ? "bg-paper/20 border-paper" : "border-paper/30"} py-2 px-1`;
+    btn.className = `studio-toggle rounded-xl border ${on ? "bg-paper/20 border-paper" : "border-paper/30"} py-2 px-1`;
+    btn.setAttribute("aria-pressed", String(on));
     const statusDiv = btn.querySelector<HTMLElement>("div:last-child");
     if (statusDiv) statusDiv.textContent = on ? "on" : "off";
   } else {

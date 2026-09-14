@@ -8,6 +8,7 @@ import { getParticles, tickParticles } from "./flap-fx";
 import { auraColor, getEquippedAura } from "./aura";
 import { type VisualEffect } from "./daily-twist";
 import { preloadSprites, hasSprite, getTintedSprite, getSpriteContentBox } from "./sprites";
+import { getSpriteFrame } from "./sprite-layout";
 import { getPillarStyle, type PillarStyleId } from "./pillars";
 import { getPillarColor } from "./pillar-colors";
 import { zoneFor } from "./depth-zones";
@@ -682,15 +683,10 @@ export class Renderer {
       // diameter. This keeps origami close to the hitbox and consistent across
       // shapes (a wide eagle and a compact heart now read the same size).
       // Cosmetic only — the hitbox itself is unchanged.
-      const SPRITE_FOOTPRINT = 1.25; // longer side ≈ 1.25 × hitbox diameter
       const box = getSpriteContentBox(spriteId);
       if (box) {
-        const sw = tinted.width, sh = tinted.height;
-        const sx = box.x * sw, sy = box.y * sh, srcW = box.w * sw, srcH = box.h * sh;
-        const target = r * 2 * SPRITE_FOOTPRINT;
-        const s = target / Math.max(srcW, srcH);
-        const dw = srcW * s, dh = srcH * s;
-        ctx.drawImage(tinted, sx, sy, srcW, srcH, -dw / 2, -dh / 2, dw, dh);
+        const f = getSpriteFrame(tinted.width, tinted.height, box, r);
+        ctx.drawImage(tinted, f.sx, f.sy, f.sw, f.sh, f.dx, f.dy, f.dw, f.dh);
       } else {
         // Content box not ready yet — fall back to a fixed box near the hitbox.
         const size = r * 2.6;

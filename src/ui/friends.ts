@@ -11,9 +11,10 @@ export function renderFriendsPanel(host: HTMLElement, onClose: () => void, cbs?:
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
   wrap.className = "pointer-events-auto absolute inset-0 z-30 bg-black/80 backdrop-blur-sm font-display text-paper flex flex-col";
+  wrap.classList.add("studio-panel");
   wrap.innerHTML = `
     <div class="px-5 pt-5 pb-3 flex items-center justify-between">
-      <h2 class="text-2xl font-bold font-hand">friends</h2>
+      <h2 class="text-2xl font-bold font-hand">Friends</h2>
       <button data-close class="text-sm underline opacity-70">close</button>
     </div>
     <div class="px-5">

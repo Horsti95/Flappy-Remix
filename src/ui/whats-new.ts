@@ -25,6 +25,7 @@ export function renderWhatsNew(host: HTMLElement, entries: ChangeEntry[], onClos
     )
     .join("");
 
+  wrap.classList.add("studio-panel");
   wrap.innerHTML = `
     <div class="w-full max-w-sm rounded-3xl bg-gradient-to-b from-white/10 to-white/5 border border-white/10 p-5 max-h-[80vh] overflow-y-auto">
       <div class="text-lg font-bold">✨ what's new</div>

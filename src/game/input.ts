@@ -20,9 +20,11 @@ export class InputController {
       this.cbs.onFlap();
     };
     this.onKey = (e) => {
-      if (e.repeat) return;
+      if (e.repeat || e.defaultPrevented) return;
       const active = document.activeElement;
-      if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || (active as HTMLElement).isContentEditable)) return;
+      // Native controls own Space / arrows while focused. Otherwise keyboard
+      // activation of a menu button becomes a flap and its click is cancelled.
+      if (active && (active.closest('button,a[href],input,textarea,select,[role="button"],[role="slider"]') || (active as HTMLElement).isContentEditable)) return;
       if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW") {
         e.preventDefault();
         this.cbs.onFlap();

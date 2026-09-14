@@ -1,4 +1,5 @@
 import { type SkinColors } from "./skin";
+import { PAPER_PACKS } from "./paper-packs";
 
 /**
  * Image-sprite pipeline (one- and two-colour).
@@ -34,6 +35,9 @@ interface SpriteEntry {
  * companion exists and the shape should render as a two-colour sprite.
  */
 const SPRITE_DEFS: Record<string, { accent: boolean }> = {
+  "studio-swift": { accent: true },
+  ...Object.fromEntries(PAPER_PACKS.map((p) => [p.shapeId, { accent: true }])),
+  toucan: { accent: true },
   crane: { accent: false },
   swan: { accent: true },
   swan2: { accent: true },
@@ -92,8 +96,8 @@ export function hasSprite(id: string): boolean {
  *  every sprite to the same on-screen footprint regardless of how much
  *  transparent padding the art carries — so a wide eagle and a compact heart
  *  read the same size and sit ≈ the collision circle. Cached per id (depends
- *  only on the silhouette, not the tint colours). The base layer's outlines
- *  surround any punched accent hole, so its alpha bbox is the full silhouette. */
+ *  only on the silhouette, not the tint colours). Both layers contribute to
+ *  the silhouette, including borderless accent-only beaks / wing tips. */
 const contentBoxCache = new Map<string, { x: number; y: number; w: number; h: number } | null>();
 export function getSpriteContentBox(
   id: string,
@@ -109,6 +113,13 @@ export function getSpriteContentBox(
   c.height = h;
   const cx = c.getContext("2d");
   if (!cx) return null;
+  // A borderless paper sprite can have an accent-only beak outside the base.
+  // Measure both aligned layers so the shared crop never clips that silhouette.
+  if (hasAccentLayer(id)) {
+    const accent = sprites.get(`${id}:accent`);
+    if (!accent?.loaded) return null;
+    cx.drawImage(accent.img, 0, 0, w, h);
+  }
   cx.drawImage(base.img, 0, 0, w, h);
   let minX = w, minY = h, maxX = 0, maxY = 0, any = false;
   const { data } = cx.getImageData(0, 0, w, h);

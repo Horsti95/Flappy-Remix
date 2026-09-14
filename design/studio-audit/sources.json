@@ -1,0 +1,14 @@
+[
+  {
+    "kind": "background",
+    "id": "studio-meadow",
+    "prompt": "Use case: stylized-concept. Asset: final full-bleed 9:16 portrait background for Glide, a paper-origami arcade game. Establish a coherent PAPER STUDIO art direction: an elegant flat side-view cut-paper landscape made of 4 to 6 broad matte cardstock shapes. No black outlines. Soft tiny contact shadows only, consistent upper-left light. Very fine almost invisible paper grain, crisp simple silhouette edges. Warm ivory #f5f1e7 sky occupies top 75 percent, extremely quiet center flight lane. Bottom 25 percent: rolling sage-green paper hills #78958a, a single small distant forest grouping at each lower edge in muted teal #315c50, tiny cream sun high right with no glow. Broad folded triangles within the hills, no dense tiny trees, buildings, props or architecture. The palette is warm ivory, dusty sage, muted teal, small sand and terracotta accents; calm but not faded. Optical flatness like a premium folded-paper picture book, NOT a photoreal diorama or angular low-poly 3D scene. No text, birds, pillars, watermarks, interface, borders or card mockups. Usable in actual gameplay. Opaque background.",
+    "source": "C:\\Users\\DerHo\\.codex\\generated_images\\01a06c6d-3448-7b93-aab6-eb67b6d97577\\exec-3027b132-4759-455a-b495-af6c634e5e4a.png"
+  },
+  {
+    "kind": "sprite",
+    "id": "studio-swift",
+    "prompt": "Use case: stylized-concept. Asset: one finished playable bird sprite for Glide PAPER STUDIO. Single compact folded-paper swift facing RIGHT, floating without a ground plane on a genuinely transparent background, full subject centered with plenty of transparent padding. Exact shared direction: flat side-view origami with only 5 to 7 broad matte cardstock polygons, softly lit upper left, small restrained fold shadows, almost invisible fine paper grain, crisp silhouette. NO black outlines, NO pencil strokes, NO hatch marks, NO 3D diorama bevels or glossy reflections. Rounded-compact body built of angular folds, small pointed beak, one short swept triangular wing, short tucked tail, no extended legs. Silhouette width about 1.3 times height so it fits near a circular game hitbox. Tiny dark eye allowed. Palette for tinting pipeline: neutral light-gray body and wing, dark-gray shaded fold, ONE warm orange #ed985a folded chest/accent panel. No beige background, no checkerboard, no cast floor shadow, no extra birds, no badges, no text. Clean production-ready cutout, readable at 35 pixels wide, premium graphic paper picture-book character. Square output.",
+    "source": "C:\\Users\\DerHo\\.codex\\generated_images\\01a06c6d-3448-7b93-aab6-eb67b6d97577\\exec-46ed7e89-da2c-41c5-81f1-743e13bc58d0.png"
+  }
+]

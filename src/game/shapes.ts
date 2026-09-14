@@ -1,6 +1,9 @@
 import { rgbCss, type SkinColors } from "./skin";
 import type { AchievementStats } from "./achievements";
 import type { UnlockResult } from "./unlockables";
+import { SPRITE_FOOTPRINT } from "./sprite-layout";
+import { PAPER_PACKS, type PaperPackShapeId } from "./paper-packs";
+import { drawPaperPackShape } from "./paper-pack-shapes";
 
 /**
  * Shape registry.
@@ -16,6 +19,8 @@ import type { UnlockResult } from "./unlockables";
  */
 
 export type ShapeId =
+  | "studio-swift"
+  | PaperPackShapeId
   | "paper-plane"
   | "paper-plane-v2"
   | "pixel-bird"
@@ -30,6 +35,7 @@ export type ShapeId =
   | "leaf"
   | "lightning"
   | "ghost"
+  | "toucan"
   | "crane"
   | "fable"
   | "submarine"
@@ -471,6 +477,19 @@ function drawToucanFallback(ctx: CanvasRenderingContext2D, r: number, skin: Skin
   ctx.fill();
 }
 
+/** The old shared fallback spans [-1.15r, 1.5r]. Centre and size only the
+ * new toucan's fallback to the same visual footprint as its bitmap. Other
+ * existing birds retain their own fallback rendering. Collision is untouched.
+ */
+function drawPlaytestToucanFallback(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
+  ctx.save();
+  const scale = (2 * SPRITE_FOOTPRINT) / 2.65;
+  ctx.scale(scale, scale);
+  ctx.translate(-0.175 * r, 0);
+  drawToucanFallback(ctx, r, skin, highContrast);
+  ctx.restore();
+}
+
 // Submarine — a rounded hull (body) with a conning tower + porthole (accent),
 // nose to the right. Polygon-drawn, fully tintable; no sprite needed.
 function drawSubmarine(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, highContrast: boolean): void {
@@ -758,6 +777,15 @@ function drawFable(ctx: CanvasRenderingContext2D, r: number, skin: SkinColors, h
 }
 
 export const SHAPES: ShapeMeta[] = [
+  { id: "studio-swift", name: "Paper swift", category: "paper", sprite: "studio-swift",
+    blurb: "Paper Studio — a quieter kind of flight.", unlock: () => ({ unlocked: true }),
+    draw: (ctx, r, skin, hc) => drawPaperPackShape("pack-puffin", ctx, r, skin, hc) },
+  ...PAPER_PACKS.map((pack): ShapeMeta => ({
+    id: pack.shapeId, name: pack.shapeName, category: pack.category,
+    sprite: pack.shapeId, blurb: `${pack.name} — local art draft.`,
+    unlock: () => ({ unlocked: true }),
+    draw: (ctx, r, skin, hc) => drawPaperPackShape(pack.shapeId, ctx, r, skin, hc),
+  })),
   {
     id: "paper-plane",
     name: "paper plane",
@@ -909,9 +937,16 @@ export const SHAPES: ShapeMeta[] = [
     }),
     draw: drawGhost,
   },
-  // NOTE: "toucan" shape removed for now — its source art has a baked
-  // light-blue background (not transparent), so the tint filled the whole
-  // square. On hold until we have a clean grayscale/transparent toucan.
+  {
+    id: "toucan",
+    name: "origami toucan",
+    category: "paper",
+    sprite: "toucan",
+    blurb: "a little piece of Brazil — try it with the Brazil colours.",
+    // Available immediately for the Brazil sprite playtest.
+    unlock: () => ({ unlocked: true }),
+    draw: drawPlaytestToucanFallback,
+  },
   {
     id: "crane",
     name: "origami crane",
@@ -1095,7 +1130,7 @@ export const SHAPES: ShapeMeta[] = [
 
 const BY_ID = new Map<ShapeId, ShapeMeta>(SHAPES.map((s) => [s.id, s]));
 
-export const DEFAULT_SHAPE_ID: ShapeId = "paper-plane";
+export const DEFAULT_SHAPE_ID: ShapeId = "studio-swift";
 
 export function getShape(id: ShapeId | string | null | undefined): ShapeMeta {
   if (!id) return BY_ID.get(DEFAULT_SHAPE_ID)!;

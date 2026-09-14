@@ -23,8 +23,8 @@ export default defineConfig({
         name: "Glide",
         short_name: "Glide",
         description: "Daily flap-through-gaps. Same seed for the world, every day.",
-        theme_color: "#87ceeb",
-        background_color: "#87ceeb",
+        theme_color: "#f5f1e7",
+        background_color: "#f5f1e7",
         display: "standalone",
         orientation: "portrait",
         scope: "/",
@@ -36,7 +36,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2,ttf}"],
+        globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2,ttf}", "backgrounds/paper-*.webp", "backgrounds/studio-*.webp"],
         // Never answer these navigations from the precached index.html:
         // /run/:id is rewritten server-side (vercel.json) to the OG/meta
         // handler that boots a challenge — for installed-PWA users the SW

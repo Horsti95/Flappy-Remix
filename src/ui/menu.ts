@@ -1,15 +1,16 @@
 import { type Settings } from "../game/settings";
 import { RARITY_COLOR, type Rarity } from "../game/rarity";
-import { TIER_COLOR, TIER_LABEL, type Tier } from "../game/daily-twist";
+import type { Tier } from "../game/daily-twist";
 import { playUnlockSound, triggerUnlockHaptic } from "../game/sfx";
 import { DEFAULT_SHAPE_ID, type ShapeId } from "../game/shapes";
 import { DEFAULT_SKIN, type SkinColors } from "../game/skin";
-import { getTheme, DEFAULT_THEME_ID, type ThemeId } from "../game/themes";
+import type { ThemeId } from "../game/themes";
 import { shapeSvgInner } from "./shape-svg";
 import { SUPPORT_ENABLED, SUPPORT_URL } from "../game/support";
 import { APP_VERSION } from "../game/changelog";
 import { getShowEquippedInMenu, setShowEquippedInMenu } from "../game/menu-prefs";
-import { levelFromTotalXp, loadTotalXp, type RunXpResult } from "../game/xp";
+import type { RunXpResult } from "../game/xp";
+import { studioHome } from "./studio-home";
 import { loadAchievementStats } from "../game/achievements";
 import { type NextUnlockHint } from "../game/next-unlock";
 import { feedbackFormHtml, bindFeedbackForm } from "./feedback-form";
@@ -29,6 +30,7 @@ export interface MenuCallbacks {
   onOpenRanked(): void;
   onOpenInbox(): void;
   onOpenQuests(): void;
+  onSettingsOpenChange?(open: boolean): void;
 }
 
 export interface MenuMeta {
@@ -59,99 +61,13 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   host.innerHTML = "";
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
-  // Theme-tinted backdrop: pull the equipped theme's sky gradient
-  // into a CSS variable so the menu reads as the same world the
-  // player is about to fly in.
-  const showEquipped = meta.showEquippedInMenu !== false;
-  const theme = getTheme(showEquipped ? (meta.equippedTheme ?? DEFAULT_THEME_ID) : DEFAULT_THEME_ID);
-  const skyTop = theme.colors.skyTop;
-  const skyBottom = theme.colors.skyBottom;
-  wrap.className = "pointer-events-auto absolute inset-0 z-10 flex flex-col items-center justify-center text-center font-display menu-bg-paper backdrop-blur-sm text-paper";
-  wrap.style.setProperty("--menu-sky-top", skyTop);
-  wrap.style.setProperty("--menu-sky-bottom", skyBottom);
-  const dailyLine = meta.daily
-    ? `${formatPlays(meta.daily.playsCount)} played today`
-    : "world plays the same level today";
-  const tierChip = meta.daily
-    ? `<span class="inline-block rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider" style="background:${TIER_COLOR[meta.daily.tier]}22;color:${TIER_COLOR[meta.daily.tier]}">${TIER_LABEL[meta.daily.tier]}</span>`
-    : "";
-  const modifierLine = meta.daily && meta.daily.modifierNames.length > 0
-    ? `<div class="mt-1 text-[11px] opacity-70 truncate">${meta.daily.modifierNames.map(escapeHtml).join(" + ")}</div>`
-    : "";
-  const levelBadge = `<span class="mr-1.5 inline-flex items-center text-[10px] font-bold bg-ink/15 rounded-full px-2 py-0.5">LV ${levelFromTotalXp(loadTotalXp()).level}</span>`;
-  const streakBadge = meta.streakDays > 0
-    ? `<span class="ml-2 inline-flex items-center gap-1 text-[11px] font-bold bg-orange-500/25 text-orange-700 rounded-full px-2.5 py-0.5">🔥 ${meta.streakDays}</span>`
-    : "";
-  const offlineBadge = meta.online === false
-    ? `<div class="absolute top-3 left-1/2 -translate-x-1/2 text-[10px] rounded-full px-2 py-0.5 bg-orange-400/30 text-paper">offline${meta.pendingSubmissions ? ` · ${meta.pendingSubmissions} queued` : ""}</div>`
-    : meta.pendingSubmissions
-      ? `<div class="absolute top-3 left-1/2 -translate-x-1/2 text-[10px] rounded-full px-2 py-0.5 bg-paper/15">${meta.pendingSubmissions} queued</div>`
-      : "";
-
+  wrap.className = "studio-home pointer-events-auto absolute inset-0 z-10";
   wrap.innerHTML = `
-    ${offlineBadge}
-    <button data-settings class="absolute top-3 left-3 paper-chip text-[16px] leading-none active:scale-95 transition" aria-label="Settings">⚙</button>
-    <button data-account class="absolute top-3 right-3 paper-chip active:scale-95 transition">${levelBadge}${escapeHtml(meta.accountLabel)}${streakBadge}</button>
-    <div data-menu-content class="px-6 max-w-sm w-full">
-      <div class="relative h-16 mb-2">
-        <svg viewBox="-20 -20 40 40" data-menu-mascot class="menu-mascot absolute left-1/2 -translate-x-1/2 w-16 h-16">
-          ${shapeSvgInner(
-            showEquipped ? (meta.equippedShape ?? DEFAULT_SHAPE_ID) : DEFAULT_SHAPE_ID,
-            showEquipped && meta.equippedSkin ? meta.equippedSkin.body : DEFAULT_SKIN.body,
-            showEquipped && meta.equippedSkin ? meta.equippedSkin.accent : DEFAULT_SKIN.accent,
-          )}
-        </svg>
-      </div>
-      <h1 class="menu-title text-6xl font-bold tracking-tight">Glide</h1>
-      <p class="mt-2 text-[11px] italic opacity-60">guide the paper plane through the gaps</p>
-
-      <div class="mt-6 grid grid-cols-2 gap-3">
-        <button data-action="play" class="paper-note font-hand font-bold py-5 text-2xl active:scale-95 transition">
-          Play
-        </button>
-        <button data-action="daily" class="paper-note py-3 px-4 text-left active:scale-95 transition">
-          <div class="text-[10px] uppercase tracking-wider opacity-65 flex items-center gap-1.5">
-            <span class="font-hand text-[12px] font-bold normal-case tracking-normal">Daily</span>${tierChip}
-          </div>
-          <div class="text-sm leading-tight mt-0.5 font-hand font-bold">${modifierLine ? meta.daily!.modifierBlurbs.map(escapeHtml).join(" + ") : "same seed worldwide"}</div>
-          <div class="text-[9px] opacity-55 mt-1">${dailyLine}</div>
-        </button>
-      </div>
-
-      <div class="mt-3 grid grid-cols-2 gap-2">
-        <button data-action="ranked" class="paper-note font-hand font-bold py-3 text-base active:scale-95 transition">
-          Ranked
-        </button>
-        <button data-action="inbox" class="relative paper-note font-hand font-bold py-3 text-base active:scale-95 transition">
-          Challenges
-          ${meta.inboxUnseen && meta.inboxUnseen > 0
-            ? `<span class="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center">${meta.inboxUnseen > 9 ? "9+" : meta.inboxUnseen}</span>`
-            : ""}
-        </button>
-      </div>
-
-      <div class="mt-3 grid grid-cols-3 gap-1.5">
-        <button data-action="friends" class="paper-note font-hand font-bold py-2.5 text-[12px] active:scale-95 transition">
-          Friends
-        </button>
-        <button data-action="leaderboard" class="paper-note font-hand font-bold py-2.5 text-[12px] active:scale-95 transition">
-          Board
-        </button>
-        <button data-action="skins" class="paper-note font-hand font-bold py-2.5 text-[12px] active:scale-95 transition">
-          Gallery
-        </button>
-      </div>
-      <button data-action="training" class="block mx-auto mt-3 text-[11px] opacity-60 hover:opacity-90 transition-opacity underline">🪶 practice mode (untracked)</button>
-      ${
-        SUPPORT_ENABLED
-          ? `<a href="${escapeHtml(SUPPORT_URL)}" target="_blank" rel="noopener noreferrer" data-support class="block mt-4 text-center text-[11px] opacity-50 hover:opacity-90 transition-opacity">☕ buy me a coffee</a>`
-          : ""
-      }
-    </div>
+    ${studioHome(meta)}
     <div data-settings-panel class="hidden absolute inset-0 z-20 flex flex-col justify-end pointer-events-auto">
       <div class="bg-black/40 absolute inset-0" data-settings-backdrop></div>
-      <div class="hangar-surface relative rounded-t-3xl px-5 py-6 pb-10 max-h-[85vh] overflow-y-auto border-t-2 border-paper/25">
-        <h2 class="font-hand text-2xl font-bold mb-3">Settings</h2>
+      <div class="hangar-surface studio-settings relative rounded-t-3xl px-5 py-6 pb-10 max-h-[85vh] overflow-y-auto border-t-2 border-paper/25" role="dialog" aria-modal="true" aria-label="Settings">
+        <div class="studio-panel-heading"><h2>Settings</h2><button data-settings-close class="studio-back-button">Done</button></div>
 
         <div class="panel-group-label">Audio &amp; feel</div>
         <div class="grid grid-cols-2 gap-2 text-[11px]">
@@ -171,7 +87,7 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
           ${toggle("showHitbox", "Show hitbox", settings.showHitbox)}
         </div>
         <label class="panel-row mt-2 rounded-2xl bg-white/5 cursor-pointer">
-          <span class="opacity-90">Show my plane + sky in the menu</span>
+          <span class="opacity-90">Preview my aircraft and world</span>
           <input type="checkbox" data-show-equipped ${getShowEquippedInMenu() ? "checked" : ""} class="w-5 h-5 accent-paper" />
         </label>
 
@@ -215,17 +131,21 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   `;
   host.appendChild(wrap);
   bindFeedbackForm(wrap);
+  let launching = false;
   const flyOutThenPlay = (action: () => void): void => {
+    if (launching) return;
+    launching = true;
     const mascot = wrap.querySelector("[data-menu-mascot]");
     const content = wrap.querySelector("[data-menu-content]");
-    if (!mascot || !content || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+    if (!mascot || !content || settings.reducedMotion || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
       action();
       return;
     }
     mascot.classList.remove("menu-mascot");
     mascot.classList.add("menu-mascot-flyout");
     content.classList.add("menu-content-fade");
-    window.setTimeout(action, 380);
+    wrap.inert = true;
+    window.setTimeout(() => { if (wrap.isConnected) action(); }, 380);
   };
   wrap.querySelector('[data-action="play"]')?.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -247,6 +167,12 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
     e.stopPropagation();
     cbs.onOpenSkins();
   });
+  wrap.querySelector('[data-action="customize"]')?.addEventListener("click", (e) => {
+    e.stopPropagation(); cbs.onOpenSkins();
+  });
+  wrap.querySelector('[data-action="quests"]')?.addEventListener("click", (e) => {
+    e.stopPropagation(); cbs.onOpenQuests();
+  });
   wrap.querySelector('[data-action="leaderboard"]')?.addEventListener("click", (e) => {
     e.stopPropagation();
     cbs.onOpenLeaderboard();
@@ -265,11 +191,24 @@ export function renderMenu(host: HTMLElement, settings: Settings, cbs: MenuCallb
   });
   wrap.querySelector("[data-settings]")?.addEventListener("click", (e) => {
     e.stopPropagation();
+    cbs.onSettingsOpenChange?.(true);
+    wrap.querySelectorAll<HTMLElement>(".studio-topbar,[data-menu-content],.studio-bottom-nav").forEach(el => { el.inert = true; });
     wrap.querySelector("[data-settings-panel]")?.classList.remove("hidden");
+    wrap.querySelector<HTMLButtonElement>("[data-settings-close]")?.focus();
+  });
+  wrap.querySelector("[data-settings-close]")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    cbs.onSettingsOpenChange?.(false);
+    wrap.querySelector("[data-settings-panel]")?.classList.add("hidden");
+    wrap.querySelectorAll<HTMLElement>(".studio-topbar,[data-menu-content],.studio-bottom-nav").forEach(el => { el.inert = false; });
+    wrap.querySelector<HTMLButtonElement>("[data-settings]")?.focus();
   });
   wrap.querySelector("[data-settings-backdrop]")?.addEventListener("click", (e) => {
     e.stopPropagation();
+    cbs.onSettingsOpenChange?.(false);
     wrap.querySelector("[data-settings-panel]")?.classList.add("hidden");
+    wrap.querySelectorAll<HTMLElement>(".studio-topbar,[data-menu-content],.studio-bottom-nav").forEach(el => { el.inert = false; });
+    wrap.querySelector<HTMLButtonElement>("[data-settings]")?.focus();
   });
   wrap.querySelectorAll<HTMLButtonElement>("[data-toggle]").forEach((btn) => {
     btn.addEventListener("click", (e) => {
@@ -316,14 +255,9 @@ function escapeHtml(s: string): string {
 }
 
 
-function formatPlays(n: number): string {
-  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
-  return String(n);
-}
-
 function toggle(key: keyof Settings, label: string, on: boolean): string {
   return `
-    <button data-toggle="${key}" class="rounded-xl border ${on ? "bg-paper/20 border-paper" : "border-paper/30"} py-2 px-1">
+    <button data-toggle="${key}" aria-pressed="${on}" class="studio-toggle rounded-xl border ${on ? "bg-paper/20 border-paper" : "border-paper/30"} py-2 px-1">
       <div class="opacity-70">${label}</div>
       <div class="mt-1 font-bold">${on ? "on" : "off"}</div>
     </button>
@@ -337,9 +271,9 @@ export function renderPauseOverlay(host: HTMLElement, onResume: () => void, onQu
   wrap.className = "pointer-events-auto absolute inset-0 z-10 flex items-center justify-center bg-black/55 backdrop-blur-sm text-paper font-display";
   wrap.innerHTML = `
     <div class="paper-note px-8 py-7 text-center flex flex-col items-center">
-      <div class="text-3xl font-bold font-hand">paused</div>
+      <div class="studio-eyebrow">TAKE A BREATHER</div><div class="text-3xl font-bold font-hand">Flight paused</div>
       <button data-resume class="btn mt-6 py-3 px-10 text-base bg-ink text-paper font-bold">resume</button>
-      <button data-quit class="mt-3 text-xs underline opacity-60">quit run</button>
+      <button data-quit class="mt-3 text-xs underline opacity-60">Back to home</button>
     </div>
   `;
   host.appendChild(wrap);
@@ -467,7 +401,7 @@ function renderGameOverInner(
   // The result is a solid CARD, not a transparent wash: it has to read
   // instantly over any equipped background, and the accent strip / score
   // pick up the player's skin colours so the screen feels like THEIRS.
-  wrap.className = "pointer-events-auto absolute inset-x-0 bottom-0 z-10 px-4 pb-5 pt-10 bg-gradient-to-t from-black/60 to-transparent text-paper font-display";
+  wrap.className = "studio-results pointer-events-auto absolute inset-x-0 bottom-0 z-10 px-4 pb-5 pt-10 bg-gradient-to-t from-black/60 to-transparent text-paper font-display";
   const cardSkin = extra?.skin ?? DEFAULT_SKIN;
   const accentCss = pickReadableAccent(cardSkin);
   const stripCss = `linear-gradient(90deg, rgb(${cardSkin.body.join(",")}), rgb(${cardSkin.accent.join(",")}))`;

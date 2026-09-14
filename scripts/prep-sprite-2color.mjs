@@ -33,6 +33,8 @@
  *
  * Usage:
  *   node scripts/prep-sprite-2color.mjs <input.png> <outdir> <name>
+ *     Add --alpha for generated art with real transparency. Its alpha is
+ *     preserved, including edge antialiasing, without background removal.
  *   node scripts/prep-sprite-2color.mjs --all [outdir=public/sprites]
  *     (process all design/uploads/1781*.png with the built-in subject names)
  *
@@ -42,6 +44,7 @@
 import sharp from "sharp";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const SIZE = 256;
 
@@ -75,6 +78,26 @@ async function loadRGB(input) {
     .resize(inner, inner, { fit: "contain", background: { r: 255, g: 255, b: 255 } })
     .extend({ top: PAD, bottom: PAD, left: PAD, right: PAD, background: { r: 255, g: 255, b: 255 } })
     .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  return { data, width: info.width, height: info.height, channels: info.channels };
+}
+
+/** Generated transparent art already has the correct cutout. Keep its alpha. */
+async function loadRGBA(input) {
+  const source = sharp(input);
+  const meta = await source.metadata();
+  const stats = await source.stats();
+  if (!meta.hasAlpha || stats.channels[3]?.min !== 0) {
+    throw new Error("--alpha requires a PNG with a genuinely transparent background");
+  }
+  const inner = SIZE - PAD * 2;
+  const { data, info } = await source
+    .ensureAlpha()
+    .trim({ threshold: 10 })
+    .resize(inner, inner, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .extend({ top: PAD, bottom: PAD, left: PAD, right: PAD,
+      background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .raw()
     .toBuffer({ resolveWithObject: true });
   return { data, width: info.width, height: info.height, channels: info.channels };
@@ -137,9 +160,9 @@ function classify(r, g, b) {
 }
 
 /** Build the two layers for one upload and write them to outdir/<name>{,-accent}.png. */
-export async function prep(input, outdir, name) {
-  const { data, width, height, channels } = await loadRGB(input);
-  const bg = bgMask(data, width, height, channels);
+export async function prep(input, outdir, name, { preserveAlpha = false } = {}) {
+  const { data, width, height, channels } = await (preserveAlpha ? loadRGBA(input) : loadRGB(input));
+  const bg = preserveAlpha ? null : bgMask(data, width, height, channels);
 
   // RGBA output buffers.
   const base = Buffer.alloc(width * height * 4, 0);
@@ -148,22 +171,26 @@ export async function prep(input, outdir, name) {
   for (let p = 0; p < width * height; p++) {
     const i = p * channels; // input stride (RGB after removeAlpha)
     const o = p * 4; // output stride (RGBA)
-    if (bg[p]) continue; // transparent in both layers
+    if (bg?.[p]) continue; // transparent in both layers
+    const alpha = preserveAlpha ? data[i + 3] : 255;
+    if (alpha === 0) continue;
     const r = data[i], g = data[i + 1], b = data[i + 2];
     const lum = lumOf(r, g, b);
-    const gray = Math.round(lum * 255);
     const kind = classify(r, g, b);
+    // Remove the warm accent key without dimming the final skin colour.
+    const gray = preserveAlpha && kind === "accent"
+      ? Math.max(r, g, b) : Math.round(lum * 255);
 
     if (kind === "accent") {
       // Accent layer carries the luminance; base punches a hole here so the
       // accent shows through from beneath.
       accent[o] = accent[o + 1] = accent[o + 2] = gray;
-      accent[o + 3] = 255;
+      accent[o + 3] = alpha;
       // base stays transparent (the hole)
     } else {
       // outline + body live on the base layer as luminance.
       base[o] = base[o + 1] = base[o + 2] = gray;
-      base[o + 3] = 255;
+      base[o + 3] = alpha;
     }
   }
 
@@ -187,7 +214,7 @@ export async function prep(input, outdir, name) {
         base[o] = accent[o];
         base[o + 1] = accent[o + 1];
         base[o + 2] = accent[o + 2];
-        base[o + 3] = 255;
+        base[o + 3] = accent[o + 3];
       }
     }
   }
@@ -227,13 +254,13 @@ async function batch(outdir) {
   console.log(`\nbatch done: ${files.length} subjects → ${outdir}`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   const [, , a1, a2, a3] = process.argv;
   if (a1 === "--all") {
     // node scripts/prep-sprite-2color.mjs --all [outdir=public/sprites]
     await batch(a2 ?? "public/sprites");
   } else if (a1 && a2 && a3) {
-    await prep(a1, a2, a3);
+    await prep(a1, a2, a3, { preserveAlpha: process.argv.includes("--alpha") });
   } else {
     console.error(
       "usage:\n  prep-sprite-2color.mjs <input.png> <outdir> <name>\n  prep-sprite-2color.mjs --all [outdir=public/sprites]",

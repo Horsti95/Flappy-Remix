@@ -14,8 +14,11 @@
 
 import type { AchievementStats } from "./achievements";
 import type { UnlockResult } from "./unlockables";
+import { PAPER_PACKS, type PaperPackId } from "./paper-packs";
 
 export type ThemeId =
+  | "studio-meadow"
+  | PaperPackId
   | "sunny"
   | "cloudy"
   | "sunset"
@@ -148,6 +151,17 @@ const SKYLINE_D: CityBuilding[] = [
 ];
 
 export const THEMES: Theme[] = [
+  { id: "studio-meadow", name: "Paper Meadow", blurb: "Paper Studio — broad folds, open sky.",
+    backgroundImage: "studio-meadow", colors: { skyTop: "#f5f1e7", skyBottom: "#cbd5c6",
+      pipeBody: "#6d8979", pipeCap: "#d8c9a4", highContrast: HC_DEFAULT },
+    unlock: () => ({ unlocked: true }) },
+  ...PAPER_PACKS.map((pack): Theme => ({
+    id: pack.id, name: pack.name, blurb: "Folded paper world — local art draft.",
+    backgroundImage: pack.id,
+    colors: { skyTop: pack.skyTop, skyBottom: pack.skyBottom,
+      pipeBody: pack.pipeBody, pipeCap: pack.pipeCap, highContrast: HC_DEFAULT },
+    unlock: () => ({ unlocked: true }),
+  })),
   {
     id: "sunny",
     name: "sunny",
@@ -427,7 +441,7 @@ export const THEMES: Theme[] = [
 
 const BY_ID = new Map<ThemeId, Theme>(THEMES.map((t) => [t.id, t]));
 
-export const DEFAULT_THEME_ID: ThemeId = "sunny";
+export const DEFAULT_THEME_ID: ThemeId = "studio-meadow";
 
 export function getTheme(id: ThemeId | string | null | undefined): Theme {
   if (!id) return BY_ID.get(DEFAULT_THEME_ID)!;

@@ -6,6 +6,7 @@ import {
   listUnlockedShapeIds,
 } from "../src/game/shapes";
 import type { AchievementStats } from "../src/game/achievements";
+import { PAPER_PACKS } from "../src/game/paper-packs";
 
 const ZERO: AchievementStats = {
   totalGames: 0, bestScore: 0, totalScore: 0, streakDays: 0, bestScoreDaily: 0,
@@ -27,9 +28,9 @@ describe("shape registry", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("a fresh player sees only the default shape", () => {
+  it("a fresh player can equip the default shape and the toucan playtest", () => {
     const unlocked = listUnlockedShapeIds(ZERO);
-    expect(new Set(unlocked)).toEqual(new Set([DEFAULT_SHAPE_ID]));
+    expect(new Set(unlocked)).toEqual(new Set([DEFAULT_SHAPE_ID, "paper-plane", "toucan", ...PAPER_PACKS.map(p => p.shapeId)]));
   });
 
   it("origami sprites have real unlocks (not free at minute one)", () => {

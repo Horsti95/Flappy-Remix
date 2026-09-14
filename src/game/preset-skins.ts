@@ -2,6 +2,7 @@ import type { AchievementStats } from "./achievements";
 import { isEventGranted } from "./events";
 import { CHOICE_PRESETS, isChoicePicked, pickedRandomChoicePresets, randomChoicePreset } from "./color-choices";
 import type { UnlockResult } from "./unlockables";
+import { PAPER_PACKS } from "./paper-packs";
 
 type RGB = [number, number, number];
 
@@ -27,6 +28,14 @@ export interface PresetSkin {
 }
 
 export const PRESET_SKINS: PresetSkin[] = [
+  { id: "preset-studio", name: "Sage & clay", body: [221,229,212], accent: [214,145,106], unlock: () => ({unlocked:true}) },
+  ...PAPER_PACKS.map((pack): PresetSkin => ({
+    id: pack.presetId, name: pack.name,
+    body: [...pack.body], accent: [...pack.accent],
+    unlock: () => ({ unlocked: true }),
+  })),
+  { id: "preset-brazil", name: "Brazil", body: [32, 164, 92], accent: [255, 211, 48],
+    unlock: () => ({ unlocked: true }) },
   { id: "preset-crimson", name: "crimson", body: [220, 38, 38], accent: [60, 10, 10],
     unlock: (s) => ({ unlocked: s.totalGames >= 8, hint: "play 8 games" }) },
   { id: "preset-ocean", name: "ocean", body: [14, 165, 233], accent: [8, 47, 73],

@@ -6,6 +6,8 @@ import { unlockProgress } from "../game/unlockables";
 import { tierForUnlock, tierRank, TIER_COLOR, TIER_LABEL, type Tier } from "../game/tiers";
 import { RARITY_COLOR, rarityRank } from "../game/rarity";
 import { SHAPES, type ShapeId, type ShapeMeta } from "../game/shapes";
+import { getPaperPackForShape } from "../game/paper-packs";
+import { getBackgroundSource } from "../game/backgrounds";
 import { soccerBallSvg } from "./shape-svg";
 import { DEFAULT_SKIN } from "../game/skin";
 import {
@@ -89,14 +91,14 @@ export function renderGallery(
   const wrap = document.createElement("div");
   wrap.dataset.noFlap = "true";
   wrap.className =
-    "hangar-surface pointer-events-auto absolute inset-0 z-30 backdrop-blur-sm font-display flex flex-col";
+    "studio-panel studio-collection hangar-surface pointer-events-auto absolute inset-0 z-30 font-display flex flex-col";
   // Unified collection progress across shapes + themes + palettes +
   // achievement colors (one registry — see game/unlockables.ts).
   const collection = unlockProgress();
   wrap.innerHTML = `
     <div class="px-5 pt-5 pb-2 flex items-baseline justify-between">
-      <h2 class="text-xl font-bold font-hand">Hangar <span class="text-[11px] font-normal opacity-50 ml-1 tabular-nums font-display">${collection.unlocked}/${collection.total}</span></h2>
-      <button data-close class="text-sm underline opacity-70">close</button>
+      <h2 class="text-xl font-bold font-hand">Collection <span class="text-[11px] font-normal opacity-50 ml-1 tabular-nums font-display">${collection.unlocked}/${collection.total}</span></h2>
+      <button data-close class="text-sm underline opacity-70">Done</button>
     </div>
     <div data-hero class="px-4 pb-1"></div>
     <div data-loadout class="flex items-end gap-1 px-3 pt-3"></div>
@@ -193,6 +195,7 @@ export function renderGallery(
       const btn = document.createElement("button");
       btn.dataset.noFlap = "true";
       const isActive = activeTab === tab;
+      btn.setAttribute("aria-pressed", String(isActive));
       btn.className = `paper-tab flex flex-col items-center gap-1 ${isActive ? "is-active" : ""}`;
       const preview = document.createElement("div");
       preview.className = `w-full aspect-square rounded-md flex items-center justify-center overflow-hidden relative ${
@@ -224,16 +227,16 @@ export function renderGallery(
     // 1) Shape — drawn in the currently-equipped colours, so this box is a true
     //    mini of what you fly with (shape + skin combined).
     const { body, accent } = resolveEquippedColors();
-    addBox("shape", "shapes", shapeSvgWithColors(currentEquipped.shapeId, body, accent));
+    addBox("Aircraft", "shapes", shapeSvgWithColors(currentEquipped.shapeId, body, accent));
 
     // 2) Colors — diagonal body/accent split swatch.
     const colorDiv = document.createElement("div");
     colorDiv.style.cssText = `width:100%;height:100%;background:linear-gradient(135deg,rgb(${body.join(",")}) 55%,rgb(${accent.join(",")}) 55%)`;
-    addBox("colors", "skins", colorDiv);
+    addBox("Palettes", "skins", colorDiv);
 
     // 3) Effects — a drawn spark/sparkle (matches the in-game flap FX) rather
     //    than a stock emoji.
-    addBox("effects", "effects", sparkIcon());
+    addBox("Effects", "effects", sparkIcon());
 
     // 4) World — sky gradient + pipe stubs, matching the mini preview in the
     //    backgrounds tab so the box reads as the actual world at a glance.
@@ -246,7 +249,7 @@ export function renderGallery(
     botPipe.style.cssText = `position:absolute;left:20%;right:20%;bottom:0;height:36%;border-radius:2px 2px 0 0;background:${theme.colors.pipeBody}`;
     worldEl.appendChild(topPipe);
     worldEl.appendChild(botPipe);
-    addBox("world", "backgrounds", worldEl);
+    addBox("Worlds", "backgrounds", worldEl);
 
     // 5) Pillar — the equipped style rendered in its equipped colour, over a
     //    sky-tinted plate so the pillars read as a scene (not floating shapes).
@@ -267,15 +270,15 @@ export function renderGallery(
       pcx.fillRect(0, 0, 44, 44);
       pillarStyle.draw({ ctx: pcx, x: 22, gapY: 18, gapH: 10, worldHeight: 44, pipeWidth: 14, over: 0, bodyColor: pillarBodyColor, capColor: pillarCapColor, highContrast: false });
     }
-    addBox("pillar", "pillars", pillarCv);
+    addBox("Pillars", "pillars", pillarCv);
 
     // 6) Goals — a circular progress ring instead of plain "n / n".
     const aStats = loadAchievementStats();
     const goalsDone = ACHIEVEMENTS.filter((a) => a.check(aStats)).length;
-    addBox("goals", "quests", progressRing(goalsDone, ACHIEVEMENTS.length));
+    addBox("Goals", "quests", progressRing(goalsDone, ACHIEVEMENTS.length));
 
     // 7) Badges — a drawn medal rather than a stock emoji.
-    addBox("badges", "badges", medalIcon());
+    addBox("Badges", "badges", medalIcon());
   }
   renderLoadout();
 
@@ -662,7 +665,7 @@ export function renderGallery(
     body.appendChild(headerLabel("your skins — earned & minted (saved to your account)"));
     body.appendChild(ownedGrid);
     ownedGrid.appendChild(
-      defaultSkinCard(currentEquipped.skinId === null, currentEquipped.shapeId, () => {
+      defaultSkinCard(currentEquipped.skinId === null && !currentEquipped.presetId && !currentEquipped.achColorId, currentEquipped.shapeId, () => {
         currentEquipped.skinId = null;
         currentEquipped.presetId = null;
         currentEquipped.achColorId = null;
@@ -688,8 +691,8 @@ export function renderGallery(
     );
     for (const row of deduped) {
       ownedGrid.appendChild(
-        skinCard(row, row.id === currentEquipped.skinId, currentEquipped.shapeId, () => {
-          const newId = row.id === currentEquipped.skinId ? null : row.id;
+        skinCard(row, row.id === currentEquipped.skinId && !currentEquipped.presetId && !currentEquipped.achColorId, currentEquipped.shapeId, () => {
+          const newId = row.id === currentEquipped.skinId && !currentEquipped.presetId && !currentEquipped.achColorId ? null : row.id;
           currentEquipped.skinId = newId;
           currentEquipped.presetId = null;
           currentEquipped.achColorId = null;
@@ -905,9 +908,13 @@ function shapeSvgWithColors(
   body: [number, number, number],
   accent: [number, number, number],
 ): string {
+  const pack = getPaperPackForShape(shapeId);
+  if (pack) return spriteSwatch(pack.shapeId, body, accent, true);
   const b = `rgb(${body.join(",")})`;
   const a = `rgb(${accent.join(",")})`;
   switch (shapeId) {
+    case "studio-swift":
+      return spriteSwatch("studio-swift", body, accent, true);
     case "paper-plane":
       return svg(
         `<polygon points="-14,6 14,-6 1,0 14,-6 -1,11" fill="${b}" stroke="#1a1a1a" stroke-width="0.8"/>
@@ -1037,6 +1044,8 @@ function shapeSvgWithColors(
          <circle cx="-5" cy="-2" r="1.4" fill="#1a1a1a"/>
          <circle cx="5" cy="-2" r="1.4" fill="#1a1a1a"/>`,
       );
+    case "toucan":
+      return spriteSwatch("toucan", body, accent, true);
     case "crane":
       return spriteSwatch("crane", body);
     // Two-colour origami sprites — accent layer beneath, base on top.
@@ -1073,6 +1082,8 @@ function shapeSvgWithColors(
          <polygon points="-3,-6 -1,-11 3,-11 4,-6" fill="${a}" stroke="#1a1a1a" stroke-width="0.8"/>
          <circle cx="5" cy="0" r="2.2" fill="#1a1a1a"/>`,
       );
+    default:
+      return spriteSwatch(shapeId, body, accent, true);
   }
 }
 
@@ -1203,14 +1214,14 @@ function themeCard(theme: Theme, equipped: boolean, stats: AchievementStats, onT
   // Locked backgrounds read as unavailable: desaturate + dim the sky preview,
   // matching the greyed-out shape / colour cards.
   const lockDim = state.unlocked ? "" : "filter:grayscale(0.95);opacity:0.55;";
+  const art = theme.backgroundImage && getBackgroundSource(theme.backgroundImage);
   el.innerHTML = `
     <div class="w-full aspect-square rounded-xl overflow-hidden relative" style="${lockDim}background: linear-gradient(180deg, ${c.skyTop} 0%, ${c.skyBottom} 100%)">
+      ${art ? `<img src="${art}" alt="" loading="lazy" class="absolute inset-0 w-full h-full object-cover" />` : ""}
       ${c.horizonBand ? `
         <div class="absolute left-0 right-0" style="top:${(c.horizonBand.topY/640)*100}%;bottom:0;background:linear-gradient(180deg,${c.horizonBand.topColor} 0%,${c.horizonBand.bottomColor} 100%)"></div>
         ${c.horizonBand.second ? `<div class="absolute left-0 right-0" style="top:${(c.horizonBand.second.topY/640)*100}%;bottom:0;background:linear-gradient(180deg,${c.horizonBand.second.topColor} 0%,${c.horizonBand.second.bottomColor} 100%)"></div>` : ""}
       ` : ""}
-      <div class="absolute left-3 right-3 top-3 h-8 rounded" style="background:${c.pipeBody}"></div>
-      <div class="absolute left-3 right-3 bottom-3 h-12 rounded" style="background:${c.pipeBody}"></div>
       ${c.fogIntensity ? `<div class="absolute inset-0" style="background: radial-gradient(circle at 45% 55%, transparent 25%, rgba(205,214,221,${c.fogIntensity}) 80%)"></div>` : ""}
     </div>
     <div class="font-bold font-hand text-[13px] flex items-center gap-1">${escapeHtml(theme.name)}${hasZones(theme.id) || theme.backgroundStages ? `<span class="text-[8px] uppercase tracking-wider rounded px-1 py-0.5" style="background:#a855f733;color:#7c3aed">interactive</span>` : ""}</div>
